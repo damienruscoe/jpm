@@ -12,12 +12,12 @@ public:
     using pointer = const std::string_view *;
     using reference = const std::string_view &;
 
-    Iterator(const char *curr, const char *end) : curr_(curr), end_(end) {
+    Iterator(const char *curr, const char *end) : m_curr(curr), m_end(end) {
       find_next();
     }
 
-    reference operator*() const { return current_line_; }
-    pointer operator->() const { return &current_line_; }
+    reference operator*() const { return m_current_line; }
+    pointer operator->() const { return &m_current_line; }
 
     Iterator &operator++() {
       find_next();
@@ -25,59 +25,59 @@ public:
     }
 
     bool operator==(const Iterator &other) const {
-      return is_end_ == other.is_end_ && (is_end_ || curr_ == other.curr_);
+      return m_is_end == other.m_is_end && (m_is_end || m_curr == other.m_curr);
     }
     bool operator!=(const Iterator &other) const { return !(*this == other); }
 
   private:
     void find_next() {
-      if (curr_ >= end_) {
-        is_end_ = true;
+      if (m_curr >= m_end) {
+        m_is_end = true;
         return;
       }
 
-      const char *line_end = curr_;
-      while (line_end < end_ && *line_end != '\n' && *line_end != '\r') {
+      const char *line_end = m_curr;
+      while (line_end < m_end && *line_end != '\n' && *line_end != '\r') {
         line_end++;
       }
 
-      current_line_ = std::string_view(curr_, line_end - curr_);
+      m_current_line = std::string_view(m_curr, line_end - m_curr);
 
-      if (line_end < end_) {
+      if (line_end < m_end) {
         if (*line_end == '\r') {
           line_end++;
-          if (line_end < end_ && *line_end == '\n')
+          if (line_end < m_end && *line_end == '\n')
             line_end++;
         } else {
           line_end++;
         }
       }
-      curr_ = line_end;
+      m_curr = line_end;
     }
 
-    const char *curr_;
-    const char *end_;
-    std::string_view current_line_;
-    bool is_end_ = false;
+    const char *m_curr;
+    const char *m_end;
+    std::string_view m_current_line;
+    bool m_is_end = false;
 
     friend class LineView;
   };
 
-  explicit LineView(const char *data, size_t size) : data_(data), size_(size) {}
+  explicit LineView(const char *data, size_t size) : m_data(data), m_size(size) {}
 
   Iterator begin() const {
-    if (!data_)
+    if (!m_data)
       return end();
-    return Iterator(data_, data_ + size_);
+    return Iterator(m_data, m_data + m_size);
   }
 
   Iterator end() const {
-    Iterator it(data_ + size_, data_ + size_);
-    it.is_end_ = true;
+    Iterator it(m_data + m_size, m_data + m_size);
+    it.m_is_end = true;
     return it;
   }
 
 private:
-  const char *data_;
-  size_t size_;
+  const char *m_data;
+  size_t m_size;
 };

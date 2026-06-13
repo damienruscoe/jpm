@@ -11,7 +11,7 @@ public:
   size_t size() const;
 
 private:
-  int fd_ = -1;
-  const char *data_ = nullptr;
-  size_t size_ = 0;
+  int m_fd = -1;
+  const char *m_data = nullptr;
+  size_t m_size = 0;
 };

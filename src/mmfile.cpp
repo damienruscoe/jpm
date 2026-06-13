@@ -6,34 +6,34 @@
 #include <unistd.h>
 
 MappedFile::MappedFile(const std::string &filename) {
-  fd_ = open(filename.c_str(), O_RDONLY);
-  if (fd_ == -1)
+  m_fd = open(filename.c_str(), O_RDONLY);
+  if (m_fd == -1)
     return;
 
   struct stat st;
-  if (fstat(fd_, &st) == -1) {
-    close(fd_);
-    fd_ = -1;
+  if (fstat(m_fd, &st) == -1) {
+    close(m_fd);
+    m_fd = -1;
     return;
   }
 
-  size_ = st.st_size;
-  data_ = static_cast<const char *>(
-      mmap(nullptr, size_, PROT_READ, MAP_PRIVATE, fd_, 0));
-  if (data_ == MAP_FAILED) {
-    data_ = nullptr;
-    close(fd_);
-    fd_ = -1;
+  m_size = st.st_size;
+  m_data = static_cast<const char *>(
+      mmap(nullptr, m_size, PROT_READ, MAP_PRIVATE, m_fd, 0));
+  if (m_data == MAP_FAILED) {
+    m_data = nullptr;
+    close(m_fd);
+    m_fd = -1;
   }
 }
 
 MappedFile::~MappedFile() {
-  if (data_)
-    munmap(const_cast<char *>(data_), size_);
-  if (fd_ != -1)
-    close(fd_);
+  if (m_data)
+    munmap(const_cast<char *>(m_data), m_size);
+  if (m_fd != -1)
+    close(m_fd);
 }
 
-const char *MappedFile::data() const { return data_; }
+const char *MappedFile::data() const { return m_data; }
 
-size_t MappedFile::size() const { return size_; }
+size_t MappedFile::size() const { return m_size; }

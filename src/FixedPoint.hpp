@@ -12,8 +12,8 @@
  */
 class FixedPoint {
 public:
-  FixedPoint() : raw_value(0) {}
-  explicit FixedPoint(int64_t raw) : raw_value(raw) {}
+  FixedPoint() : m_raw_value(0) {}
+  explicit FixedPoint(int64_t raw) : m_raw_value(raw) {}
 
   static FixedPoint Parse(std::string_view str) {
     if (str.empty())
@@ -52,9 +52,9 @@ public:
     }
   }
 
-  int64_t GetRaw() const { return raw_value; }
-  double ToDouble() const { return static_cast<double>(raw_value) / 10000.0; }
+  int64_t GetRaw() const { return m_raw_value; }
+  double ToDouble() const { return static_cast<double>(m_raw_value) / 10000.0; }
 
 private:
-  int64_t raw_value;
+  int64_t m_raw_value;
 };
