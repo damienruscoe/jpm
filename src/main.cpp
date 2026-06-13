@@ -22,11 +22,11 @@ int main() {
     return 1;
   }
 
-  Parser parser(file.data(), file.size());
+  LineView lines(file.data(), file.size());
 
   std::cout << "--- Starting Parser Test ---" << std::endl;
   int count = 0;
-  for (const auto &line : parser) {
+  for (const auto &line : lines) {
     if (auto msg = parse_line(line)) {
       print_message(*msg);
       count++;

@@ -117,7 +117,7 @@ std::optional<Message> parse_line(std::string_view line) {
 /**
  * @brief Lazy line iterator that iterates over a memory-mapped file.
  */
-class Parser {
+class LineView {
 public:
   class Iterator {
   public:
@@ -165,10 +165,10 @@ public:
     std::string_view current_line_;
     bool is_end_ = false;
 
-    friend class Parser;
+    friend class LineView;
   };
 
-  explicit Parser(const char *data, size_t size) : data_(data), size_(size) {}
+  explicit LineView(const char *data, size_t size) : data_(data), size_(size) {}
 
   Iterator begin() const {
     if (!data_)
