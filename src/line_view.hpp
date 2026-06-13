@@ -37,12 +37,21 @@ public:
       }
 
       const char *line_end = curr_;
-      while (line_end < end_ && *line_end != '\n') {
+      while (line_end < end_ && *line_end != '\n' && *line_end != '\r') {
         line_end++;
       }
 
       current_line_ = std::string_view(curr_, line_end - curr_);
-      curr_ = (line_end < end_) ? line_end + 1 : end_;
+      
+      if (line_end < end_) {
+        if (*line_end == '\r') {
+          line_end++;
+          if (line_end < end_ && *line_end == '\n') line_end++;
+        } else {
+          line_end++;
+        }
+      }
+      curr_ = line_end;
     }
 
     const char *curr_;

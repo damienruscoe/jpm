@@ -55,63 +55,50 @@ std::optional<Message> parse_line(std::string_view line) {
   auto [side_str, rest4] = split(rest3, ',');
   auto [qty_str, price_str] = split(rest4, ',');
 
-  if (price_str.empty() && !qty_str.empty() &&
-      rest4.find(',') == std::string_view::npos) {
-    // This handles the case where we might have missing columns
-    // The split logic above is simple; let's refine it or check counts.
-  }
-
   auto error = [](std::string_view preamble, std::string_view message) {
     std::cerr << "Error: " << preamble << ": " << message << std::endl;
     return std::nullopt;
   };
 
-  // Basic validation of column presence
+  // Basic validation of column presence and extra columns
   if (ticker_str.empty() || type_str.empty() || id_str.empty() ||
       side_str.empty() || qty_str.empty() || price_str.empty()) {
     return error("Invalid message format (missing columns)", line);
+  }
+  if (price_str.find(',') != std::string_view::npos) {
+    return error("Too many columns", line);
   }
 
   Message msg;
 
   // 1. Ticker
-  if (auto [ptr, ec] = std::from_chars(ticker_str.data(),
-                                       ticker_str.data() + ticker_str.size(),
-                                       msg.exchange_ticker);
-      ec != std::errc{}) {
+  if (auto [ptr, ec] = std::from_chars(ticker_str.data(), ticker_str.data() + ticker_str.size(), msg.exchange_ticker);
+      ec != std::errc{} || ptr != ticker_str.data() + ticker_str.size()) {
     return error("Invalid ticker", ticker_str);
   }
 
   // 2. Type
-  if (type_str == "N")
-    msg.type = RequestType::New;
-  else if (type_str == "C")
-    msg.type = RequestType::Cancel;
-  else if (type_str == "A")
-    msg.type = RequestType::Amend;
-  else {
-    return error("Invalid request type", type_str);
-  }
+  if (type_str == "N") msg.type = RequestType::New;
+  else if (type_str == "C") msg.type = RequestType::Cancel;
+  else if (type_str == "A") msg.type = RequestType::Amend;
+  else return error("Invalid request type", type_str);
 
   // 3. Order ID
-  if (id_str.size() > 10) {
-    return error("Order ID too long", id_str);
+  if (id_str.size() > 10) return error("Order ID too long", id_str);
+  for (char c : id_str) {
+    if (!std::isalnum(static_cast<unsigned char>(c)) && c != '-')
+      return error("Invalid character in order ID", id_str);
   }
   msg.order_id = id_str;
 
   // 4. Side
-  if (side_str == "B")
-    msg.side = Side::Buy;
-  else if (side_str == "S")
-    msg.side = Side::Sell;
-  else {
-    return error("Invalid side", side_str);
-  }
+  if (side_str == "B") msg.side = Side::Buy;
+  else if (side_str == "S") msg.side = Side::Sell;
+  else return error("Invalid side", side_str);
 
   // 5. Quantity
-  if (auto [ptr, ec] = std::from_chars(
-          qty_str.data(), qty_str.data() + qty_str.size(), msg.quantity);
-      ec != std::errc{}) {
+  if (auto [ptr, ec] = std::from_chars(qty_str.data(), qty_str.data() + qty_str.size(), msg.quantity);
+      ec != std::errc{} || ptr != qty_str.data() + qty_str.size()) {
     return error("Invalid quantity", qty_str);
   }
 
