@@ -1,17 +1,8 @@
+#include "line_view.hpp"
+#include "mmfile.hpp"
 #include "parser.hpp"
-#include <iomanip>
-#include <iostream>
 
-void print_message(const Message &msg) {
-  std::cout << "Ticker: " << msg.exchange_ticker << " | Type: "
-            << (msg.type == RequestType::New      ? "N"
-                : msg.type == RequestType::Cancel ? "C"
-                                                  : "A")
-            << " | ID: " << std::setw(10) << msg.order_id
-            << " | Side: " << (msg.side == Side::Buy ? "B" : "S")
-            << " | Qty: " << msg.quantity << " | Price: " << std::fixed
-            << std::setprecision(2) << msg.price.ToDouble() << std::endl;
-}
+#include <iostream>
 
 int main() {
   const std::string filename = "test/test_data.csv";
@@ -28,7 +19,7 @@ int main() {
   int count = 0;
   for (const auto &line : lines) {
     if (auto msg = parse_line(line)) {
-      print_message(*msg);
+      std::cout << *msg << std::endl;
       count++;
     }
   }
