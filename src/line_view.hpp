@@ -42,11 +42,12 @@ public:
       }
 
       current_line_ = std::string_view(curr_, line_end - curr_);
-      
+
       if (line_end < end_) {
         if (*line_end == '\r') {
           line_end++;
-          if (line_end < end_ && *line_end == '\n') line_end++;
+          if (line_end < end_ && *line_end == '\n')
+            line_end++;
         } else {
           line_end++;
         }

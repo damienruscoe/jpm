@@ -72,19 +72,26 @@ std::optional<Message> parse_line(std::string_view line) {
   Message msg;
 
   // 1. Ticker
-  if (auto [ptr, ec] = std::from_chars(ticker_str.data(), ticker_str.data() + ticker_str.size(), msg.exchange_ticker);
+  if (auto [ptr, ec] = std::from_chars(ticker_str.data(),
+                                       ticker_str.data() + ticker_str.size(),
+                                       msg.exchange_ticker);
       ec != std::errc{} || ptr != ticker_str.data() + ticker_str.size()) {
     return error("Invalid ticker", ticker_str);
   }
 
   // 2. Type
-  if (type_str == "N") msg.type = RequestType::New;
-  else if (type_str == "C") msg.type = RequestType::Cancel;
-  else if (type_str == "A") msg.type = RequestType::Amend;
-  else return error("Invalid request type", type_str);
+  if (type_str == "N")
+    msg.type = RequestType::New;
+  else if (type_str == "C")
+    msg.type = RequestType::Cancel;
+  else if (type_str == "A")
+    msg.type = RequestType::Amend;
+  else
+    return error("Invalid request type", type_str);
 
   // 3. Order ID
-  if (id_str.size() > 10) return error("Order ID too long", id_str);
+  if (id_str.size() > 10)
+    return error("Order ID too long", id_str);
   for (char c : id_str) {
     if (!std::isalnum(static_cast<unsigned char>(c)) && c != '-')
       return error("Invalid character in order ID", id_str);
@@ -92,12 +99,16 @@ std::optional<Message> parse_line(std::string_view line) {
   msg.order_id = id_str;
 
   // 4. Side
-  if (side_str == "B") msg.side = Side::Buy;
-  else if (side_str == "S") msg.side = Side::Sell;
-  else return error("Invalid side", side_str);
+  if (side_str == "B")
+    msg.side = Side::Buy;
+  else if (side_str == "S")
+    msg.side = Side::Sell;
+  else
+    return error("Invalid side", side_str);
 
   // 5. Quantity
-  if (auto [ptr, ec] = std::from_chars(qty_str.data(), qty_str.data() + qty_str.size(), msg.quantity);
+  if (auto [ptr, ec] = std::from_chars(
+          qty_str.data(), qty_str.data() + qty_str.size(), msg.quantity);
       ec != std::errc{} || ptr != qty_str.data() + qty_str.size()) {
     return error("Invalid quantity", qty_str);
   }

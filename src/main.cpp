@@ -4,7 +4,7 @@
 
 #include <iostream>
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
   std::string filename = "test/test_data.csv";
   if (argc > 1) {
     filename = argv[1];
