@@ -1,10 +1,6 @@
 #pragma once
 
-#include <fcntl.h>
 #include <string>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 class MappedFile {
 public:

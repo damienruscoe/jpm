@@ -1,5 +1,10 @@
 #include "mmfile.hpp"
 
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 MappedFile::MappedFile(const std::string &filename) {
   fd_ = open(filename.c_str(), O_RDONLY);
   if (fd_ == -1)
