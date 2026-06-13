@@ -24,9 +24,11 @@ int main() {
 
   std::cout << "--- Starting Parser Test ---" << std::endl;
   int count = 0;
-  for (const auto &msg : parser) {
-    print_message(msg);
-    count++;
+  for (const auto &line : parser) {
+    if (auto msg = parse_line(line)) {
+      print_message(*msg);
+      count++;
+    }
   }
   std::cout << "--- Parser Test Finished. Successfully parsed " << count
             << " messages. ---" << std::endl;

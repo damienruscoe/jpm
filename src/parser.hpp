@@ -115,24 +115,24 @@ std::optional<Message> parse_line(std::string_view line) {
 
 
 /**
- * @brief Lazy parser that iterates over a memory-mapped file.
+ * @brief Lazy line iterator that iterates over a memory-mapped file.
  */
 class Parser {
 public:
   class Iterator {
   public:
     using iterator_category = std::input_iterator_tag;
-    using value_type = Message;
+    using value_type = std::string_view;
     using difference_type = std::ptrdiff_t;
-    using pointer = const Message *;
-    using reference = const Message &;
+    using pointer = const std::string_view *;
+    using reference = const std::string_view &;
 
     Iterator(const char *curr, const char *end) : curr_(curr), end_(end) {
       find_next();
     }
 
-    reference operator*() const { return current_msg_; }
-    pointer operator->() const { return &current_msg_; }
+    reference operator*() const { return current_line_; }
+    pointer operator->() const { return &current_line_; }
 
     Iterator &operator++() {
       find_next();
@@ -146,26 +146,23 @@ public:
 
   private:
     void find_next() {
-      while (curr_ < end_) {
-        const char *line_end = curr_;
-        while (line_end < end_ && *line_end != '\n') {
-          line_end++;
-        }
-
-        std::string_view line(curr_, line_end - curr_);
-        curr_ = (line_end < end_) ? line_end + 1 : end_;
-
-        if (auto msg = parse_line(line)) {
-          current_msg_ = *msg;
-          return;
-        }
+      if (curr_ >= end_) {
+        is_end_ = true;
+        return;
       }
-      is_end_ = true;
+
+      const char *line_end = curr_;
+      while (line_end < end_ && *line_end != '\n') {
+        line_end++;
+      }
+
+      current_line_ = std::string_view(curr_, line_end - curr_);
+      curr_ = (line_end < end_) ? line_end + 1 : end_;
     }
 
     const char *curr_;
     const char *end_;
-    Message current_msg_;
+    std::string_view current_line_;
     bool is_end_ = false;
 
     friend class Parser;
