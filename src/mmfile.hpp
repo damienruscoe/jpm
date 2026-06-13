@@ -13,7 +13,6 @@ public:
 
   const char *data() const;
   size_t size() const;
-  bool is_open() const;
 
 private:
   int fd_ = -1;

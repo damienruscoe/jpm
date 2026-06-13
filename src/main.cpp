@@ -15,12 +15,14 @@ void print_message(const Message &msg) {
 
 int main() {
   const std::string filename = "test/test_data.csv";
-  Parser parser(filename);
+  MappedFile file(filename);
 
-  if (!parser.is_ready()) {
+  if (!file.data()) {
     std::cerr << "Failed to open or map file: " << filename << std::endl;
     return 1;
   }
+
+  Parser parser(file.data(), file.size());
 
   std::cout << "--- Starting Parser Test ---" << std::endl;
   int count = 0;

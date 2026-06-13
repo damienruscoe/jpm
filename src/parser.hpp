@@ -168,22 +168,23 @@ public:
     friend class Parser;
   };
 
-  explicit Parser(const std::string &filename) : file_(filename) {}
+  explicit Parser(const char *data, size_t size) : data_(data), size_(size) {}
 
   Iterator begin() const {
-    if (!file_.data())
+    if (!data_)
       return end();
-    return Iterator(file_.data(), file_.data() + file_.size());
+    return Iterator(data_, data_ + size_);
   }
 
   Iterator end() const {
-    Iterator it(file_.data() + file_.size(), file_.data() + file_.size());
+    Iterator it(data_ + size_, data_ + size_);
     it.is_end_ = true;
     return it;
   }
 
-  bool is_ready() const { return file_.data(); }
+  bool is_ready() const { return data_ != nullptr; }
 
 private:
-  MappedFile file_;
+  const char *data_;
+  size_t size_;
 };
