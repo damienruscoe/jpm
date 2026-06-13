@@ -4,8 +4,12 @@
 
 #include <iostream>
 
-int main() {
-  const std::string filename = "test/test_data.csv";
+int main(int argc, char* argv[]) {
+  std::string filename = "test/test_data.csv";
+  if (argc > 1) {
+    filename = argv[1];
+  }
+
   MappedFile file(filename);
 
   if (!file.data()) {
