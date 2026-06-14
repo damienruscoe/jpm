@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 #include "../src/parser.hpp"
+#include <string_view>
+#include <vector>
 
 struct ValidParserTestData {
     std::string input;
@@ -24,7 +26,23 @@ INSTANTIATE_TEST_SUITE_P(
     )
 );
 
+TEST(ParserValidTest, HandlesFunctionalSequence) {
+    const std::vector<std::string> lines = {
+        "101,N,A001,S,3000,6.8",
+        "101,N,A002,S,1000,6.9",
+        "101,N,A003,B,2000,6.7",
+        "101,N,A004,B,1000,6.8 // crosses with order A001 with price 6.8",
+        "101,A,A003,B,2000,6.9 // after amending A003 crosses with A001 and both fully filled",
+        "102,N,A005,S,2000,10.2",
+        "102,N,A006,B,2000,10.1",
+        "102,N,A007,B,2000,10.1",
+        "102,C,A006,B,2000,10.1 // A006 will be removed from order book"
+    };
 
+    for (const auto& line : lines) {
+        EXPECT_TRUE(parse_line(line).has_value()) << "Failed to parse functional line: " << line;
+    }
+}
 
 struct InvalidParserTestData {
     std::string input;

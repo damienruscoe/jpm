@@ -27,6 +27,15 @@ std::optional<Message> parse_line(std::string_view line) {
   while (!line.empty() && std::isspace(static_cast<unsigned char>(line.back())))
     line.remove_suffix(1);
 
+  // Strip inline comments
+  size_t comment_pos = line.find("//");
+  if (comment_pos != std::string_view::npos) {
+    line = line.substr(0, comment_pos);
+    // Re-trim in case of whitespace before //
+    while (!line.empty() && std::isspace(static_cast<unsigned char>(line.back())))
+      line.remove_suffix(1);
+  }
+
   if (line.empty() || line[0] == '#')
     return std::nullopt;
 
