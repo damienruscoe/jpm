@@ -1,5 +1,6 @@
 #include "parser.hpp"
 
+#include <algorithm>
 #include <array>
 #include <charconv>
 #include <iomanip>
@@ -100,10 +101,10 @@ std::optional<Message> parse_line(std::string_view line) {
     return error("Missing ID", id_str);
   if (id_str.size() > 10)
     return error("Order ID too long", id_str);
-  for (char c : id_str) {
-    if (!std::isalnum(static_cast<unsigned char>(c)) && c != '-')
-      return error("Invalid character in order ID", id_str);
-  }
+  if (!std::ranges::all_of(id_str, [](char c) {
+        return std::isalnum(static_cast<unsigned char>(c)) || c == '-';
+      }))
+    return error("Invalid character in order ID", id_str);
   msg.order_id = id_str;
 
   // 4. Side
