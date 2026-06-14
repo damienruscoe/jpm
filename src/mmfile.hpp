@@ -5,6 +5,12 @@
 class MappedFile {
 public:
   explicit MappedFile(const std::string &filename);
+
+  MappedFile(const MappedFile &) = delete;
+  MappedFile(MappedFile &&) = default;
+  MappedFile &operator=(const MappedFile &) = delete;
+  MappedFile &operator=(MappedFile &&) noexcept = default;
+
   ~MappedFile();
 
   const char *data() const;

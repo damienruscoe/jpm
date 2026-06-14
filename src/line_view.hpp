@@ -63,7 +63,8 @@ public:
     friend class LineView;
   };
 
-  explicit LineView(const char *data, size_t size) : m_data(data), m_size(size) {}
+  explicit LineView(const char *data, size_t size)
+      : m_data(data), m_size(size) {}
 
   Iterator begin() const {
     if (!m_data)

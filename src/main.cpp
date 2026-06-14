@@ -23,7 +23,8 @@ int main(int argc, char *argv[]) {
   int count = 0;
   for (const auto &line : lines) {
     if (auto msg = parse_line(line)) {
-      std::cout << *msg << std::endl;
+      std::cout << "[\033[32mVALID\033[0m] " << *msg << std::endl;
+      // std::cout << *msg << std::endl;
       count++;
     }
   }

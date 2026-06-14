@@ -38,7 +38,8 @@ std::optional<Message> parse_line(std::string_view line) {
   auto [qty_str, price_str] = split(rest4, ',');
 
   auto error = [](std::string_view message, std::string_view details) {
-    std::cerr << "Error: " << message << ": " << details << std::endl;
+    std::cerr << "[\033[31mError\033[0m] " << message << ": \033[36m" << '"'
+              << details << "\"\033[0m" << std::endl;
     return std::nullopt;
   };
 
