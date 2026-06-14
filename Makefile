@@ -8,16 +8,19 @@ TARGET = matching_engine_test
 TEST_TARGET = parser_tests
 
 # Source and Headers
-SRCS = src/*.cpp
+INC = -Isrc/
+SRCS = src/apps/main.cpp src/*.cpp
+FUZZ_SRCS = src/apps/fuzz_harness.cpp src/mmfile.cpp src/parser.cpp
 TEST_SRCS = test/*.cpp src/mmfile.cpp src/parser.cpp
 
+# AFL target
 all: $(TARGET) $(TEST_TARGET)
 
 $(TARGET): $(SRCS)
-	$(CXX) $(CXXFLAGS) $(SRCS) -o $(TARGET)
+	$(CXX) $(CXXFLAGS) $(INC) $(SRCS) -o $(TARGET)
 
 $(TEST_TARGET): $(TEST_SRCS)
-	$(CXX) $(CXXFLAGS) $(TEST_SRCS) -o $(TEST_TARGET) $(GTEST_FLAGS)
+	$(CXX) $(CXXFLAGS) $(INC) $(TEST_SRCS) -o $(TEST_TARGET) $(GTEST_FLAGS)
 
 run_tests: $(TEST_TARGET)
 	./$(TEST_TARGET)
@@ -26,6 +29,13 @@ format:
 	clang-format -i src/*.hpp src/*.cpp
 
 clean:
-	rm -f $(TARGET) $(TEST_TARGET)
+	rm -f $(TARGET) $(TEST_TARGET) fuzz_harness
 
-.PHONY: all run clean run_tests
+fuzz_build:
+	afl-clang-fast++ $(CXXFLAGS) $(INC) $(FUZZ_SRCS) -o fuzz_harness
+
+fuzz:
+	AFL_SKIP_CPUFREQ=1 afl-fuzz -i fuzz_in -o fuzz_out ./fuzz_harness
+
+.PHONY: all run clean run_tests afl_fuzz
+
