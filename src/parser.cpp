@@ -21,25 +21,24 @@ std::ostream &operator<<(std::ostream &os, const Message &msg) {
 // clang-format on
 
 std::optional<Message> parse_line(std::string_view line) {
-  // Trim leading/trailing whitespace
-  while (!line.empty() &&
-         std::isspace(static_cast<unsigned char>(line.front())))
-    line.remove_prefix(1);
-  while (!line.empty() && std::isspace(static_cast<unsigned char>(line.back())))
-    line.remove_suffix(1);
-
-  // Strip inline comments
+  // Strip inline comments first
   size_t comment_pos = line.find("//");
   if (comment_pos != std::string_view::npos) {
     line = line.substr(0, comment_pos);
-    // Re-trim in case of whitespace before //
-    while (!line.empty() &&
-           std::isspace(static_cast<unsigned char>(line.back())))
-      line.remove_suffix(1);
   }
+
+  // Trim leading/trailing whitespace
+  size_t first = line.find_first_not_of(" \t\r\n\v\f");
+  if (first == std::string_view::npos)
+    return std::nullopt;
+  line.remove_prefix(first);
+
+  size_t last = line.find_last_not_of(" \t\r\n\v\f");
+  line.remove_suffix(line.size() - last - 1);
 
   if (line.empty() || line[0] == '#')
     return std::nullopt;
+
 
   auto split = [](std::string_view s, char delim) {
     size_t pos = s.find(delim);
