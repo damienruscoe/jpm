@@ -31,7 +31,8 @@ INSTANTIATE_TEST_SUITE_P(
     ParserValidTest,
     ::testing::Values(
         ValidParserTestData{"101,N,A001,B,1000,3.2", "Standard message", {101, RequestType::New, "A001", Side::Buy, 1000, FixedPoint(32000)}},
-        ValidParserTestData{" 108,N,A008,S,1000,8.0  ", "Whitespace trimming", {108, RequestType::New, "A008", Side::Sell, 1000, FixedPoint(80000)}},
+        ValidParserTestData{"108,N,A008,S,1000,8.0  ", "Whitespace trimming", {108, RequestType::New, "A008", Side::Sell, 1000, FixedPoint(80000)}},
+        ValidParserTestData{"108,N,A008,S,1000,8.0 // , Comment with comma", "Whitespace trimming", {108, RequestType::New, "A008", Side::Sell, 1000, FixedPoint(80000)}},
         ValidParserTestData{"4294967295,N,MAX-ID,S,4294967295,9999.99", "Boundaries (Max uint32)", {4294967295, RequestType::New, "MAX-ID", Side::Sell, 4294967295, FixedPoint(99999900)}},
         ValidParserTestData{"101,N,A123456789,B,1,0.0001", "Max ID length (10)", {101, RequestType::New, "A123456789", Side::Buy, 1, FixedPoint(1)}},
         ValidParserTestData{"101,N,A-B-C-1,B,1,1.1111", "Hyphens in ID", {101, RequestType::New, "A-B-C-1", Side::Buy, 1, FixedPoint(11111)}},

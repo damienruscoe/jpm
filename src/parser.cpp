@@ -27,16 +27,22 @@ std::string_view trim_inline_comments(std::string_view str) {
   return str;
 }
 
-std::string_view trim_whitespace(std::string_view str) {
+std::string_view trim_whitespace_prefix(std::string_view str) {
   size_t first = str.find_first_not_of(" \t\r\n\v\f");
   if (first == std::string_view::npos)
     return {};
   str.remove_prefix(first);
+  return str;
+}
 
+std::string_view trim_whitespace_suffix(std::string_view str) {
   size_t last = str.find_last_not_of(" \t\r\n\v\f");
   str.remove_suffix(str.size() - last - 1);
-
   return str;
+}
+
+std::string_view trim_whitespace(std::string_view str) {
+  return trim_whitespace_suffix(trim_whitespace_prefix(str));
 }
 
 std::optional<Message> parse_line(std::string_view line) {
@@ -47,6 +53,12 @@ std::optional<Message> parse_line(std::string_view line) {
     return std::pair{s.substr(0, pos), s.substr(pos + 1)};
   };
 
+  auto parse_integer = [](std::string_view str, uint32_t &output) {
+    auto [ptr, ec] =
+        std::from_chars(str.data(), str.data() + str.size(), output);
+    return ec == std::errc{} && ptr == str.data() + str.size();
+  };
+
   auto error = [](std::string_view message, std::string_view details) {
     std::cerr << "[\033[31mERROR\033[0m] " << message << ": \033[36m" << '"'
               << details << "\"\033[0m" << std::endl;
@@ -54,7 +66,7 @@ std::optional<Message> parse_line(std::string_view line) {
   };
 
   line = trim_inline_comments(line);
-  line = trim_whitespace(line);
+  line = trim_whitespace_suffix(line);
 
   auto [ticker_str, rest1] = split(line, ',');
   auto [type_str, rest2] = split(rest1, ',');
@@ -65,12 +77,8 @@ std::optional<Message> parse_line(std::string_view line) {
   Message msg;
 
   // 1. Ticker
-  if (auto [ptr, ec] = std::from_chars(ticker_str.data(),
-                                       ticker_str.data() + ticker_str.size(),
-                                       msg.exchange_ticker);
-      ec != std::errc{} || ptr != ticker_str.data() + ticker_str.size()) {
+  if (!parse_integer(ticker_str, msg.exchange_ticker))
     return error("Invalid ticker", ticker_str);
-  }
   if (msg.exchange_ticker <= 0)
     return error("Ticker must be positive", ticker_str);
 
@@ -104,11 +112,8 @@ std::optional<Message> parse_line(std::string_view line) {
     return error("Invalid side", side_str);
 
   // 5. Quantity
-  if (auto [ptr, ec] = std::from_chars(
-          qty_str.data(), qty_str.data() + qty_str.size(), msg.quantity);
-      ec != std::errc{} || ptr != qty_str.data() + qty_str.size()) {
+  if (!parse_integer(qty_str, msg.quantity))
     return error("Invalid quantity", qty_str);
-  }
   if (msg.quantity <= 0)
     return error("Quantity must be positive", qty_str);
 
