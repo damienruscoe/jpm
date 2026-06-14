@@ -20,21 +20,26 @@ std::ostream &operator<<(std::ostream &os, const Message &msg) {
 }
 // clang-format on
 
-std::optional<Message> parse_line(std::string_view line) {
-  size_t comment_pos = line.find("//");
+std::string_view trim_inline_comments(std::string_view str) {
+  size_t comment_pos = str.find("//");
   if (comment_pos != std::string_view::npos)
-    line = line.substr(0, comment_pos);
+    str = str.substr(0, comment_pos);
+  return str;
+}
 
-  size_t first = line.find_first_not_of(" \t\r\n\v\f");
+std::string_view trim_whitespace(std::string_view str) {
+  size_t first = str.find_first_not_of(" \t\r\n\v\f");
   if (first == std::string_view::npos)
-    return std::nullopt;
-  line.remove_prefix(first);
+    return {};
+  str.remove_prefix(first);
 
-  size_t last = line.find_last_not_of(" \t\r\n\v\f");
-  //line.substr(0, last -1);
-  line.remove_suffix(line.size() - last - 1);
+  size_t last = str.find_last_not_of(" \t\r\n\v\f");
+  str.remove_suffix(str.size() - last - 1);
 
+  return str;
+}
 
+std::optional<Message> parse_line(std::string_view line) {
   auto split = [](std::string_view s, char delim) {
     size_t pos = s.find(delim);
     if (pos == std::string_view::npos)
@@ -42,26 +47,20 @@ std::optional<Message> parse_line(std::string_view line) {
     return std::pair{s.substr(0, pos), s.substr(pos + 1)};
   };
 
-  auto [ticker_str, rest1] = split(line, ',');
-  auto [type_str, rest2] = split(rest1, ',');
-  auto [id_str, rest3] = split(rest2, ',');
-  auto [side_str, rest4] = split(rest3, ',');
-  auto [qty_str, price_str] = split(rest4, ',');
-
   auto error = [](std::string_view message, std::string_view details) {
     std::cerr << "[\033[31mERROR\033[0m] " << message << ": \033[36m" << '"'
               << details << "\"\033[0m" << std::endl;
     return std::nullopt;
   };
 
-  // Basic validation of column presence and extra columns
-  if (ticker_str.empty() || type_str.empty() || id_str.empty() ||
-      side_str.empty() || qty_str.empty() || price_str.empty()) {
-    return error("Invalid message format (missing columns)", line);
-  }
-  if (price_str.find(',') != std::string_view::npos) {
-    return error("Too many columns", line);
-  }
+  line = trim_inline_comments(line);
+  line = trim_whitespace(line);
+
+  auto [ticker_str, rest1] = split(line, ',');
+  auto [type_str, rest2] = split(rest1, ',');
+  auto [id_str, rest3] = split(rest2, ',');
+  auto [side_str, rest4] = split(rest3, ',');
+  auto [qty_str, price_str] = split(rest4, ',');
 
   Message msg;
 
@@ -86,6 +85,8 @@ std::optional<Message> parse_line(std::string_view line) {
     return error("Invalid request type", type_str);
 
   // 3. Order ID
+  if (id_str.empty())
+    return error("Missing ID", id_str);
   if (id_str.size() > 10)
     return error("Order ID too long", id_str);
   for (char c : id_str) {
@@ -112,6 +113,8 @@ std::optional<Message> parse_line(std::string_view line) {
     return error("Quantity must be positive", qty_str);
 
   // 6. Price
+  // if (price_str.find(',') != std::string_view::npos)
+  //  return error("Too many columns", line);
   try {
     msg.price = FixedPoint::Parse(price_str);
   } catch (...) {
