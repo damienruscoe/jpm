@@ -6,6 +6,10 @@ struct InvalidParserTestData {
     std::string description;
 };
 
+void PrintTo(const InvalidParserTestData& data, ::std::ostream* os) {
+    *os << data.description << " (Input: \"" << data.input << "\")";
+}
+
 class ParserInvalidTest : public ::testing::TestWithParam<InvalidParserTestData> {};
 
 TEST_P(ParserInvalidTest, InvalidInput) {
