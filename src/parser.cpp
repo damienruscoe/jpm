@@ -71,7 +71,7 @@ std::optional<Message> parse_line(std::string_view line) {
       ec != std::errc{} || ptr != ticker_str.data() + ticker_str.size()) {
     return error("Invalid ticker", ticker_str);
   }
-  if (msg.exchange_ticker == 0)
+  if (msg.exchange_ticker <= 0)
     return error("Ticker must be positive", ticker_str);
 
   // 2. Type
@@ -109,7 +109,7 @@ std::optional<Message> parse_line(std::string_view line) {
       ec != std::errc{} || ptr != qty_str.data() + qty_str.size()) {
     return error("Invalid quantity", qty_str);
   }
-  if (msg.quantity == 0)
+  if (msg.quantity <= 0)
     return error("Quantity must be positive", qty_str);
 
   // 6. Price
