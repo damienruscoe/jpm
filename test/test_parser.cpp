@@ -1,17 +1,28 @@
 #include <gtest/gtest.h>
 #include "../src/parser.hpp"
 
+struct ValidParserTestData {
+    std::string input;
+    std::string description;
+};
 
-TEST(ParserValidTest, ParsesValidInputs) {
-    EXPECT_TRUE(parse_line("101,N,A001,B,1000,3.2").has_value());
-    EXPECT_TRUE(parse_line(" 108,N,A008,S,1000,8.0  ").has_value()); // Whitespace trimming
-    EXPECT_TRUE(parse_line("4294967295,N,MAX-ID,S,4294967295,9999.99").has_value()); // Boundaries
+class ParserValidTest : public ::testing::TestWithParam<ValidParserTestData> {};
+
+TEST_P(ParserValidTest, SucceedsOnValidInput) {
+    const auto& param = GetParam();
+    auto msg = parse_line(param.input);
+    EXPECT_TRUE(msg.has_value()) << "Failed to parse valid input (" << param.description << "): " << param.input;
 }
 
-TEST(ParserBasicTest, HandlesValidCases) {
-    EXPECT_TRUE(parse_line("101,N,A001,B,1000,3.2").has_value());
-    EXPECT_TRUE(parse_line(" 108,N,A008,S,1000,8.0  ").has_value());
-}
+INSTANTIATE_TEST_SUITE_P(
+    ValidInputs,
+    ParserValidTest,
+    ::testing::Values(
+        ValidParserTestData{"101,N,A001,B,1000,3.2", "Standard message"},
+        ValidParserTestData{" 108,N,A008,S,1000,8.0  ", "Whitespace trimming"},
+        ValidParserTestData{"4294967295,N,MAX-ID,S,4294967295,9999.99", "Boundaries"}
+    )
+);
 
 
 
