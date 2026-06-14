@@ -33,6 +33,7 @@ INSTANTIATE_TEST_SUITE_P(
         ValidParserTestData{"101,N,A-B-C-1,B,1,1.1111", "Hyphens in ID", {101, RequestType::New, "A-B-C-1", Side::Buy, 1, FixedPoint(11111)}},
         ValidParserTestData{"1,A,A-1,S,1,0.0001", "Min values", {1, RequestType::Amend, "A-1", Side::Sell, 1, FixedPoint(1)}},
         ValidParserTestData{"101,N,00101,B,007,3.2", "Leading zeros", {101, RequestType::New, "00101", Side::Buy, 7, FixedPoint(32000)}},
+        ValidParserTestData{"101,N,00101,B,009,3.2", "Leading zeros", {101, RequestType::New, "00101", Side::Buy, 9, FixedPoint(32000)}},
         ValidParserTestData{"101,N,N,B,1000,3.2", "ID is RequestType N", {101, RequestType::New, "N", Side::Buy, 1000, FixedPoint(32000)}},
         ValidParserTestData{"101,N,C,B,1000,3.2", "ID is RequestType C", {101, RequestType::New, "C", Side::Buy, 1000, FixedPoint(32000)}},
         ValidParserTestData{"101,N,A,B,1000,3.2", "ID is RequestType A", {101, RequestType::New, "A", Side::Buy, 1000, FixedPoint(32000)}},
