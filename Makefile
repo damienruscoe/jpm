@@ -8,7 +8,7 @@ TARGET = matching_engine_test
 TEST_TARGET = parser_tests
 
 # Source and Headers
-SRCS = src/mmfile.cpp src/main.cpp
+SRCS = src/*.cpp
 TEST_SRCS = test/*.cpp src/mmfile.cpp src/parser.cpp
 
 all: $(TARGET) $(TEST_TARGET)

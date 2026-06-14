@@ -24,6 +24,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(
         // Columns / Format
         InvalidParserTestData{"", "Empty line"},
+        InvalidParserTestData{"   \t  ", "Whitespace only"},
         InvalidParserTestData{"#comment only", "Comment only (valid but ignored)"},
         InvalidParserTestData{"// comment only", "Comment only (valid but ignored)"},
         InvalidParserTestData{"101,N,A001,B,1000", "Missing columns"},
