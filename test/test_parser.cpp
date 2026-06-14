@@ -49,7 +49,7 @@ INSTANTIATE_TEST_SUITE_P(
         ValidParserTestData{"101,N,A001,B,1000,-0.0000", "Negative signed zero", {101, RequestType::New, "A001", Side::Buy, 1000, FixedPoint(0)}},
         ValidParserTestData{"0000000000101,N,A001,B,1000,0.0000", "Zero padded ticker ID", {101, RequestType::New, "A001", Side::Buy, 1000, FixedPoint(0)}},
         ValidParserTestData{"101,N,A001,B,00000000001000,0.0000", "Zero padded quantity", {101, RequestType::New, "A001", Side::Buy, 1000, FixedPoint(0)}},
-        // Functional sequences
+        // Provided example
         ValidParserTestData{"101,N,A001,S,3000,6.8", "Example Seq 1", {101, RequestType::New, "A001", Side::Sell, 3000, FixedPoint(68000)}},
         ValidParserTestData{"101,N,A002,S,1000,6.9", "Example Seq 2", {101, RequestType::New, "A002", Side::Sell, 1000, FixedPoint(69000)}},
         ValidParserTestData{"101,N,A003,B,2000,6.7", "Example Seq 3", {101, RequestType::New, "A003", Side::Buy, 2000, FixedPoint(67000)}},
