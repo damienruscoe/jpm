@@ -22,7 +22,8 @@ std::ostream &operator<<(std::ostream &os, const Message &msg) {
 
 std::optional<Message> parse_line(std::string_view line) {
   // Trim leading/trailing whitespace
-  while (!line.empty() && std::isspace(static_cast<unsigned char>(line.front())))
+  while (!line.empty() &&
+         std::isspace(static_cast<unsigned char>(line.front())))
     line.remove_prefix(1);
   while (!line.empty() && std::isspace(static_cast<unsigned char>(line.back())))
     line.remove_suffix(1);
@@ -32,7 +33,8 @@ std::optional<Message> parse_line(std::string_view line) {
   if (comment_pos != std::string_view::npos) {
     line = line.substr(0, comment_pos);
     // Re-trim in case of whitespace before //
-    while (!line.empty() && std::isspace(static_cast<unsigned char>(line.back())))
+    while (!line.empty() &&
+           std::isspace(static_cast<unsigned char>(line.back())))
       line.remove_suffix(1);
   }
 
@@ -76,7 +78,8 @@ std::optional<Message> parse_line(std::string_view line) {
       ec != std::errc{} || ptr != ticker_str.data() + ticker_str.size()) {
     return error("Invalid ticker", ticker_str);
   }
-  if (msg.exchange_ticker == 0) return error("Ticker must be positive", ticker_str);
+  if (msg.exchange_ticker == 0)
+    return error("Ticker must be positive", ticker_str);
 
   // 2. Type
   if (type_str == "N")
@@ -111,7 +114,8 @@ std::optional<Message> parse_line(std::string_view line) {
       ec != std::errc{} || ptr != qty_str.data() + qty_str.size()) {
     return error("Invalid quantity", qty_str);
   }
-  if (msg.quantity == 0) return error("Quantity must be positive", qty_str);
+  if (msg.quantity == 0)
+    return error("Quantity must be positive", qty_str);
 
   // 6. Price
   try {

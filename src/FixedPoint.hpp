@@ -18,13 +18,26 @@ public:
   static FixedPoint Parse(std::string_view str) {
     if (str.empty())
       throw std::invalid_argument("empty");
+
+    bool negative = false;
+    if (str[0] == '-') {
+      negative = true;
+      str.remove_prefix(1);
+    } else if (str[0] == '+') {
+      str.remove_prefix(1);
+    }
+
+    if (str.empty())
+      throw std::invalid_argument("invalid");
+
     size_t dot_pos = str.find('.');
     if (dot_pos == std::string_view::npos) {
       int64_t v = 0;
       auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), v);
       if (ec != std::errc{} || ptr != str.data() + str.size())
         throw std::invalid_argument("invalid");
-      return FixedPoint(v * 10000);
+      int64_t val = v * 10000;
+      return FixedPoint(negative ? -val : val);
     } else {
       int64_t integral = 0;
       auto [ptr_i, ec_i] =
@@ -47,8 +60,8 @@ public:
       for (size_t i = 4; i < digits; ++i)
         fractional /= 10;
 
-      return FixedPoint(integral * 10000 +
-                        (integral >= 0 ? fractional : -fractional));
+      int64_t val = integral * 10000 + fractional;
+      return FixedPoint(negative ? -val : val);
     }
   }
 

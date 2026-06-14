@@ -11,7 +11,7 @@ struct ValidParserTestData {
 
 class ParserValidTest : public ::testing::TestWithParam<ValidParserTestData> {};
 
-TEST_P(ParserValidTest, SucceedsOnValidInput) {
+TEST_P(ParserValidTest, ValidInput) {
     const auto& param = GetParam();
     auto msg = parse_line(param.input);
     EXPECT_TRUE(msg.has_value()) << "Failed to parse valid input (" << param.description << "): " << param.input;
@@ -27,7 +27,14 @@ INSTANTIATE_TEST_SUITE_P(
         ValidParserTestData{"101,N,A123456789,B,1,0.0001", "Max ID length (10)"},
         ValidParserTestData{"101,N,A-B-C-1,B,1,1.1111", "Hyphens in ID"},
         ValidParserTestData{"1,A,A-1,S,1,0.0001", "Min values"},
-        // Given example
+        ValidParserTestData{"101,N,00101,B,007,3.2", "Leading zeros"},
+        ValidParserTestData{"101,N,00101,B,009,3.2", "Leading zeros"},
+        ValidParserTestData{"101,N,N,B,1000,3.2", "ID is RequestType N"},
+        ValidParserTestData{"101,N,C,B,1000,3.2", "ID is RequestType C"},
+        ValidParserTestData{"101,N,A,B,1000,3.2", "ID is RequestType A"},
+        ValidParserTestData{"101,N,A001,B,1000,+0.0000", "Positive signed zero"},
+        ValidParserTestData{"101,N,A001,B,1000,-0.0000", "Negative signed zero"},
+        // Functional sequences (from given_example.csv)
         ValidParserTestData{"101,N,A001,S,3000,6.8", "Example Seq 1"},
         ValidParserTestData{"101,N,A002,S,1000,6.9", "Example Seq 2"},
         ValidParserTestData{"101,N,A003,B,2000,6.7", "Example Seq 3"},
@@ -48,7 +55,7 @@ struct InvalidParserTestData {
 
 class ParserInvalidTest : public ::testing::TestWithParam<InvalidParserTestData> {};
 
-TEST_P(ParserInvalidTest, RejectsInput) {
+TEST_P(ParserInvalidTest, InvalidInput) {
     const auto& param = GetParam();
     auto msg = parse_line(param.input);
     EXPECT_FALSE(msg.has_value()) << "Accepted invalid input (" << param.description << "): " << param.input;
@@ -67,7 +74,7 @@ INSTANTIATE_TEST_SUITE_P(
         InvalidParserTestData{",,,,,,", "Empty fields"},
         
         // Ticker
-        InvalidParserTestData{",N,A001,S,3000,6.8", "Missing"},
+        InvalidParserTestData{",N,A001,S,3000,6.8", "Missing Ticker"},
         InvalidParserTestData{"0,N,A001,B,1000,3.2", "Ticker 0"},
         InvalidParserTestData{"-1,N,A001,B,1000,3.2", "Negative ticker"},
         InvalidParserTestData{"ABC,N,A001,B,1000,3.2", "Non-numeric ticker"},
@@ -76,24 +83,28 @@ INSTANTIATE_TEST_SUITE_P(
         InvalidParserTestData{"4294967296,N,A001,B,1000,3.2", "Ticker Overflow"},
         
         // Type
-        InvalidParserTestData{"101,,A001,S,3000,6.8", "Missing"},
+        InvalidParserTestData{"101,,A001,S,3000,6.8", "Missing Type"},
         InvalidParserTestData{"101,X,A001,B,1000,3.2", "Invalid request type X"},
         InvalidParserTestData{"101,n,A001,B,1000,3.2", "Lowercase type"},
         
         // Order ID
-        InvalidParserTestData{"101,N,,S,3000,6.8", "Missing"},
+        InvalidParserTestData{"101,N,,S,3000,6.8", "Missing ID"},
         InvalidParserTestData{"101,N,,B,1000,3.2", "Empty ID"},
         InvalidParserTestData{"101,N,TOO-LONG-ID-12345,B,1000,3.2", "ID too long"},
         InvalidParserTestData{"101,N,A#001,B,1000,3.2", "Invalid char #"},
         InvalidParserTestData{"101,N,A_001,B,1000,3.2", "Invalid char _"},
+        InvalidParserTestData{"101,N,A\t001,B,1000,3.2", "Tab in ID"},
+        InvalidParserTestData{"101,N,A\v001,B,1000,3.2", "Vertical tab in ID"},
+        InvalidParserTestData{"101,N,A\f001,B,1000,3.2", "Form feed in ID"},
+        InvalidParserTestData{"101,N,☃,B,1000,3.2", "Unicode in ID"},
         
         // Side
-        InvalidParserTestData{"101,N,A001,,3000,6.8", "Missing"},
+        InvalidParserTestData{"101,N,A001,,3000,6.8", "Missing Side"},
         InvalidParserTestData{"101,N,A001,X,1000,3.2", "Invalid side X"},
         InvalidParserTestData{"101,N,A001,b,1000,3.2", "Lowercase side"},
         
         // Quantity
-        InvalidParserTestData{"101,N,A001,S,,6.8", "Missing"},
+        InvalidParserTestData{"101,N,A001,S,,6.8", "Missing Qty"},
         InvalidParserTestData{"101,N,A001,B,0,3.2", "Qty 0"},
         InvalidParserTestData{"101,N,A001,B,-10,3.2", "Negative Qty"},
         InvalidParserTestData{"101,N,A001,B,1000.5,3.2", "Fractional Qty"},
@@ -101,7 +112,7 @@ INSTANTIATE_TEST_SUITE_P(
         InvalidParserTestData{"101,N,A001,B,4294967296,3.2", "Qty Overflow"},
         
         // Price
-        InvalidParserTestData{"101,N,A001,S,3000,", "Missing"},
+        InvalidParserTestData{"101,N,A001,S,3000,", "Missing Price"},
         InvalidParserTestData{"101,N,A001,B,1000,ABC", "Non-numeric price"},
         InvalidParserTestData{"101,N,A001,B,1000,3.2.1", "Multiple dots"},
         InvalidParserTestData{"101,N,A001,B,1000,1e2", "Scientific notation"},
@@ -118,14 +129,21 @@ INSTANTIATE_TEST_SUITE_P(
         InvalidParserTestData{"101,N,A001,B,1000, + 3.2", "Space between sign and price"},
 
         // Delimiter and Column Count
-        InvalidParserTestData{"101", "Only 1 column"},
         InvalidParserTestData{"101|N|A001|B|1000|3.2", "Pipe delimiter"},
-        InvalidParserTestData{"101`N`A001`B`1000`3.2", "Backtick delimiter"},
-        InvalidParserTestData{"101`N,A001,B,1000,3.2", "Malformed delimiter 1"},
-        InvalidParserTestData{"101,N`A001,B,1000,3.2", "Malformed delimiter 2"},
-        InvalidParserTestData{"101,N,A001`B,1000,3.2", "Malformed delimiter 3"},
-        InvalidParserTestData{"101,N,A001,B`1000,3.2", "Malformed delimiter 4"},
-        InvalidParserTestData{"101,N,A001,B,1000`3.2", "Malformed delimiter 5"},
-        InvalidParserTestData{"101,N,A001,B,1000,3.2,Extra,Extra,Extra", "Way too many columns"}
+        InvalidParserTestData{"101:N:A001:B:1000:3.2", "Colon delimiter"},
+        InvalidParserTestData{"101;N;A001;B;1000;3.2", "Semicolon delimiter"},
+				InvalidParserTestData{"101`N,A001,B,1000,3.2", "Malformed delimiter 1"},
+				InvalidParserTestData{"101,N`A001,B,1000,3.2", "Malformed delimiter 2"},
+				InvalidParserTestData{"101,N,A001`B,1000,3.2", "Malformed delimiter 3"},
+				InvalidParserTestData{"101,N,A001,B`1000,3.2", "Malformed delimiter 4"},
+				InvalidParserTestData{"101,N,A001,B,1000`3.2", "Malformed delimiter 5"},
+        InvalidParserTestData{"101,N,A001,B,1000,3.2,", "Extra delimiter at end"},
+        InvalidParserTestData{",101,N,A001,B,1000,3.2", "Extra delimiter at start"},
+        
+        // Swapped Fields
+        InvalidParserTestData{"N,101,A001,B,1000,3.2", "Ticker/Type swapped"},
+        InvalidParserTestData{"101,A001,N,B,1000,3.2", "Type/ID swapped"},
+        InvalidParserTestData{"101,N,A001,1000,B,3.2", "Side/Qty swapped"},
+        InvalidParserTestData{"101,N,A001,B,3.2,1000", "Qty/Price swapped"}
     )
 );
