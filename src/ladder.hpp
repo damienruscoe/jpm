@@ -12,8 +12,6 @@
 
 using OrderID = uint64_t;
 
-namespace ladder {
-
 template <typename Price, typename Quantity,
           typename Comparator = std::less<Price>>
 class Ladder {
@@ -38,15 +36,13 @@ public:
     return std::prev(it->second.orders.end());
   }
 
-  void removeOrder(Price price, ListIterator it, Quantity qty) {
-    auto book_it = book.find(price);
-    if (book_it == book.end())
-      return;
-
-    book_it->second.orders.erase(it);
-    book_it->second.total_qty -= qty;
-    if (book_it->second.orders.empty())
-      book.erase(book_it);
+  void removeOrder(Price price, ListIterator order_it, Quantity qty) {
+    if (auto it = book.find(price); it != book.end()) {
+      it->second.orders.erase(order_it);
+      it->second.total_qty -= qty;
+      if (it->second.orders.empty())
+        book.erase(it);
+    }
   }
 
   void removeBest() {
@@ -81,5 +77,3 @@ public:
 private:
   BookType book;
 };
-
-} // namespace ladder

@@ -14,16 +14,12 @@ enum class side_t { BID, ASK };
 
 using OrderID = uint64_t;
 
-namespace ladder {
-template <typename Price, typename Quantity, typename Comparator> class Ladder;
-}
-
 template <typename Level> class OrderBook {
 public:
   using Price = typename Level::Price;
   using Quantity = typename Level::Quantity;
-  using Bids = ladder::Ladder<Price, Quantity, std::greater<Price>>;
-  using Asks = ladder::Ladder<Price, Quantity, std::less<Price>>;
+  using Bids = Ladder<Price, Quantity, std::greater<Price>>;
+  using Asks = Ladder<Price, Quantity, std::less<Price>>;
 
   struct LadderIt {
     bool is_bid;
@@ -105,7 +101,6 @@ void OrderBook<Level>::addToLadder(OrderID order_id, Price price, Quantity qty,
             side,
             {side == side_t::BID, {typename Bids::ListIterator{}}}});
   id_to_siv_id[order_id] = id;
-  // Pass qty to addOrder (unused for now)
   order_pool.get(id)->ladder_it.it = ladder.addOrder(id, price, qty);
 }
 
