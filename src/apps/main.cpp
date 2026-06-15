@@ -46,7 +46,6 @@ int main(int argc, char *argv[]) {
 
   std::cout << "--- Starting Parser Test ---" << std::endl;
   int count = 0;
-  static uint64_t order_id{0};
   for (const auto &line : lines) {
     if (auto msg = parse_line(line)) {
       // std::cout << "[\033[32mVALID\033[0m] " << *msg << std::endl;
@@ -54,10 +53,26 @@ int main(int argc, char *argv[]) {
       count++;
 
       const BtcUsd level = BtcUsd{msg->price, msg->quantity};
-      auto added = book.update(
-          ++order_id, msg->side == Side::Buy ? side_t::BID : side_t::ASK,
-          level);
-      (void)added;
+      switch (msg->type) {
+      case RequestType::New: {
+        auto added = book.update(
+            std::string{msg->order_id},
+            msg->side == Side::Buy ? side_t::BID : side_t::ASK, level);
+        std::cout << "Order " << (added ? "Added" : "Adding failed")
+                  << std::endl;
+        break;
+      }
+      case RequestType::Cancel: {
+        auto cancelled =
+            book.cancel(std::string{msg->order_id},
+                        msg->side == Side::Buy ? side_t::BID : side_t::ASK);
+        std::cout << "Order " << (cancelled ? "Cancelled" : "Cancel failed")
+                  << std::endl;
+        break;
+      }
+      case RequestType::Amend:
+        break;
+      }
       // top_of_book.render(book);
       render_book(book);
     }

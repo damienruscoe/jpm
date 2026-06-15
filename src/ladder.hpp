@@ -5,12 +5,11 @@
 #include <list>
 #include <map>
 #include <optional>
+#include <string_view>
 #include <variant>
 #include <vector>
 
 #include "stable_index_vector.hpp"
-
-using OrderID = uint64_t;
 
 template <typename Price, typename Quantity,
           typename Comparator = std::less<Price>>

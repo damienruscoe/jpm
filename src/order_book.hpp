@@ -12,7 +12,7 @@
 
 enum class side_t { BID, ASK };
 
-using OrderID = uint64_t;
+using OrderID = std::string;
 
 template <typename Level> class OrderBook {
 public:
@@ -21,21 +21,17 @@ public:
   using Bids = Ladder<Price, Quantity, std::greater<Price>>;
   using Asks = Ladder<Price, Quantity, std::less<Price>>;
 
-  struct LadderIt {
-    bool is_bid;
-    typename Bids::ListIterator it;
-  };
-
   struct Order {
     OrderID id;
     Price price;
     Quantity quantity;
     side_t side;
     // The back-pointer to the ladder's list
-    LadderIt ladder_it;
+    typename Bids::ListIterator ladder_it;
   };
 
   [[nodiscard]] bool update(OrderID order_id, side_t side, Level level);
+  [[nodiscard]] bool cancel(OrderID order_id, side_t side);
 
   std::optional<Level> getBest(side_t side) const;
   std::optional<Level> getBestBid() const;
@@ -95,13 +91,9 @@ template <typename LadderType>
 void OrderBook<Level>::addToLadder(OrderID order_id, Price price, Quantity qty,
                                    side_t side, LadderType &ladder) {
   size_t id = order_pool.emplace_back(
-      Order{order_id,
-            price,
-            qty,
-            side,
-            {side == side_t::BID, {typename Bids::ListIterator{}}}});
+      Order{order_id, price, qty, side, typename Bids::ListIterator{}});
   id_to_siv_id[order_id] = id;
-  order_pool.get(id)->ladder_it.it = ladder.addOrder(id, price, qty);
+  order_pool.get(id)->ladder_it = ladder.addOrder(id, price, qty);
 }
 
 template <typename Level>
@@ -122,6 +114,25 @@ bool OrderBook<Level>::update(OrderID order_id, side_t side, Level level) {
   }
 
   return true;
+}
+
+template <typename Level>
+bool OrderBook<Level>::cancel(OrderID order_id, side_t side) {
+  if (auto it = id_to_siv_id.find(order_id); it != id_to_siv_id.end()) {
+    const auto &order = order_pool[it->second];
+    if (side == side_t::BID) {
+      bids.removeOrder(order.price, order.ladder_it, order.quantity);
+    } else {
+      asks.removeOrder(order.price, order.ladder_it, order.quantity);
+    }
+
+    id_to_siv_id.erase(order_id);
+    order_pool.erase(it->second);
+
+    return true;
+  }
+
+  return false;
 }
 
 template <typename Level>
