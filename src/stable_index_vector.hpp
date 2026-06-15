@@ -56,28 +56,17 @@ public:
 
 private:
   size_t getFreeSlot() {
-    auto data_size = m_data.size();
-    size_t id;
+    auto size = m_data.size();
 
-    if (m_metadata.size() > data_size) {
-      // Reusing an ID: This ID might be larger than current m_indexes,
-      // so resize is potentially necessary.
-      id = m_metadata[data_size];
-      if (id >= m_indexes.size()) {
-        m_indexes.resize(id + 1);
-      }
-      m_indexes[id] = data_size;
+    if (m_metadata.size() > size) {
+      auto id = m_metadata[size];
+      m_indexes[id] = size;
+      return id;
     } else {
-      // Allocating a new ID: new_id is exactly data_size,
-      // which is guaranteed to be <= m_indexes.size() because
-      // m_indexes is maintained in lock-step with m_metadata/m_data.
-      id = data_size;
-      m_metadata.push_back(id);
-      m_indexes.push_back(id);
-      m_indexes[id] = data_size;
+      m_metadata.push_back(size);
+      m_indexes.push_back(size);
+      return size;
     }
-
-    return id;
   }
 
   std::vector<size_t> m_metadata;
