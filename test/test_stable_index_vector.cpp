@@ -91,4 +91,32 @@ TEST(StableIndexVectorTest, StabilityAfterMultipleErasures) {
     EXPECT_EQ(vec[ids[9]], 9);
 }
 
+// ... (existing tests)
+
+TEST(StableIndexVectorTest, ExercisesAllocationBranch) {
+    siv::Vector<int> vec;
+    // Pushing elements exercises the "else" branch (new allocation)
+    size_t id1 = vec.push_back(1);
+    size_t id2 = vec.push_back(2);
+    
+    EXPECT_EQ(vec[id1], 1);
+    EXPECT_EQ(vec[id2], 2);
+}
+
+TEST(StableIndexVectorTest, ExercisesReuseBranchAndResize) {
+    siv::Vector<int> vec;
+    
+    // Fill to create metadata
+    for(int i = 0; i < 5; ++i) vec.push_back(i);
+    
+    // Erase something
+    vec.erase(2); 
+    
+    // Now push back to exercise the "if" branch (reuse)
+    size_t id = vec.push_back(100);
+    EXPECT_EQ(id, 2);
+    EXPECT_EQ(vec[id], 100);
+}
+
 } // namespace
+
