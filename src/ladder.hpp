@@ -21,19 +21,14 @@ public:
   using OrderList = std::list<siv::ID>;
   using ListIterator = OrderList::iterator;
 
-  struct PriceLevel {
-    OrderList orders;
-  };
+  using BookType = std::map<Price, OrderList, Comparator>;
 
-  using BookType = std::map<Price, PriceLevel, Comparator>;
+  ListIterator addOrder(siv::ID id, Price price) {
+    auto [it, added] = book.try_emplace(price, OrderList{id});
+    if (!added)
+      it->second.push_back(id);
 
-  template <typename OnOrderAdded>
-  auto addOrder(siv::ID id, Price price, OnOrderAdded onOrderAdded) {
-    auto &price_level = book[price];
-    price_level.orders.push_back(id);
-    auto it = std::prev(price_level.orders.end());
-    onOrderAdded(id, it);
-    return it;
+    return std::prev(it->second.end());
   }
 
   void removeOrder(Price price, ListIterator it) {
@@ -41,10 +36,9 @@ public:
     if (book_it == book.end())
       return;
 
-    book_it->second.orders.erase(it);
-    if (book_it->second.orders.empty()) {
+    book_it->second.erase(it);
+    if (book_it->second.empty())
       book.erase(book_it);
-    }
   }
 
   void removeBest() {
@@ -63,7 +57,7 @@ public:
       return std::nullopt;
     auto it = book.begin();
     Quantity acc{0};
-    for (const auto &id : it->second.orders) {
+    for (const auto &id : it->second) {
       if (auto *order = fetchOrder(id)) {
         acc += order->quantity;
       }
@@ -78,7 +72,7 @@ public:
       if (result.size() >= depth)
         break;
       Quantity acc{0};
-      for (const auto &id : level.second.orders) {
+      for (const auto &id : level.second) {
         if (auto *order = fetchOrder(id)) {
           acc += order->quantity;
         }

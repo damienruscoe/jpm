@@ -3,8 +3,8 @@
 #include <list>
 #include <optional>
 #include <unordered_map>
-#include <vector>
 #include <variant>
+#include <vector>
 
 #include "fixed_point.hpp"
 #include "ladder.hpp"
@@ -14,9 +14,8 @@ enum class side_t { BID, ASK };
 
 using OrderID = uint64_t;
 
-// Forward declare the Ladder to get its ListIterator
 namespace ladder {
-    template <typename Price, typename Quantity, typename Comparator> class Ladder;
+template <typename Price, typename Quantity, typename Comparator> class Ladder;
 }
 
 template <typename Level> class OrderBook {
@@ -26,12 +25,10 @@ public:
   using Bids = ladder::Ladder<Price, Quantity, std::greater<Price>>;
   using Asks = ladder::Ladder<Price, Quantity, std::less<Price>>;
 
-  // Iterator type is the same for Bids and Asks
   struct LadderIt {
-      bool is_bid;
-      typename Bids::ListIterator it;
+    bool is_bid;
+    typename Bids::ListIterator it;
   };
-
 
   struct Order {
     OrderID id;
@@ -70,75 +67,82 @@ bool OrderBook<Level>::update(OrderID order_id, side_t side, Level level) {
   auto fetchOrder = [&](siv::ID id) { return order_pool.get(id); };
 
   if (side == side_t::BID) {
-      // Matching Bids (new) against Asks (opposing)
-      const auto price_exceeded = bids.key_comp();
-      while (remaining > 0 && !asks.empty() && !price_exceeded(asks.getBook().begin()->first, level.price)) {
-          auto price_it = asks.getBook().begin();
-          auto &orders = price_it->second.orders;
-          for (auto it = orders.begin(); remaining > 0 && it != orders.end(); ) {
-              auto *order = fetchOrder(*it);
-              
-              if (order->quantity <= remaining) {
-                  remaining -= order->quantity;
-                  id_to_siv_id.erase(order->id);
-                  order_pool.erase(*it);
-                  it = orders.erase(it);
-              } else {
-                  order->quantity -= remaining;
-                  remaining = 0;
-              }
-          }
-          if (orders.empty()) asks.removeBest();
+    // Matching Bids (new) against Asks (opposing)
+    const auto price_exceeded = bids.key_comp();
+    while (remaining > 0 && !asks.empty() &&
+           !price_exceeded(asks.getBook().begin()->first, level.price)) {
+      auto price_it = asks.getBook().begin();
+      auto &orders = price_it->second;
+      for (auto it = orders.begin(); remaining > 0 && it != orders.end();) {
+        auto *order = fetchOrder(*it);
+
+        if (order->quantity <= remaining) {
+          remaining -= order->quantity;
+          id_to_siv_id.erase(order->id);
+          order_pool.erase(*it);
+          it = orders.erase(it);
+        } else {
+          order->quantity -= remaining;
+          remaining = 0;
+        }
       }
-      
-      if (remaining > 0) {
-          siv::ID id = order_pool.emplace_back(Order{order_id, level.price, remaining, side, {true, {typename Bids::ListIterator{}}}});
-          id_to_siv_id[order_id] = id;
-          
-          // Add to ladder and store back-pointer
-          auto it = bids.addOrder(id, level.price, [&](siv::ID id, typename Bids::ListIterator it) {
-              order_pool.get(id)->ladder_it.it = typename Bids::ListIterator{it};
-          });
-          order_pool.get(id)->ladder_it.it = typename Bids::ListIterator{it};
-      }
+      if (orders.empty())
+        asks.removeBest();
+    }
+
+    if (remaining > 0) {
+      siv::ID id = order_pool.emplace_back(
+          Order{order_id,
+                level.price,
+                remaining,
+                side,
+                {true, {typename Bids::ListIterator{}}}});
+      id_to_siv_id[order_id] = id;
+
+      order_pool.get(id)->ladder_it.it = bids.addOrder(id, level.price);
+    }
   } else {
-      // Matching Asks (new) against Bids (opposing)
-      const auto price_exceeded = asks.key_comp();
-      while (remaining > 0 && !bids.empty() && !price_exceeded(bids.getBook().begin()->first, level.price)) {
-          auto price_it = bids.getBook().begin();
-          auto &orders = price_it->second.orders;
-          for (auto it = orders.begin(); remaining > 0 && it != orders.end(); ) {
-              auto *order = fetchOrder(*it);
-              
-              if (order->quantity <= remaining) {
-                  remaining -= order->quantity;
-                  id_to_siv_id.erase(order->id);
-                  order_pool.erase(*it);
-                  it = orders.erase(it);
-              } else {
-                  order->quantity -= remaining;
-                  remaining = 0;
-              }
-          }
-          if (orders.empty()) bids.removeBest();
+    // Matching Asks (new) against Bids (opposing)
+    const auto price_exceeded = asks.key_comp();
+    while (remaining > 0 && !bids.empty() &&
+           !price_exceeded(bids.getBook().begin()->first, level.price)) {
+      auto price_it = bids.getBook().begin();
+      auto &orders = price_it->second;
+      for (auto it = orders.begin(); remaining > 0 && it != orders.end();) {
+        auto *order = fetchOrder(*it);
+
+        if (order->quantity <= remaining) {
+          remaining -= order->quantity;
+          id_to_siv_id.erase(order->id);
+          order_pool.erase(*it);
+          it = orders.erase(it);
+        } else {
+          order->quantity -= remaining;
+          remaining = 0;
+        }
       }
-      
-      if (remaining > 0) {
-          siv::ID id = order_pool.emplace_back(Order{order_id, level.price, remaining, side, {false, {typename Asks::ListIterator{}}}});
-          id_to_siv_id[order_id] = id;
-          
-          auto it = asks.addOrder(id, level.price, [&](siv::ID id, typename Asks::ListIterator it) {
-              order_pool.get(id)->ladder_it.it = typename Asks::ListIterator{it};
-          });
-          order_pool.get(id)->ladder_it.it = typename Asks::ListIterator{it};
-      }
+      if (orders.empty())
+        bids.removeBest();
+    }
+
+    if (remaining > 0) {
+      siv::ID id = order_pool.emplace_back(
+          Order{order_id,
+                level.price,
+                remaining,
+                side,
+                {false, {typename Asks::ListIterator{}}}});
+      id_to_siv_id[order_id] = id;
+
+      order_pool.get(id)->ladder_it.it = asks.addOrder(id, level.price);
+    }
   }
 
   return true;
 }
 
-// ... rest of implementation (getBest, getTop, etc.) remains largely the same ...
-template <typename Level> std::optional<Level> OrderBook<Level>::getBest(side_t side) const {
+template <typename Level>
+std::optional<Level> OrderBook<Level>::getBest(side_t side) const {
   return side == side_t::ASK ? getBestAsk() : getBestBid();
 }
 
@@ -147,12 +151,14 @@ std::vector<Level> OrderBook<Level>::getTop(side_t side, uint16_t depth) const {
   return side == side_t::ASK ? getTopAsk(depth) : getTopBid(depth);
 }
 
-template <typename Level> std::optional<Level> OrderBook<Level>::getBestAsk() const {
+template <typename Level>
+std::optional<Level> OrderBook<Level>::getBestAsk() const {
   auto fetchOrder = [&](siv::ID id) { return order_pool.get(id); };
   return asks.template getBest<Level>(fetchOrder);
 }
 
-template <typename Level> std::optional<Level> OrderBook<Level>::getBestBid() const {
+template <typename Level>
+std::optional<Level> OrderBook<Level>::getBestBid() const {
   auto fetchOrder = [&](siv::ID id) { return order_pool.get(id); };
   return bids.template getBest<Level>(fetchOrder);
 }
