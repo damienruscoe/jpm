@@ -24,9 +24,8 @@ private:
 };
 
 template <typename Level> void render_book(const OrderBook<Level> &book) {
-  const auto &top_asks = book.getTopAsk();
-  const auto &top_bids = book.getTopBid();
-  const auto spread = top_asks[0].price - top_bids[0].price;
+  const auto top_asks = book.getTopAsk();
+  const auto top_bids = book.getTopBid();
 
   std::stringstream ss;
 
@@ -37,7 +36,12 @@ template <typename Level> void render_book(const OrderBook<Level> &book) {
 
   ss << "---------------------------" << nl;
   // ss << "\033[K"; // Clear to the end of line
-  ss << "Spread: " << spread << nl;
+  if (top_asks.empty() || top_bids.empty()) {
+    ss << "Spread: " << nl;
+  } else {
+    const auto spread = top_asks[0].price - top_bids[0].price;
+    ss << "Spread: " << spread << nl;
+  }
   ss << "---------------------------" << nl;
 
   for (auto it = top_bids.cbegin(); it != top_bids.cend(); ++it)

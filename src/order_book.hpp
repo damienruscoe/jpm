@@ -27,8 +27,8 @@ public:
   std::vector<Level> getTopAsk(uint16_t depth = 10) const;
 
 private:
-  using Bids = ladder::BidBook<Price, Quantity>;
-  using Asks = ladder::AskBook<Price, Quantity>;
+  using Bids = ladder::Ladder<Price, Quantity, std::greater<Price>>;
+  using Asks = ladder::Ladder<Price, Quantity, std::less<Price>>;
 
   using OrderLink = typename std::list<
       typename ladder::Orders<Quantity>::OrderQuantity>::iterator;
@@ -54,22 +54,6 @@ void update(OrderID order_id, Orders &orders, ActiveLadder &active,
 
     const auto last_order = level_orders.end();
     for (auto order = level_orders.begin(); remaining && order != last_order;) {
-      /*
-      auto trade_qty = std::min(order->quantity, remaining);
-
-      order->quantity -= trade_qty;
-      remaining -= trade_qty; // One or more will be zero.
-
-      if (order->quantity == 0)
-      {
-              orders.erase(order->order_id);
-
-              order = level_orders.erase(order);
-              price_level = level_orders.empty() ? opposing.erase(price_level);
-                                                                                                                                                       : std::next(price_level);
-      }
-      */
-
       if (order->quantity <= remaining) {
         remaining -= order->quantity;
 
@@ -80,14 +64,14 @@ void update(OrderID order_id, Orders &orders, ActiveLadder &active,
                                            : std::next(price_level);
       } else {
         order->quantity -= remaining;
-        // remaining = 0;
         return;
       }
     }
   }
 
   if (remaining != 0)
-    orders.emplace(order_id, ladder::addOrder(order_id, active, level));
+    orders.emplace(order_id,
+                   active.addOrder(order_id, level.price, level.quantity));
 }
 
 template <typename Level>
@@ -101,17 +85,6 @@ bool OrderBook<Level>::update(OrderID order_id, side_t side, Level level) {
   return true;
 }
 
-/*
-template <typename Level>
-bool OrderBook<Level>::cancel(OrderID order_id)
-{
-                if (auto found = orders.find(order_id); found != orders.end())
-                {
-                        *found // Undefined
-                }
-}
-*/
-
 template <typename Level> Level OrderBook<Level>::getBest(side_t side) const {
   return side == side_t::ASK ? getBestAsk() : getBestBid();
 }
@@ -122,19 +95,19 @@ std::vector<Level> OrderBook<Level>::getTop(side_t side, uint16_t depth) const {
 }
 
 template <typename Level> Level OrderBook<Level>::getBestAsk() const {
-  return ladder::getBest<Level>(asks);
+  return ladder::getBest<Asks, Level>(asks);
 }
 
 template <typename Level> Level OrderBook<Level>::getBestBid() const {
-  return ladder::getBest<Level>(bids);
+  return ladder::getBest<Bids, Level>(bids);
 }
 
 template <typename Level>
 std::vector<Level> OrderBook<Level>::getTopAsk(uint16_t depth) const {
-  return ladder::getTop<Level>(asks, depth);
+  return ladder::getTop<Asks, Level>(asks, depth);
 }
 
 template <typename Level>
 std::vector<Level> OrderBook<Level>::getTopBid(uint16_t depth) const {
-  return ladder::getTop<Level>(bids, depth);
+  return ladder::getTop<Bids, Level>(bids, depth);
 }

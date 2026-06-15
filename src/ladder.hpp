@@ -1,9 +1,10 @@
 #pragma once
 
 #include <cstdint>
+#include <list>
 #include <map>
-#include <memory_resource>
 #include <stdexcept>
+#include <vector>
 
 using OrderID = uint64_t;
 
@@ -14,54 +15,59 @@ template <typename Quantity> struct Orders {
     OrderID order_id;
     Quantity quantity;
   };
-  // std::list<{Quantity, OrderID}> orders;
-  // std::list<Quantity> orders;
   std::list<OrderQuantity> orders;
 };
 
-template <typename Price, typename Quantity>
-using BidBook = std::map<Price, Orders<Quantity>, std::greater<Price>>;
+template <typename Price, typename Quantity, typename Comparator> class Ladder {
+public:
+  using BookType = std::map<Price, Orders<Quantity>, Comparator>;
 
-template <typename Price, typename Quantity>
-using AskBook = std::map<Price, Orders<Quantity>, std::less<Price>>;
+  typename std::list<typename Orders<Quantity>::OrderQuantity>::iterator
+  addOrder(OrderID order_id, Price price, Quantity quantity) {
+    Orders<Quantity> orders;
+    orders.orders.push_back({order_id, quantity});
 
-template <typename Price, typename Quantity>
-using PmrBidBook = std::pmr::map<Price, Orders<Quantity>, std::greater<Price>>;
+    const auto [it, inserted] = book.try_emplace(price, orders);
+    if (!inserted)
+      it->second.orders.push_back({order_id, quantity});
+    return --it->second.orders.end();
+  }
 
-template <typename Price, typename Quantity>
-using PmrAskBook = std::pmr::map<Price, Orders<Quantity>, std::less<Price>>;
+  BookType &getBook() { return book; }
+  const BookType &getBook() const { return book; }
+
+  bool empty() const { return book.empty(); }
+
+  // Need to provide access to the comparator for the matching logic
+  auto key_comp() const { return book.key_comp(); }
+  auto begin() { return book.begin(); }
+  auto end() { return book.end(); }
+
+  // Need to support erasing by iterator and returning next
+  auto erase(typename BookType::iterator it) { return book.erase(it); }
+
+private:
+  BookType book;
+};
+
+template <typename Ladder, typename Level> Level getBest(const Ladder &ladder) {
+  if (ladder.getBook().empty())
+    throw std::runtime_error("Order Book Ladder: empty");
+  return {ladder.getBook().begin()->first, ladder.getBook().begin()->second};
+}
 
 template <typename Ladder, typename Level>
-typename std::list<
-    typename Orders<typename Level::Quantity>::OrderQuantity>::iterator
-addOrder(OrderID order_id, Ladder &ladder, const Level &level) {
-  Orders<typename Level::Quantity> orders;
-  orders.orders.push_back({order_id, level.quantity});
-
-  const auto [it, inserted] = ladder.try_emplace(level.price, orders);
-  if (!inserted)
-    it->second.orders.push_back({order_id, level.quantity});
-  return --it->second.orders.end();
-}
-
-template <typename Level, typename Ladder> Level getBest(const Ladder &ladder) {
-  if (ladder.empty())
-    throw std::runtime_error("Order Book Ladder: empty");
-  return {ladder.begin()->first, ladder.begin()->second};
-}
-
-template <typename Level, typename Ladder>
 std::vector<Level> getTop(const Ladder &ladder, uint16_t depth) {
   std::vector<Level> result{};
   result.reserve(depth);
 
-  for (const auto &current : ladder) {
+  for (const auto &current : ladder.getBook()) {
     typename Level::Quantity acc{0};
     for (const auto &x : current.second.orders)
       acc += x.quantity;
 
     result.push_back({current.first, acc});
-    if (result.size() > depth)
+    if (result.size() >= depth)
       break;
   }
   return result;
