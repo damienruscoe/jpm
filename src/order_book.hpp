@@ -70,25 +70,27 @@ template <typename LadderType>
 void OrderBook<Level>::matchAgainst(Quantity &remaining, Price price,
                                     LadderType &opposingLadder,
                                     const auto &comp) {
-  while (remaining > 0 && !opposingLadder.empty() &&
-         !comp(opposingLadder.getBook().begin()->first, price)) {
-    auto price_it = opposingLadder.getBook().begin();
-    auto &orders = price_it->second;
-    for (auto it = orders.begin(); remaining > 0 && it != orders.end();) {
+  auto &book = opposingLadder.getBook();
+  while (remaining > 0 && !book.empty() && !comp(book.begin()->first, price)) {
+    const Price &current_price = book.begin()->first;
+    auto &level_data = book.begin()->second;
+
+    for (auto it = level_data.orders.begin();
+         remaining > 0 && it != level_data.orders.end();) {
       auto *order = order_pool.get(*it);
 
       if (order->quantity <= remaining) {
         remaining -= order->quantity;
         id_to_siv_id.erase(order->id);
+
         order_pool.erase(*it);
-        it = orders.erase(it);
+        opposingLadder.removeOrder(current_price, it++, order->quantity);
       } else {
         order->quantity -= remaining;
+        level_data.total_qty -= remaining;
         remaining = 0;
       }
     }
-    if (orders.empty())
-      opposingLadder.removeBest();
   }
 }
 
@@ -103,7 +105,8 @@ void OrderBook<Level>::addToLadder(OrderID order_id, Price price, Quantity qty,
             side,
             {side == side_t::BID, {typename Bids::ListIterator{}}}});
   id_to_siv_id[order_id] = id;
-  order_pool.get(id)->ladder_it.it = ladder.addOrder(id, price);
+  // Pass qty to addOrder (unused for now)
+  order_pool.get(id)->ladder_it.it = ladder.addOrder(id, price, qty);
 }
 
 template <typename Level>
@@ -138,24 +141,20 @@ std::vector<Level> OrderBook<Level>::getTop(side_t side, uint16_t depth) const {
 
 template <typename Level>
 std::optional<Level> OrderBook<Level>::getBestAsk() const {
-  auto fetchOrder = [&](size_t id) { return order_pool.get(id); };
-  return asks.template getBest<Level>(fetchOrder);
+  return asks.template getBest<Level>();
 }
 
 template <typename Level>
 std::optional<Level> OrderBook<Level>::getBestBid() const {
-  auto fetchOrder = [&](size_t id) { return order_pool.get(id); };
-  return bids.template getBest<Level>(fetchOrder);
+  return bids.template getBest<Level>();
 }
 
 template <typename Level>
 std::vector<Level> OrderBook<Level>::getTopAsk(uint16_t depth) const {
-  auto fetchOrder = [&](size_t id) { return order_pool.get(id); };
-  return asks.template getTop<Level>(depth, fetchOrder);
+  return asks.template getTop<Level>(depth);
 }
 
 template <typename Level>
 std::vector<Level> OrderBook<Level>::getTopBid(uint16_t depth) const {
-  auto fetchOrder = [&](size_t id) { return order_pool.get(id); };
-  return bids.template getTop<Level>(depth, fetchOrder);
+  return bids.template getTop<Level>(depth);
 }

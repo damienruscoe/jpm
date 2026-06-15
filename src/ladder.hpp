@@ -21,23 +21,31 @@ public:
   using OrderList = std::list<size_t>;
   using ListIterator = OrderList::iterator;
 
-  using BookType = std::map<Price, OrderList, Comparator>;
+  struct LevelData {
+    OrderList orders;
+    Quantity total_qty;
+  };
 
-  ListIterator addOrder(size_t id, Price price) {
-    auto [it, added] = book.try_emplace(price, OrderList{id});
-    if (!added)
-      it->second.push_back(id);
+  using BookType = std::map<Price, LevelData, Comparator>;
 
-    return std::prev(it->second.end());
+  ListIterator addOrder(size_t id, Price price, Quantity qty) {
+    auto [it, added] = book.try_emplace(price, LevelData{OrderList{id}, qty});
+    if (!added) {
+      it->second.orders.push_back(id);
+      it->second.total_qty += qty;
+    }
+
+    return std::prev(it->second.orders.end());
   }
 
-  void removeOrder(Price price, ListIterator it) {
+  void removeOrder(Price price, ListIterator it, Quantity qty) {
     auto book_it = book.find(price);
     if (book_it == book.end())
       return;
 
-    book_it->second.erase(it);
-    if (book_it->second.empty())
+    book_it->second.orders.erase(it);
+    book_it->second.total_qty -= qty;
+    if (book_it->second.orders.empty())
       book.erase(book_it);
   }
 
@@ -51,33 +59,19 @@ public:
   const BookType &getBook() const { return book; }
   auto key_comp() const { return book.key_comp(); }
 
-  template <typename Level>
-  std::optional<Level> getBest(auto fetchOrder) const {
+  template <typename Level> std::optional<Level> getBest() const {
     if (book.empty())
       return std::nullopt;
     auto it = book.begin();
-    Quantity acc{0};
-    for (const auto &id : it->second) {
-      if (auto *order = fetchOrder(id)) {
-        acc += order->quantity;
-      }
-    }
-    return Level{it->first, acc};
+    return Level{it->first, it->second.total_qty};
   }
 
-  template <typename Level>
-  std::vector<Level> getTop(uint16_t depth, auto fetchOrder) const {
+  template <typename Level> std::vector<Level> getTop(uint16_t depth) const {
     std::vector<Level> result{};
     for (const auto &level : book) {
       if (result.size() >= depth)
         break;
-      Quantity acc{0};
-      for (const auto &id : level.second) {
-        if (auto *order = fetchOrder(id)) {
-          acc += order->quantity;
-        }
-      }
-      result.push_back({level.first, acc});
+      result.push_back({level.first, level.second.total_qty});
     }
     return result;
   }
