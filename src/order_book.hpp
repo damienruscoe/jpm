@@ -50,6 +50,12 @@ public:
   std::vector<Level> getTopAsk(uint16_t depth = 10) const;
 
 private:
+  template <typename LadderType>
+  void matchAgainst(Quantity &remaining, Price price, LadderType &opposingLadder, const auto &comp);
+
+  template <typename LadderType>
+  void addToLadder(OrderID order_id, Price price, Quantity qty, side_t side, LadderType &ladder);
+
   siv::Vector<Order> order_pool;
   std::unordered_map<OrderID, siv::ID> id_to_siv_id;
 
@@ -58,84 +64,58 @@ private:
 };
 
 template <typename Level>
+template <typename LadderType>
+void OrderBook<Level>::matchAgainst(Quantity &remaining, Price price, LadderType &opposingLadder, const auto &comp) {
+  while (remaining > 0 && !opposingLadder.empty() &&
+         !comp(opposingLadder.getBook().begin()->first, price)) {
+    auto price_it = opposingLadder.getBook().begin();
+    auto &orders = price_it->second;
+    for (auto it = orders.begin(); remaining > 0 && it != orders.end();) {
+      auto *order = order_pool.get(*it);
+
+      if (order->quantity <= remaining) {
+        remaining -= order->quantity;
+        id_to_siv_id.erase(order->id);
+        order_pool.erase(*it);
+        it = orders.erase(it);
+      } else {
+        order->quantity -= remaining;
+        remaining = 0;
+      }
+    }
+    if (orders.empty())
+      opposingLadder.removeBest();
+  }
+}
+
+template <typename Level>
+template <typename LadderType>
+void OrderBook<Level>::addToLadder(OrderID order_id, Price price, Quantity qty, side_t side, LadderType &ladder) {
+  siv::ID id = order_pool.emplace_back(
+      Order{order_id,
+            price,
+            qty,
+            side,
+            {side == side_t::BID, {typename Bids::ListIterator{}}}});
+  id_to_siv_id[order_id] = id;
+  order_pool.get(id)->ladder_it.it = ladder.addOrder(id, price);
+}
+
+template <typename Level>
 bool OrderBook<Level>::update(OrderID order_id, side_t side, Level level) {
   if (id_to_siv_id.find(order_id) != id_to_siv_id.end())
     return false;
 
   Quantity remaining = level.quantity;
 
-  auto fetchOrder = [&](siv::ID id) { return order_pool.get(id); };
-
   if (side == side_t::BID) {
-    // Matching Bids (new) against Asks (opposing)
-    const auto price_exceeded = bids.key_comp();
-    while (remaining > 0 && !asks.empty() &&
-           !price_exceeded(asks.getBook().begin()->first, level.price)) {
-      auto price_it = asks.getBook().begin();
-      auto &orders = price_it->second;
-      for (auto it = orders.begin(); remaining > 0 && it != orders.end();) {
-        auto *order = fetchOrder(*it);
-
-        if (order->quantity <= remaining) {
-          remaining -= order->quantity;
-          id_to_siv_id.erase(order->id);
-          order_pool.erase(*it);
-          it = orders.erase(it);
-        } else {
-          order->quantity -= remaining;
-          remaining = 0;
-        }
-      }
-      if (orders.empty())
-        asks.removeBest();
-    }
-
-    if (remaining > 0) {
-      siv::ID id = order_pool.emplace_back(
-          Order{order_id,
-                level.price,
-                remaining,
-                side,
-                {true, {typename Bids::ListIterator{}}}});
-      id_to_siv_id[order_id] = id;
-
-      order_pool.get(id)->ladder_it.it = bids.addOrder(id, level.price);
-    }
+    matchAgainst(remaining, level.price, asks, bids.key_comp());
+    if (remaining > 0)
+      addToLadder(order_id, level.price, remaining, side, bids);
   } else {
-    // Matching Asks (new) against Bids (opposing)
-    const auto price_exceeded = asks.key_comp();
-    while (remaining > 0 && !bids.empty() &&
-           !price_exceeded(bids.getBook().begin()->first, level.price)) {
-      auto price_it = bids.getBook().begin();
-      auto &orders = price_it->second;
-      for (auto it = orders.begin(); remaining > 0 && it != orders.end();) {
-        auto *order = fetchOrder(*it);
-
-        if (order->quantity <= remaining) {
-          remaining -= order->quantity;
-          id_to_siv_id.erase(order->id);
-          order_pool.erase(*it);
-          it = orders.erase(it);
-        } else {
-          order->quantity -= remaining;
-          remaining = 0;
-        }
-      }
-      if (orders.empty())
-        bids.removeBest();
-    }
-
-    if (remaining > 0) {
-      siv::ID id = order_pool.emplace_back(
-          Order{order_id,
-                level.price,
-                remaining,
-                side,
-                {false, {typename Asks::ListIterator{}}}});
-      id_to_siv_id[order_id] = id;
-
-      order_pool.get(id)->ladder_it.it = asks.addOrder(id, level.price);
-    }
+    matchAgainst(remaining, level.price, bids, asks.key_comp());
+    if (remaining > 0)
+      addToLadder(order_id, level.price, remaining, side, asks);
   }
 
   return true;
