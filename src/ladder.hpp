@@ -5,8 +5,8 @@
 #include <list>
 #include <map>
 #include <optional>
-#include <vector>
 #include <variant>
+#include <vector>
 
 #include "stable_index_vector.hpp"
 
@@ -14,15 +14,20 @@ using OrderID = uint64_t;
 
 namespace ladder {
 
-template <typename Price, typename Quantity, typename Comparator = std::less<Price>>
+template <typename Price, typename Quantity,
+          typename Comparator = std::less<Price>>
 class Ladder {
 public:
   using OrderList = std::list<siv::ID>;
   using ListIterator = OrderList::iterator;
 
   // Wrappers to make variant types distinct
-  struct BidIterator { ListIterator it; };
-  struct AskIterator { ListIterator it; };
+  struct BidIterator {
+    ListIterator it;
+  };
+  struct AskIterator {
+    ListIterator it;
+  };
 
   struct PriceLevel {
     OrderList orders;
@@ -41,8 +46,9 @@ public:
 
   void removeOrder(Price price, ListIterator it) {
     auto book_it = book.find(price);
-    if (book_it == book.end()) return;
-    
+    if (book_it == book.end())
+      return;
+
     book_it->second.orders.erase(it);
     if (book_it->second.orders.empty()) {
       book.erase(book_it);
@@ -50,22 +56,23 @@ public:
   }
 
   void removeBest() {
-      if (!book.empty()) {
-          book.erase(book.begin());
-      }
+    if (!book.empty()) {
+      book.erase(book.begin());
+    }
   }
 
-  BookType& getBook() { return book; }
-  const BookType& getBook() const { return book; }
+  BookType &getBook() { return book; }
+  const BookType &getBook() const { return book; }
   auto key_comp() const { return book.key_comp(); }
 
-  template <typename Level> std::optional<Level> getBest(auto fetchOrder) const {
+  template <typename Level>
+  std::optional<Level> getBest(auto fetchOrder) const {
     if (book.empty())
       return std::nullopt;
     auto it = book.begin();
     Quantity acc{0};
     for (const auto &id : it->second.orders) {
-      if (auto* order = fetchOrder(id)) {
+      if (auto *order = fetchOrder(id)) {
         acc += order->quantity;
       }
     }
@@ -80,9 +87,9 @@ public:
         break;
       Quantity acc{0};
       for (const auto &id : level.second.orders) {
-          if (auto* order = fetchOrder(id)) {
-            acc += order->quantity;
-          }
+        if (auto *order = fetchOrder(id)) {
+          acc += order->quantity;
+        }
       }
       result.push_back({level.first, acc});
     }

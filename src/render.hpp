@@ -19,7 +19,8 @@ public:
   }
 
 private:
-  std::pair<std::optional<Level>, std::optional<Level>> prev_bests = std::make_pair(std::nullopt, std::nullopt);
+  std::pair<std::optional<Level>, std::optional<Level>> prev_bests =
+      std::make_pair(std::nullopt, std::nullopt);
 };
 
 template <typename Level> void render_book(const OrderBook<Level> &book) {
@@ -40,7 +41,7 @@ template <typename Level> void render_book(const OrderBook<Level> &book) {
     auto spread = top_asks[0].price - top_bids[0].price;
     ss << "Spread: " << spread << nl;
   }
-  
+
   ss << "---------------------------" << nl;
 
   for (auto it = top_bids.cbegin(); it != top_bids.cend(); ++it)
