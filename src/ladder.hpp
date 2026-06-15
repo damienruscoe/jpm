@@ -21,14 +21,6 @@ public:
   using OrderList = std::list<siv::ID>;
   using ListIterator = OrderList::iterator;
 
-  // Wrappers to make variant types distinct
-  struct BidIterator {
-    ListIterator it;
-  };
-  struct AskIterator {
-    ListIterator it;
-  };
-
   struct PriceLevel {
     OrderList orders;
   };

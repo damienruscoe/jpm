@@ -26,11 +26,12 @@ public:
   using Bids = ladder::Ladder<Price, Quantity, std::greater<Price>>;
   using Asks = ladder::Ladder<Price, Quantity, std::less<Price>>;
 
-  // Define a wrapper for the variant to fix iterator ambiguity
+  // Iterator type is the same for Bids and Asks
   struct LadderIt {
       bool is_bid;
-      std::variant<typename Bids::BidIterator, typename Asks::AskIterator> it;
+      typename Bids::ListIterator it;
   };
+
 
   struct Order {
     OrderID id;
@@ -91,14 +92,14 @@ bool OrderBook<Level>::update(OrderID order_id, side_t side, Level level) {
       }
       
       if (remaining > 0) {
-          siv::ID id = order_pool.emplace_back(Order{order_id, level.price, remaining, side, {true, {typename Bids::BidIterator{}}}});
+          siv::ID id = order_pool.emplace_back(Order{order_id, level.price, remaining, side, {true, {typename Bids::ListIterator{}}}});
           id_to_siv_id[order_id] = id;
           
           // Add to ladder and store back-pointer
           auto it = bids.addOrder(id, level.price, [&](siv::ID id, typename Bids::ListIterator it) {
-              order_pool.get(id)->ladder_it.it = typename Bids::BidIterator{it};
+              order_pool.get(id)->ladder_it.it = typename Bids::ListIterator{it};
           });
-          order_pool.get(id)->ladder_it.it = typename Bids::BidIterator{it};
+          order_pool.get(id)->ladder_it.it = typename Bids::ListIterator{it};
       }
   } else {
       // Matching Asks (new) against Bids (opposing)
@@ -123,13 +124,13 @@ bool OrderBook<Level>::update(OrderID order_id, side_t side, Level level) {
       }
       
       if (remaining > 0) {
-          siv::ID id = order_pool.emplace_back(Order{order_id, level.price, remaining, side, {false, {typename Asks::AskIterator{}}}});
+          siv::ID id = order_pool.emplace_back(Order{order_id, level.price, remaining, side, {false, {typename Asks::ListIterator{}}}});
           id_to_siv_id[order_id] = id;
           
           auto it = asks.addOrder(id, level.price, [&](siv::ID id, typename Asks::ListIterator it) {
-              order_pool.get(id)->ladder_it.it = typename Asks::AskIterator{it};
+              order_pool.get(id)->ladder_it.it = typename Asks::ListIterator{it};
           });
-          order_pool.get(id)->ladder_it.it = typename Asks::AskIterator{it};
+          order_pool.get(id)->ladder_it.it = typename Asks::ListIterator{it};
       }
   }
 
