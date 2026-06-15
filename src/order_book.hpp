@@ -58,8 +58,8 @@ private:
   void addToLadder(OrderID order_id, Price price, Quantity qty, side_t side,
                    LadderType &ladder);
 
-  siv::Vector<Order> order_pool;
-  std::unordered_map<OrderID, siv::ID> id_to_siv_id;
+  StableVector<Order> order_pool;
+  std::unordered_map<OrderID, size_t> id_to_siv_id;
 
   Bids bids;
   Asks asks;
@@ -96,7 +96,7 @@ template <typename Level>
 template <typename LadderType>
 void OrderBook<Level>::addToLadder(OrderID order_id, Price price, Quantity qty,
                                    side_t side, LadderType &ladder) {
-  siv::ID id = order_pool.emplace_back(
+  size_t id = order_pool.emplace_back(
       Order{order_id,
             price,
             qty,
@@ -138,24 +138,24 @@ std::vector<Level> OrderBook<Level>::getTop(side_t side, uint16_t depth) const {
 
 template <typename Level>
 std::optional<Level> OrderBook<Level>::getBestAsk() const {
-  auto fetchOrder = [&](siv::ID id) { return order_pool.get(id); };
+  auto fetchOrder = [&](size_t id) { return order_pool.get(id); };
   return asks.template getBest<Level>(fetchOrder);
 }
 
 template <typename Level>
 std::optional<Level> OrderBook<Level>::getBestBid() const {
-  auto fetchOrder = [&](siv::ID id) { return order_pool.get(id); };
+  auto fetchOrder = [&](size_t id) { return order_pool.get(id); };
   return bids.template getBest<Level>(fetchOrder);
 }
 
 template <typename Level>
 std::vector<Level> OrderBook<Level>::getTopAsk(uint16_t depth) const {
-  auto fetchOrder = [&](siv::ID id) { return order_pool.get(id); };
+  auto fetchOrder = [&](size_t id) { return order_pool.get(id); };
   return asks.template getTop<Level>(depth, fetchOrder);
 }
 
 template <typename Level>
 std::vector<Level> OrderBook<Level>::getTopBid(uint16_t depth) const {
-  auto fetchOrder = [&](siv::ID id) { return order_pool.get(id); };
+  auto fetchOrder = [&](size_t id) { return order_pool.get(id); };
   return bids.template getTop<Level>(depth, fetchOrder);
 }

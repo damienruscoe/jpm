@@ -18,12 +18,12 @@ template <typename Price, typename Quantity,
           typename Comparator = std::less<Price>>
 class Ladder {
 public:
-  using OrderList = std::list<siv::ID>;
+  using OrderList = std::list<size_t>;
   using ListIterator = OrderList::iterator;
 
   using BookType = std::map<Price, OrderList, Comparator>;
 
-  ListIterator addOrder(siv::ID id, Price price) {
+  ListIterator addOrder(size_t id, Price price) {
     auto [it, added] = book.try_emplace(price, OrderList{id});
     if (!added)
       it->second.push_back(id);

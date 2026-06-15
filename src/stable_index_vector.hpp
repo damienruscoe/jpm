@@ -3,14 +3,11 @@
 #include <limits>
 #include <vector>
 
-namespace siv {
-
-using ID = uint64_t;
 static constexpr size_t InvalidID = std::numeric_limits<size_t>::max();
 
-template <typename T> class Vector {
+template <typename T> class StableVector {
 public:
-  Vector() = default;
+  StableVector() = default;
 
   size_t push_back(const T &object) {
     const size_t id = getFreeSlot();
@@ -73,4 +70,3 @@ private:
   std::vector<size_t> m_indexes;
   std::vector<T> m_data;
 };
-} // namespace siv

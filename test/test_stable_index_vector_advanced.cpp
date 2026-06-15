@@ -19,7 +19,7 @@ TEST(StableIndexVectorAdvancedTest, ComplexObjectWithMoveSemantics) {
         MoveOnlyObject& operator=(const MoveOnlyObject&) = delete;
     };
 
-    siv::Vector<MoveOnlyObject> vec;
+    StableVector<MoveOnlyObject> vec;
     size_t id = vec.emplace_back(42);
     
     EXPECT_EQ(vec[id].id, 42);
@@ -27,7 +27,7 @@ TEST(StableIndexVectorAdvancedTest, ComplexObjectWithMoveSemantics) {
 }
 
 TEST(StableIndexVectorAdvancedTest, MassiveOperationsAndStability) {
-    siv::Vector<size_t> vec;
+    StableVector<size_t> vec;
     const size_t num_elements = 1000;
     std::vector<size_t> ids(num_elements);
     
@@ -50,7 +50,7 @@ TEST(StableIndexVectorAdvancedTest, MassiveOperationsAndStability) {
 }
 
 TEST(StableIndexVectorAdvancedTest, OutOfBoundsAccess) {
-    siv::Vector<int> vec;
+    StableVector<int> vec;
     size_t id = vec.push_back(10);
     (void)id;
     
@@ -68,7 +68,7 @@ TEST(StableIndexVectorAdvancedTest, OutOfBoundsAccess) {
 // This test attempts to force an invariant violation through heavy usage
 // to ensure that no sequence of public API calls can cause the vectors to diverge.
 TEST(StableIndexVectorAdvancedTest, CheckInvariantUnderStress) {
-    siv::Vector<int> vec;
+    StableVector<int> vec;
     
     // Perform a large number of operations to potentially trigger edge cases
     // in index/metadata growth.
