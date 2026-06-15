@@ -6,11 +6,10 @@
 #include <variant>
 #include <vector>
 
+#include "order.hpp"
 #include "fixed_point.hpp"
 #include "ladder.hpp"
-#include "stable_index_vector.hpp"
-
-enum class side_t { BID, ASK };
+#include "order_storage.hpp"
 
 using OrderID = std::string;
 
@@ -18,17 +17,9 @@ template <typename Level> class OrderBook {
 public:
   using Price = typename Level::Price;
   using Quantity = typename Level::Quantity;
+  using Order = ::Order<Price, Quantity>;
   using Bids = Ladder<Price, Quantity, std::greater<Price>>;
   using Asks = Ladder<Price, Quantity, std::less<Price>>;
-
-  struct Order {
-    OrderID id;
-    Price price;
-    Quantity quantity;
-    side_t side;
-    // The back-pointer to the ladder's list
-    typename Bids::ListIterator ladder_it;
-  };
 
   [[nodiscard]] bool update(OrderID order_id, side_t side, Level level);
   [[nodiscard]] bool cancel(OrderID order_id, side_t side);
@@ -50,8 +41,8 @@ private:
   void addToLadder(OrderID order_id, Price price, Quantity qty, side_t side,
                    LadderType &ladder);
 
-  StableVector<Order> order_pool;
-  std::unordered_map<OrderID, size_t> id_to_siv_id;
+  OrderStorage<Order> storage;
+  std::unordered_map<OrderID, Order*> id_to_order_ptr;
 
   Bids bids;
   Asks asks;
@@ -69,19 +60,21 @@ void OrderBook<Level>::matchAgainst(Quantity &remaining, Price price,
 
     for (auto it = level_data.orders.begin();
          remaining > 0 && it != level_data.orders.end();) {
-      auto *order = order_pool.get(*it);
+      Order *order = &(*it);
+      auto next_it = std::next(it);
 
       if (order->quantity <= remaining) {
         remaining -= order->quantity;
-        id_to_siv_id.erase(order->id);
+        id_to_order_ptr.erase(order->id);
 
-        order_pool.erase(*it);
-        opposingLadder.removeOrder(current_price, it++, order->quantity);
+        opposingLadder.removeOrder(current_price, order, order->quantity);
+        storage.destroyOrder(order);
       } else {
         order->quantity -= remaining;
         level_data.total_qty -= remaining;
         remaining = 0;
       }
+      it = next_it;
     }
   }
 }
@@ -90,15 +83,14 @@ template <typename Level>
 template <typename LadderType>
 void OrderBook<Level>::addToLadder(OrderID order_id, Price price, Quantity qty,
                                    side_t side, LadderType &ladder) {
-  size_t id = order_pool.emplace_back(
-      Order{order_id, price, qty, side, typename Bids::ListIterator{}});
-  id_to_siv_id[order_id] = id;
-  order_pool.get(id)->ladder_it = ladder.addOrder(id, price, qty);
+  Order* order = storage.createOrder(order_id, price, qty, side);
+  id_to_order_ptr[order_id] = order;
+  ladder.addOrder(order, price, qty);
 }
 
 template <typename Level>
 bool OrderBook<Level>::update(OrderID order_id, side_t side, Level level) {
-  if (id_to_siv_id.find(order_id) != id_to_siv_id.end())
+  if (id_to_order_ptr.find(order_id) != id_to_order_ptr.end())
     return false;
 
   Quantity remaining = level.quantity;
@@ -118,16 +110,16 @@ bool OrderBook<Level>::update(OrderID order_id, side_t side, Level level) {
 
 template <typename Level>
 bool OrderBook<Level>::cancel(OrderID order_id, side_t side) {
-  if (auto it = id_to_siv_id.find(order_id); it != id_to_siv_id.end()) {
-    const auto &order = order_pool[it->second];
+  if (auto it = id_to_order_ptr.find(order_id); it != id_to_order_ptr.end()) {
+    Order* order = it->second;
     if (side == side_t::BID) {
-      bids.removeOrder(order.price, order.ladder_it, order.quantity);
+      bids.removeOrder(order->price, order, order->quantity);
     } else {
-      asks.removeOrder(order.price, order.ladder_it, order.quantity);
+      asks.removeOrder(order->price, order, order->quantity);
     }
 
-    id_to_siv_id.erase(order_id);
-    order_pool.erase(it->second);
+    id_to_order_ptr.erase(order_id);
+    storage.destroyOrder(order);
 
     return true;
   }

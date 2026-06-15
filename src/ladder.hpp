@@ -2,21 +2,24 @@
 
 #include <cstdint>
 #include <functional>
-#include <list>
 #include <map>
 #include <optional>
 #include <string_view>
 #include <variant>
 #include <vector>
+#include <boost/intrusive/list.hpp>
 
-#include "stable_index_vector.hpp"
+#include "order.hpp"
 
 template <typename Price, typename Quantity,
           typename Comparator = std::less<Price>>
 class Ladder {
 public:
-  using OrderList = std::list<size_t>;
-  using ListIterator = OrderList::iterator;
+  using OrderType = ::Order<Price, Quantity>;
+  using OrderList = boost::intrusive::list<OrderType, 
+    boost::intrusive::member_hook<OrderType, 
+        boost::intrusive::list_member_hook<>, 
+        &OrderType::ladder_hook>>;
 
   struct LevelData {
     OrderList orders;
@@ -25,19 +28,19 @@ public:
 
   using BookType = std::map<Price, LevelData, Comparator>;
 
-  ListIterator addOrder(size_t id, Price price, Quantity qty) {
-    auto [it, added] = book.try_emplace(price, LevelData{OrderList{id}, qty});
+  auto addOrder(OrderType* order, Price price, Quantity qty) {
+    auto [it, added] = book.try_emplace(price, LevelData{OrderList{}, qty});
     if (!added) {
-      it->second.orders.push_back(id);
       it->second.total_qty += qty;
     }
+    it->second.orders.push_back(*order);
 
-    return std::prev(it->second.orders.end());
+    return it->second.orders.iterator_to(*order);
   }
 
-  void removeOrder(Price price, ListIterator order_it, Quantity qty) {
+  void removeOrder(Price price, OrderType* order, Quantity qty) {
     if (auto it = book.find(price); it != book.end()) {
-      it->second.orders.erase(order_it);
+      it->second.orders.erase(it->second.orders.iterator_to(*order));
       it->second.total_qty -= qty;
       if (it->second.orders.empty())
         book.erase(it);
