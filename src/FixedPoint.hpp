@@ -3,6 +3,7 @@
 #include <charconv>
 #include <cmath>
 #include <cstdint>
+#include <iostream>
 #include <stdexcept>
 #include <string_view>
 
@@ -10,12 +11,12 @@
  * @brief A simple fixed-point decimal representation.
  * For this exercise, we assume a precision of 4 decimal places.
  */
-class FixedPoint {
+class FixedPointAI {
 public:
-  FixedPoint() : m_raw_value(0) {}
-  explicit FixedPoint(int64_t raw) : m_raw_value(raw) {}
+  FixedPointAI() : m_raw_value(0) {}
+  explicit FixedPointAI(int64_t raw) : m_raw_value(raw) {}
 
-  static FixedPoint Parse(std::string_view str) {
+  static FixedPointAI Parse(std::string_view str) {
     if (str.empty())
       throw std::invalid_argument("empty");
 
@@ -37,7 +38,7 @@ public:
       if (ec != std::errc{} || ptr != str.data() + str.size())
         throw std::invalid_argument("invalid");
       int64_t val = v * 10000;
-      return FixedPoint(negative ? -val : val);
+      return FixedPointAI(negative ? -val : val);
     } else {
       int64_t integral = 0;
       auto [ptr_i, ec_i] =
@@ -61,12 +62,29 @@ public:
         fractional /= 10;
 
       int64_t val = integral * 10000 + fractional;
-      return FixedPoint(negative ? -val : val);
+      return FixedPointAI(negative ? -val : val);
     }
   }
 
   int64_t GetRaw() const { return m_raw_value; }
   double ToDouble() const { return static_cast<double>(m_raw_value) / 10000.0; }
+
+  bool operator>(const FixedPointAI &other) const {
+    return m_raw_value > other.m_raw_value;
+  }
+
+  bool operator<(const FixedPointAI &other) const {
+    return m_raw_value < other.m_raw_value;
+  }
+
+  friend FixedPointAI operator-(const FixedPointAI &lhs,
+                                const FixedPointAI &rhs) {
+    return FixedPointAI{lhs.m_raw_value - rhs.m_raw_value};
+  }
+
+  friend std::ostream &operator<<(std::ostream &os, const FixedPointAI &fp) {
+    return os << fp.ToDouble();
+  }
 
 private:
   int64_t m_raw_value;

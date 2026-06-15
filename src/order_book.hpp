@@ -1,85 +1,140 @@
 #pragma once
 
+#include <list>
+#include <unordered_map>
 #include <vector>
 
 #include "fixed_point.hpp"
 #include "ladder.hpp"
 
-enum class side_t { BID,
-    ASK };
+enum class side_t { BID, ASK };
 
-template <typename Level>
-class OrderBook {
+using OrderID = uint64_t;
+
+template <typename Level> class OrderBook {
 public:
-    using Price = typename Level::Price;
-    using Quantity = typename Level::Quantity;
+  using Price = typename Level::Price;
+  using Quantity = typename Level::Quantity;
 
-    void update(side_t side, const Level& level);
+  [[nodiscard]] bool update(OrderID order_id, side_t side, Level level);
 
-    Level getBest(side_t side) const;
-    Level getBestBid() const;
-    Level getBestAsk() const;
+  Level getBest(side_t side) const;
+  Level getBestBid() const;
+  Level getBestAsk() const;
 
-    std::vector<Level> getTop(side_t side, uint16_t depth = 10) const;
-    std::vector<Level> getTopBid(uint16_t depth = 10) const;
-    std::vector<Level> getTopAsk(uint16_t depth = 10) const;
+  std::vector<Level> getTop(side_t side, uint16_t depth = 10) const;
+  std::vector<Level> getTopBid(uint16_t depth = 10) const;
+  std::vector<Level> getTopAsk(uint16_t depth = 10) const;
 
 private:
-    using Bids = ladder::BidBook<Price, Quantity>;
-    using Asks = ladder::AskBook<Price, Quantity>;
+  using Bids = ladder::BidBook<Price, Quantity>;
+  using Asks = ladder::AskBook<Price, Quantity>;
 
-    Bids bids;
-    Asks asks;
+  using OrderLink = typename std::list<
+      typename ladder::Orders<Quantity>::OrderQuantity>::iterator;
+  using Orders = std::unordered_map<OrderID, OrderLink>;
+
+  Bids bids;
+  Asks asks;
+  Orders orders;
 };
 
-template <typename ActiveLadder, typename OpposingLadder, typename Level>
-void update(ActiveLadder& active, OpposingLadder& opposing, const Level& level)
-{
-    ladder::setQuantity(active, level);
-    ladder::setSpreadLimit(opposing, level);
+template <typename ActiveLadder, typename OpposingLadder, typename Orders,
+          typename Level>
+void update(OrderID order_id, Orders &orders, ActiveLadder &active,
+            OpposingLadder &opposing, Level &level) {
+  const auto price_exceeded = active.key_comp();
+  auto &remaining = level.quantity;
+  auto price_level = opposing.begin();
+  const auto last_price_level = opposing.end();
+
+  while (remaining && price_level != last_price_level &&
+         !price_exceeded(price_level->first, level.price)) {
+    auto &level_orders = price_level->second.orders;
+
+    const auto last_order = level_orders.end();
+    for (auto order = level_orders.begin(); remaining && order != last_order;) {
+      /*
+      auto trade_qty = std::min(order->quantity, remaining);
+
+      order->quantity -= trade_qty;
+      remaining -= trade_qty; // One or more will be zero.
+
+      if (order->quantity == 0)
+      {
+              orders.erase(order->order_id);
+
+              order = level_orders.erase(order);
+              price_level = level_orders.empty() ? opposing.erase(price_level);
+                                                                                                                                                       : std::next(price_level);
+      }
+      */
+
+      if (order->quantity <= remaining) {
+        remaining -= order->quantity;
+
+        orders.erase(order->order_id);
+
+        order = level_orders.erase(order);
+        price_level = level_orders.empty() ? opposing.erase(price_level)
+                                           : std::next(price_level);
+      } else {
+        order->quantity -= remaining;
+        // remaining = 0;
+        return;
+      }
+    }
+  }
+
+  if (remaining != 0)
+    orders.emplace(order_id, ladder::addOrder(order_id, active, level));
 }
 
 template <typename Level>
-void OrderBook<Level>::update(side_t side, const Level& level)
+bool OrderBook<Level>::update(OrderID order_id, side_t side, Level level) {
+  if (orders.find(order_id) != orders.end())
+    return false;
+
+  side == side_t::ASK ? ::update(order_id, orders, asks, bids, level)
+                      : ::update(order_id, orders, bids, asks, level);
+
+  return true;
+}
+
+/*
+template <typename Level>
+bool OrderBook<Level>::cancel(OrderID order_id)
 {
-    side == side_t::ASK ? ::update(asks, bids, level)
-                        : ::update(bids, asks, level);
+                if (auto found = orders.find(order_id); found != orders.end())
+                {
+                        *found // Undefined
+                }
+}
+*/
+
+template <typename Level> Level OrderBook<Level>::getBest(side_t side) const {
+  return side == side_t::ASK ? getBestAsk() : getBestBid();
 }
 
 template <typename Level>
-Level OrderBook<Level>::getBest(side_t side) const
-{
-    return side == side_t::ASK ? getBestAsk()
-                               : getBestBid();
+std::vector<Level> OrderBook<Level>::getTop(side_t side, uint16_t depth) const {
+  return side == side_t::ASK ? getTopAsk(depth) : getTopBid(depth);
+}
+
+template <typename Level> Level OrderBook<Level>::getBestAsk() const {
+  return ladder::getBest<Level>(asks);
+}
+
+template <typename Level> Level OrderBook<Level>::getBestBid() const {
+  return ladder::getBest<Level>(bids);
 }
 
 template <typename Level>
-std::vector<Level> OrderBook<Level>::getTop(side_t side, uint16_t depth) const
-{
-    return side == side_t::ASK ? getTopAsk(depth)
-                               : getTopBid(depth);
+std::vector<Level> OrderBook<Level>::getTopAsk(uint16_t depth) const {
+  return ladder::getTop<Level>(asks, depth);
 }
 
 template <typename Level>
-Level OrderBook<Level>::getBestAsk() const
-{
-    return ladder::getBest<Level>(asks);
-}
-
-template <typename Level>
-Level OrderBook<Level>::getBestBid() const
-{
-    return ladder::getBest<Level>(bids);
-}
-
-template <typename Level>
-std::vector<Level> OrderBook<Level>::getTopAsk(uint16_t depth) const
-{
-    return ladder::getTop<Level>(asks, depth);
-}
-
-template <typename Level>
-std::vector<Level> OrderBook<Level>::getTopBid(uint16_t depth) const
-{
-    return ladder::getTop<Level>(bids, depth);
+std::vector<Level> OrderBook<Level>::getTopBid(uint16_t depth) const {
+  return ladder::getTop<Level>(bids, depth);
 }

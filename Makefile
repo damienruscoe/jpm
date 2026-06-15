@@ -1,5 +1,5 @@
 # Compiler and Flags
-CXX = g++
+CXX = clang++
 CXXFLAGS = -std=c++20 -O3 -Wall -Wextra -Wpedantic -Werror
 GTEST_FLAGS = -lgtest -lgtest_main -pthread
 
@@ -26,7 +26,7 @@ run_tests: $(TEST_TARGET)
 	./$(TEST_TARGET)
 
 format:
-	clang-format -i src/*.hpp src/*.cpp
+	clang-format -i src/*.hpp src/*.cpp src/apps/*.cpp
 
 clean:
 	rm -f $(TARGET) $(TEST_TARGET) fuzz_harness

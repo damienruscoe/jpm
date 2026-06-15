@@ -63,9 +63,12 @@ std::optional<Message> parse_line(std::string_view line) {
     return ec == std::errc{} && ptr == str.data() + str.size();
   };
 
-  auto error = [](std::string_view message, std::string_view details) {
-    std::cerr << "[\033[31mERROR\033[0m] " << message << ": \033[36m" << '"'
-              << details << "\"\033[0m" << std::endl;
+  auto error = []([[maybe_unused]] std::string_view message,
+                  [[maybe_unused]] std::string_view details) {
+    /*
+std::cerr << "[\033[31mERROR\033[0m] " << message << ": \033[36m" << '"'
+  << details << "\"\033[0m" << std::endl;
+                                            */
     return std::nullopt;
   };
 
@@ -125,7 +128,7 @@ std::optional<Message> parse_line(std::string_view line) {
   // if (price_str.find(',') != std::string_view::npos)
   //  return error("Too many columns", line);
   try {
-    msg.price = FixedPoint::Parse(price_str);
+    msg.price = FixedPointAI::Parse(price_str);
   } catch (...) {
     return error("Invalid price", price_str);
   }
