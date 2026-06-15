@@ -51,10 +51,12 @@ public:
 
 private:
   template <typename LadderType>
-  void matchAgainst(Quantity &remaining, Price price, LadderType &opposingLadder, const auto &comp);
+  void matchAgainst(Quantity &remaining, Price price,
+                    LadderType &opposingLadder, const auto &comp);
 
   template <typename LadderType>
-  void addToLadder(OrderID order_id, Price price, Quantity qty, side_t side, LadderType &ladder);
+  void addToLadder(OrderID order_id, Price price, Quantity qty, side_t side,
+                   LadderType &ladder);
 
   siv::Vector<Order> order_pool;
   std::unordered_map<OrderID, siv::ID> id_to_siv_id;
@@ -65,7 +67,9 @@ private:
 
 template <typename Level>
 template <typename LadderType>
-void OrderBook<Level>::matchAgainst(Quantity &remaining, Price price, LadderType &opposingLadder, const auto &comp) {
+void OrderBook<Level>::matchAgainst(Quantity &remaining, Price price,
+                                    LadderType &opposingLadder,
+                                    const auto &comp) {
   while (remaining > 0 && !opposingLadder.empty() &&
          !comp(opposingLadder.getBook().begin()->first, price)) {
     auto price_it = opposingLadder.getBook().begin();
@@ -90,7 +94,8 @@ void OrderBook<Level>::matchAgainst(Quantity &remaining, Price price, LadderType
 
 template <typename Level>
 template <typename LadderType>
-void OrderBook<Level>::addToLadder(OrderID order_id, Price price, Quantity qty, side_t side, LadderType &ladder) {
+void OrderBook<Level>::addToLadder(OrderID order_id, Price price, Quantity qty,
+                                   side_t side, LadderType &ladder) {
   siv::ID id = order_pool.emplace_back(
       Order{order_id,
             price,

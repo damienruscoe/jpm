@@ -4,14 +4,14 @@ CXXFLAGS = -std=c++20 -O3 -Wall -Wextra -Wpedantic -Werror
 GTEST_FLAGS = -lgtest -lgtest_main -pthread
 
 # Target executable
-TARGET = matching_engine_test
-TEST_TARGET = parser_tests
+TARGET = matching_engine
+TEST_TARGET = matching_engine_tests
 
 # Source and Headers
 INC = -Isrc/
 SRCS = src/apps/main.cpp src/*.cpp
 FUZZ_SRCS = src/apps/fuzz_harness.cpp src/mmfile.cpp src/parser.cpp
-TEST_SRCS = test/*.cpp src/mmfile.cpp src/parser.cpp
+TEST_SRCS = test/*.cpp src/mmfile.cpp src/parser.cpp test/test_stable_index_vector.cpp test/test_stable_index_vector_advanced.cpp
 
 # AFL target
 all: $(TARGET) $(TEST_TARGET)
