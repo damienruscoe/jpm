@@ -1,7 +1,7 @@
 #!/bin/bash
 
 TEST_DIR="test"
-EXE="./matching_engine_test"
+EXE="./matching_engine"
 
 # Color codes
 RED='\033[0.31m'

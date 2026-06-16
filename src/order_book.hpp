@@ -6,9 +6,9 @@
 #include <variant>
 #include <vector>
 
-#include "order.hpp"
 #include "fixed_point.hpp"
 #include "ladder.hpp"
+#include "order.hpp"
 #include "order_storage.hpp"
 
 using OrderID = std::string;
@@ -42,7 +42,7 @@ private:
                    LadderType &ladder);
 
   OrderStorage<Order> storage;
-  std::unordered_map<OrderID, Order*> id_to_order_ptr;
+  std::unordered_map<OrderID, Order *> id_to_order_ptr;
 
   Bids bids;
   Asks asks;
@@ -55,26 +55,23 @@ void OrderBook<Level>::matchAgainst(Quantity &remaining, Price price,
                                     const auto &comp) {
   auto &book = opposingLadder.getBook();
   while (remaining > 0 && !book.empty() && !comp(book.begin()->first, price)) {
-    const Price &current_price = book.begin()->first;
     auto &level_data = book.begin()->second;
 
-    for (auto it = level_data.orders.begin();
-         remaining > 0 && it != level_data.orders.end();) {
+    for (auto it = level_data.begin();
+         remaining > 0 && it != level_data.end();) {
       Order *order = &(*it);
       auto next_it = std::next(it);
 
-      if (order->quantity <= remaining) {
-        remaining -= order->quantity;
+      if (level_data.consumeOrder(*order, remaining)) {
         id_to_order_ptr.erase(order->id);
-
-        opposingLadder.removeOrder(current_price, order, order->quantity);
         storage.destroyOrder(order);
-      } else {
-        order->quantity -= remaining;
-        level_data.total_qty -= remaining;
-        remaining = 0;
       }
+
       it = next_it;
+    }
+
+    if (level_data.empty()) {
+      book.erase(book.begin());
     }
   }
 }
@@ -83,7 +80,7 @@ template <typename Level>
 template <typename LadderType>
 void OrderBook<Level>::addToLadder(OrderID order_id, Price price, Quantity qty,
                                    side_t side, LadderType &ladder) {
-  Order* order = storage.createOrder(order_id, price, qty, side);
+  Order *order = storage.createOrder(order_id, price, qty, side);
   id_to_order_ptr[order_id] = order;
   ladder.addOrder(order, price, qty);
 }
@@ -111,7 +108,7 @@ bool OrderBook<Level>::update(OrderID order_id, side_t side, Level level) {
 template <typename Level>
 bool OrderBook<Level>::cancel(OrderID order_id, side_t side) {
   if (auto it = id_to_order_ptr.find(order_id); it != id_to_order_ptr.end()) {
-    Order* order = it->second;
+    Order *order = it->second;
     if (side == side_t::BID) {
       bids.removeOrder(order->price, order, order->quantity);
     } else {

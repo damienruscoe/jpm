@@ -1,5 +1,6 @@
 #pragma once
 
+#include <boost/intrusive/list.hpp>
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -7,7 +8,6 @@
 #include <string_view>
 #include <variant>
 #include <vector>
-#include <boost/intrusive/list.hpp>
 
 #include "order.hpp"
 
@@ -16,33 +16,62 @@ template <typename Price, typename Quantity,
 class Ladder {
 public:
   using OrderType = ::Order<Price, Quantity>;
-  using OrderList = boost::intrusive::list<OrderType, 
-    boost::intrusive::member_hook<OrderType, 
-        boost::intrusive::list_member_hook<>, 
-        &OrderType::ladder_hook>>;
 
   struct LevelData {
+  private:
+    using OrderList = boost::intrusive::list<
+        OrderType, boost::intrusive::member_hook<
+                       OrderType, boost::intrusive::list_member_hook<>,
+                       &OrderType::ladder_hook>>;
     OrderList orders;
-    Quantity total_qty;
+
+  public:
+    Quantity total_qty{0};
+
+    void addOrder(OrderType &order, Quantity qty) {
+      orders.push_back(order);
+      total_qty += qty;
+    }
+
+    void removeOrder(OrderType &order, Quantity qty) {
+      orders.erase(orders.iterator_to(order));
+      total_qty -= qty;
+    }
+
+    // Consumes quantity from the price level. Returns true if the order was
+    // fully consumed/removed.
+    bool consumeOrder(OrderType &order, Quantity &remaining) {
+      if (order.quantity <= remaining) {
+        remaining -= order.quantity;
+        total_qty -= order.quantity;
+        orders.erase(orders.iterator_to(order));
+        return true; // Order fully removed
+      } else {
+        order.quantity -= remaining;
+        total_qty -= remaining;
+        remaining = 0;
+        return false; // Order partially filled
+      }
+    }
+
+    bool empty() const { return orders.empty(); }
+    auto iterator_to(OrderType &order) { return orders.iterator_to(order); }
+    auto begin() { return orders.begin(); }
+    auto end() { return orders.end(); }
   };
 
   using BookType = std::map<Price, LevelData, Comparator>;
 
-  auto addOrder(OrderType* order, Price price, Quantity qty) {
-    auto [it, added] = book.try_emplace(price, LevelData{OrderList{}, qty});
-    if (!added) {
-      it->second.total_qty += qty;
-    }
-    it->second.orders.push_back(*order);
-
-    return it->second.orders.iterator_to(*order);
+  auto addOrder(OrderType *order, Price price, Quantity qty) {
+    auto [it, added] = book.try_emplace(price, LevelData{});
+    it->second.addOrder(*order, qty);
+    return it->second.iterator_to(*order);
   }
 
-  void removeOrder(Price price, OrderType* order, Quantity qty) {
+  void removeOrder(Price price, OrderType *order, Quantity qty) {
     if (auto it = book.find(price); it != book.end()) {
-      it->second.orders.erase(it->second.orders.iterator_to(*order));
-      it->second.total_qty -= qty;
-      if (it->second.orders.empty())
+      it->second.removeOrder(*order, qty);
+      if (it->second.empty())
         book.erase(it);
     }
   }
