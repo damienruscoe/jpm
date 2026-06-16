@@ -63,12 +63,17 @@ bool OrderBook<Level>::update(OrderID order_id, side_t side, Level level) {
 
   Quantity remaining = level.quantity;
 
+  auto on_filled = [this](Order &order) {
+    id_to_order_ptr.erase(order.id);
+    storage.destroyOrder(&order);
+  };
+
   if (side == side_t::BID) {
-    asks.matchAgainst(remaining, level.price, id_to_order_ptr, storage);
+    asks.matchAgainst(remaining, level.price, on_filled);
     if (remaining > 0)
       addToLadder(order_id, level.price, remaining, side, bids);
   } else {
-    bids.matchAgainst(remaining, level.price, id_to_order_ptr, storage);
+    bids.matchAgainst(remaining, level.price, on_filled);
     if (remaining > 0)
       addToLadder(order_id, level.price, remaining, side, asks);
   }
@@ -78,15 +83,15 @@ bool OrderBook<Level>::update(OrderID order_id, side_t side, Level level) {
 template <typename Level>
 bool OrderBook<Level>::cancel(OrderID order_id, side_t side) {
   if (auto it = id_to_order_ptr.find(order_id); it != id_to_order_ptr.end()) {
-    Order *order = it->second;
+    Order &order = *it->second;
     if (side == side_t::BID) {
-      bids.removeOrder(order->price, order, order->quantity);
+      bids.removeOrder(order);
     } else {
-      asks.removeOrder(order->price, order, order->quantity);
+      asks.removeOrder(order);
     }
 
     id_to_order_ptr.erase(order_id);
-    storage.destroyOrder(order);
+    storage.destroyOrder(&order);
 
     return true;
   }
