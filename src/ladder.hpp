@@ -10,12 +10,40 @@
 #include <vector>
 
 #include "order.hpp"
+#include "order_storage.hpp"
 
 template <typename Price, typename Quantity,
           typename Comparator = std::less<Price>>
 class Ladder {
 public:
   using OrderType = ::Order<Price, Quantity>;
+
+  template <typename MapType, typename MatchComparator>
+  void matchAgainst(Quantity &remaining, Price price, 
+                    MapType &id_to_order_ptr,
+                    OrderStorage<OrderType> &storage, MatchComparator comp) {
+    auto &book = getBook();
+    while (remaining > 0 && !book.empty() &&
+           !comp(book.begin()->first, price)) {
+      auto &level_data = book.begin()->second;
+
+      for (auto it = level_data.begin();
+           remaining > 0 && it != level_data.end();) {
+        OrderType *order = &(*it);
+        auto next_it = std::next(it);
+
+        if (level_data.consumeOrder(*order, remaining)) {
+          id_to_order_ptr.erase(order->id);
+          storage.destroyOrder(order);
+        }
+        it = next_it;
+      }
+
+      if (level_data.empty()) {
+        book.erase(book.begin());
+      }
+    }
+  }
 
   struct LevelData {
   private:
@@ -38,8 +66,6 @@ public:
       total_qty -= qty;
     }
 
-    // Consumes quantity from the price level. Returns true if the order was
-    // fully consumed/removed.
     bool consumeOrder(OrderType &order, Quantity &remaining) {
       if (order.quantity <= remaining) {
         remaining -= order.quantity;

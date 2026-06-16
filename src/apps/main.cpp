@@ -52,27 +52,28 @@ int main(int argc, char *argv[]) {
       //  std::cout << "[VALID] " << *msg << std::endl;
       count++;
 
+      const auto order_id = std::string{msg->order_id};
+      const auto side = msg->side == Side::Buy ? side_t::BID : side_t::ASK;
+
       const BtcUsd level = BtcUsd{msg->price, msg->quantity};
       switch (msg->type) {
       case RequestType::New: {
-        auto added = book.update(
-            std::string{msg->order_id},
-            msg->side == Side::Buy ? side_t::BID : side_t::ASK, level);
-        std::cout << "Order " << (added ? "Added" : "Adding failed")
-                  << std::endl;
+        auto added = book.update(order_id, side, level);
+        std::cout << "Order " << (added ? "Added" : "Adding failed");
         break;
       }
       case RequestType::Cancel: {
-        auto cancelled =
-            book.cancel(std::string{msg->order_id},
-                        msg->side == Side::Buy ? side_t::BID : side_t::ASK);
-        std::cout << "Order " << (cancelled ? "Cancelled" : "Cancel failed")
-                  << std::endl;
+        auto cancelled = book.cancel(order_id, side);
+        std::cout << "Order " << (cancelled ? "Cancelled" : "Cancel failed");
         break;
       }
-      case RequestType::Amend:
+      case RequestType::Amend: {
+        auto amended = book.amend(order_id, side, level);
+        std::cout << "Order " << (amended ? "Amended" : "Amend failed");
         break;
       }
+      }
+			std::cout << std::endl;
       // top_of_book.render(book);
       render_book(book);
     }
