@@ -5,6 +5,7 @@
 #include <functional>
 #include <map>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <variant>
 #include <vector>
@@ -12,59 +13,87 @@
 #include "order.hpp"
 #include "order_storage.hpp"
 
+enum class side_t { BID, ASK };
+using OrderID = std::string;
+
+template <typename PriceT, typename QuantityT> struct Order {
+  using Price = PriceT;
+  using Quantity = QuantityT;
+
+  OrderID id;
+  Price price;
+  Quantity quantity;
+  side_t side;
+  boost::intrusive::list_member_hook<> ladder_hook;
+
+  Order(OrderID _id, Price _price, Quantity _quantity, side_t _side)
+      : id(std::move(_id)), price(_price), quantity(_quantity), side(_side) {}
+
+  auto consumeOrder(Quantity &remaining) {
+    if (quantity <= remaining) {
+      remaining -= quantity;
+      return std::make_pair(false,
+                            quantity); // Aggressive order partially filled
+    } else {
+      quantity -= remaining;
+      remaining = 0;
+      return std::make_pair(true, remaining); // Aggressive Order fully filled
+    }
+  }
+};
+
+template <typename OrderType> struct LevelData {
+private:
+  using Quantity = typename OrderType::Quantity;
+
+  using OrderList = boost::intrusive::list<
+      OrderType, boost::intrusive::member_hook<
+                     OrderType, boost::intrusive::list_member_hook<>,
+                     &OrderType::ladder_hook>>;
+  OrderList orders;
+
+public:
+  Quantity total_qty{0};
+
+  using iterator = typename OrderList::iterator;
+  using const_iterator = typename OrderList::const_iterator;
+
+  void addOrder(OrderType &order, Quantity qty) {
+    orders.push_back(order);
+    total_qty += qty;
+  }
+
+  void removeOrder(OrderType &order, Quantity qty) {
+    orders.erase(orders.iterator_to(order));
+    total_qty -= qty;
+  }
+
+  bool consumeOrder(OrderType &order, Quantity &remaining) {
+    auto [fully_filled, delta] = order.consumeOrder(remaining);
+    total_qty -= delta;
+
+    if (!fully_filled)
+      orders.erase(orders.iterator_to(order));
+
+    return fully_filled;
+  }
+
+  bool empty() const { return orders.empty(); }
+  auto begin() { return orders.begin(); }
+  auto end() { return orders.end(); }
+};
+
 template <typename Price, typename Quantity,
           typename Comparator = std::less<Price>>
 class Ladder {
 public:
   using OrderType = ::Order<Price, Quantity>;
-
-  struct LevelData {
-  private:
-    using OrderList = boost::intrusive::list<
-        OrderType, boost::intrusive::member_hook<
-                       OrderType, boost::intrusive::list_member_hook<>,
-                       &OrderType::ladder_hook>>;
-    OrderList orders;
-
-  public:
-    Quantity total_qty{0};
-
-    void addOrder(OrderType &order, Quantity qty) {
-      orders.push_back(order);
-      total_qty += qty;
-    }
-
-    void removeOrder(OrderType &order, Quantity qty) {
-      orders.erase(orders.iterator_to(order));
-      total_qty -= qty;
-    }
-
-    bool consumeOrder(OrderType &order, Quantity &remaining) {
-      if (order.quantity <= remaining) {
-        remaining -= order.quantity;
-        total_qty -= order.quantity;
-        orders.erase(orders.iterator_to(order));
-        return true; // Order fully removed
-      } else {
-        order.quantity -= remaining;
-        total_qty -= remaining;
-        remaining = 0;
-        return false; // Order partially filled
-      }
-    }
-
-    bool empty() const { return orders.empty(); }
-    auto iterator_to(OrderType &order) { return orders.iterator_to(order); }
-    auto begin() { return orders.begin(); }
-    auto end() { return orders.end(); }
-  };
-
+  using LevelData = ::LevelData<OrderType>;
   using BookType = std::map<Price, LevelData, Comparator>;
 
-  auto addOrder(OrderType *order, Price price, Quantity qty) {
+  void addOrder(OrderType *order, Price price, Quantity qty) {
     auto [it, added] = book.try_emplace(price, LevelData{});
     it->second.addOrder(*order, qty);
-    return it->second.iterator_to(*order);
   }
 
   void removeOrder(Price price, OrderType *order, Quantity qty) {
@@ -90,7 +119,7 @@ public:
         OrderType *order = &(*it);
         ++it;
 
-        if (level_data.consumeOrder(*order, remaining)) {
+        if (!level_data.consumeOrder(*order, remaining)) {
           id_to_order_ptr.erase(order->id);
           storage.destroyOrder(order);
         }
