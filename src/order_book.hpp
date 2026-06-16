@@ -64,11 +64,11 @@ bool OrderBook<Level>::update(OrderID order_id, side_t side, Level level) {
   Quantity remaining = level.quantity;
 
   if (side == side_t::BID) {
-    asks.matchAgainst(remaining, level.price, id_to_order_ptr, storage, bids.key_comp());
+    asks.matchAgainst(remaining, level.price, id_to_order_ptr, storage);
     if (remaining > 0)
       addToLadder(order_id, level.price, remaining, side, bids);
   } else {
-    bids.matchAgainst(remaining, level.price, id_to_order_ptr, storage, asks.key_comp());
+    bids.matchAgainst(remaining, level.price, id_to_order_ptr, storage);
     if (remaining > 0)
       addToLadder(order_id, level.price, remaining, side, asks);
   }

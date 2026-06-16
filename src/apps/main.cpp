@@ -73,7 +73,7 @@ int main(int argc, char *argv[]) {
         break;
       }
       }
-			std::cout << std::endl;
+      std::cout << std::endl;
       // top_of_book.render(book);
       render_book(book);
     }

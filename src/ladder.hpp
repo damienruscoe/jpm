@@ -18,33 +18,6 @@ class Ladder {
 public:
   using OrderType = ::Order<Price, Quantity>;
 
-  template <typename MapType, typename MatchComparator>
-  void matchAgainst(Quantity &remaining, Price price, 
-                    MapType &id_to_order_ptr,
-                    OrderStorage<OrderType> &storage, MatchComparator comp) {
-    auto &book = getBook();
-    while (remaining > 0 && !book.empty() &&
-           !comp(book.begin()->first, price)) {
-      auto &level_data = book.begin()->second;
-
-      for (auto it = level_data.begin();
-           remaining > 0 && it != level_data.end();) {
-        OrderType *order = &(*it);
-        auto next_it = std::next(it);
-
-        if (level_data.consumeOrder(*order, remaining)) {
-          id_to_order_ptr.erase(order->id);
-          storage.destroyOrder(order);
-        }
-        it = next_it;
-      }
-
-      if (level_data.empty()) {
-        book.erase(book.begin());
-      }
-    }
-  }
-
   struct LevelData {
   private:
     using OrderList = boost::intrusive::list<
@@ -102,6 +75,35 @@ public:
     }
   }
 
+  template <typename MapType>
+  void matchAgainst(Quantity &remaining, Price price, MapType &id_to_order_ptr,
+                    OrderStorage<OrderType> &storage) {
+    const auto comp = book.key_comp();
+    const auto level_end = book.end();
+
+    auto level = book.begin();
+    while (remaining && level != level_end && !comp(price, level->first)) {
+      auto &level_data = level->second;
+      const auto orders_end = level_data.end();
+
+      for (auto it = level_data.begin(); remaining && it != orders_end;) {
+        OrderType *order = &(*it);
+        ++it;
+
+        if (level_data.consumeOrder(*order, remaining)) {
+          id_to_order_ptr.erase(order->id);
+          storage.destroyOrder(order);
+        }
+      }
+
+      if (level_data.empty()) {
+        level = book.erase(level);
+      } else {
+        ++level;
+      }
+    }
+  }
+
   void removeBest() {
     if (!book.empty()) {
       book.erase(book.begin());
@@ -110,7 +112,6 @@ public:
 
   BookType &getBook() { return book; }
   const BookType &getBook() const { return book; }
-  auto key_comp() const { return book.key_comp(); }
 
   template <typename Level> std::optional<Level> getBest() const {
     if (book.empty())
