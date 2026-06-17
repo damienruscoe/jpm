@@ -11,8 +11,6 @@
 #include <variant>
 #include <vector>
 
-#include "order.hpp"
-
 enum class side_t { BID, ASK };
 using OrderID = std::string;
 
