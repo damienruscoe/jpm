@@ -34,8 +34,8 @@ private:
   void addToLadder(OrderID order_id, Price price, Quantity quantity,
                    side_t side, LadderType &ladder, OpposingLadder &opposing);
 
-  using Bids = Ladder<Price, Quantity, std::greater<Price>>;
-  using Asks = Ladder<Price, Quantity, std::less<Price>>;
+  using Bids = MarketSide<Order, Price, Quantity, std::greater<Price>>;
+  using Asks = MarketSide<Order, Price, Quantity, std::less<Price>>;
 
   std::pmr::unsynchronized_pool_resource pool;
   Bids bids{pool};
@@ -54,7 +54,7 @@ void OrderBook<Level>::addToLadder(OrderID order_id, Price price,
                         [&](Order &order) { orders.erase(order); });
   if (quantity > 0) {
     Order *order = orders.create(order_id, order_id, price, quantity, side);
-    ladder.addOrder(order, price, quantity);
+    ladder.addOrder(*order, price);
   }
 }
 
@@ -72,7 +72,8 @@ bool OrderBook<Level>::update(OrderID order_id, side_t side, Level level) {
 template <typename Level>
 bool OrderBook<Level>::cancel(OrderID order_id, side_t side) {
   if (auto order = orders.find(order_id)) {
-    side == side_t::BID ? bids.removeOrder(*order) : asks.removeOrder(*order);
+    side == side_t::BID ? bids.removeOrder(*order, order->price)
+                        : asks.removeOrder(*order, order->price);
     orders.erase(*order);
     return true;
   }

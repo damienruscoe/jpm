@@ -28,7 +28,15 @@ template <typename PriceT, typename QuantityT> struct Order {
       : id(std::move(_id)), price(_price), quantity(_quantity), side(_side) {}
 };
 
-template <typename Order> struct LevelData {
+template <typename T>
+concept LadderOrder = requires(T o) {
+  typename T::Price;
+  typename T::Quantity;
+  { o.quantity } -> std::convertible_to<typename T::Quantity>;
+  {o.ladder_hook};
+};
+
+template <LadderOrder Order> struct PriceLevel {
 private:
   using Quantity = typename Order::Quantity;
 
@@ -38,12 +46,9 @@ private:
                                     &Order::ladder_hook>>;
 
 public:
-  using iterator = typename OrderList::iterator;
-  using const_iterator = typename OrderList::const_iterator;
-
-  void addOrder(Order &order, Quantity quantity) {
+  void addOrder(Order &order) {
     orders.push_back(order);
-    total_quantity += quantity;
+    total_quantity += order.quantity;
   }
 
   [[nodiscard]] bool removeOrder(Order &order) {
@@ -79,23 +84,22 @@ private:
   Quantity total_quantity{0};
 };
 
-template <typename Price, typename Quantity,
+template <typename T, typename Price, typename Quantity,
           typename Comparator = std::less<Price>>
-class Ladder {
+class MarketSide {
 public:
-  using Order = ::Order<Price, Quantity>;
-  using LevelData = ::LevelData<Order>;
-  using BookType = std::pmr::map<Price, LevelData, Comparator>;
+  using PriceLevel = ::PriceLevel<T>;
+  using BookType = std::pmr::map<Price, PriceLevel, Comparator>;
 
-  Ladder(std::pmr::unsynchronized_pool_resource &pool) : book(&pool) {}
+  MarketSide(std::pmr::unsynchronized_pool_resource &pool) : book(&pool) {}
 
-  void addOrder(Order *order, Price price, Quantity quantity) {
-    auto [it, added] = book.try_emplace(price, LevelData{});
-    it->second.addOrder(*order, quantity);
+  void addOrder(T &order, Price price) {
+    auto [it, added] = book.try_emplace(price);
+    it->second.addOrder(order);
   }
 
-  void removeOrder(Order &order) {
-    auto it = book.find(order.price);
+  void removeOrder(T &order, Price price) {
+    auto it = book.find(price);
     if (it != book.end() && it->second.removeOrder(order))
       book.erase(it);
   }
@@ -114,8 +118,8 @@ public:
 
   template <typename Level> std::optional<Level> getBest() const {
     auto it = book.begin();
-    it == book.end() ? std::nullopt
-                     : Level{it->first, it->second.getQuantity()};
+    return it == book.end() ? std::nullopt
+                            : Level{it->first, it->second.getQuantity()};
   }
 
   template <typename Level> std::vector<Level> getTop(uint16_t depth) const {
