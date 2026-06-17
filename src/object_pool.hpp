@@ -27,47 +27,50 @@
   { 15         return this == &other; 16     } 17     size_t
   get_total_allocated() const { return total_allocated_; } 18 };
 
-  2. Integrate with OrderStorage
+  2. Integrate with ObjectPool
 
-   1 class OrderStorage {
+   1 class ObjectPool {
    2     TrackingResource tracker{std::pmr::get_default_resource()};
    3     std::pmr::unsynchronized_pool_resource pool{&tracker}; // Pool uses
   tracker 4 public: 5     // ... 6     size_t get_reserved_memory() const {
   return tracker.get_total_allocated(); } 7 };
  */
 
-template <typename OrderType> class OrderStorage {
-  std::pmr::unsynchronized_pool_resource pool;
-  std::pmr::polymorphic_allocator<char> allocator;
+template <typename T,
+          typename Resource = std::pmr::unsynchronized_pool_resource>
+class ObjectPool {
 
 public:
-  OrderStorage() : allocator(&pool) {
-    /*
+  // ObjectPool() : allocator(&pool) {
+  /*
 std::pmr::pool_options options;
 options.max_blocks_per_chunk = 1024; // You can suggest chunk size
 std::pmr::unsynchronized_pool_resource pool(options);
 */
+  //}
+
+  template <typename... Args> T *createOrder(Args &&...args) {
+    void *mem = pool.allocate(sizeof(T), alignof(T));
+    return new (mem) T(std::forward<Args>(args)...);
   }
 
-  template <typename... Args> OrderType *createOrder(Args &&...args) {
-    void *mem = allocator.allocate(sizeof(OrderType));
-    return new (mem) OrderType(std::forward<Args>(args)...);
+  void destroyOrder(T *order) {
+    order->~T();
+    pool.deallocate(order, sizeof(T), alignof(T));
   }
 
-  void destroyOrder(OrderType *order) {
-    order->~OrderType();
-    allocator.deallocate(reinterpret_cast<char *>(order), sizeof(OrderType));
-  }
+  /*
+void warm_memory(size_t total_bytes) {
+std::vector<char> buffer(total_bytes);
 
-  void warm_memory(size_t total_bytes) {
-    // Allocate a buffer to force OS to reserve virtual address space
-    // and map physical pages (via touching).
-    std::vector<char> buffer(total_bytes);
+// Touch every 4KB (OS page) to fault in the page
+// and every 64 bytes (CPU cache line) to fill the cache.
+for (size_t i = 0; i < total_bytes; i += 64) {
+buffer[i] = 0;
+}
+}
+  */
 
-    // Touch every 4KB (OS page) to fault in the page
-    // and every 64 bytes (CPU cache line) to fill the cache.
-    for (size_t i = 0; i < total_bytes; i += 64) {
-      buffer[i] = 0;
-    }
-  }
+private:
+  Resource pool;
 };

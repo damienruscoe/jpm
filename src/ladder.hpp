@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <memory_resource>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -11,7 +12,6 @@
 #include <vector>
 
 #include "order.hpp"
-#include "order_storage.hpp"
 
 enum class side_t { BID, ASK };
 using OrderID = std::string;
@@ -83,7 +83,9 @@ class Ladder {
 public:
   using Order = ::Order<Price, Quantity>;
   using LevelData = ::LevelData<Order>;
-  using BookType = std::map<Price, LevelData, Comparator>;
+  using BookType = std::pmr::map<Price, LevelData, Comparator>;
+
+  Ladder(std::pmr::unsynchronized_pool_resource &pool) : book(&pool) {}
 
   void addOrder(Order *order, Price price, Quantity qty) {
     auto [it, added] = book.try_emplace(price, LevelData{});
