@@ -2,13 +2,12 @@
 
 #include <list>
 #include <optional>
-#include <unordered_map>
 #include <variant>
 #include <vector>
 
+#include "object_resource.hpp"
 #include "fixed_point.hpp"
 #include "ladder.hpp"
-#include "object_pool.hpp"
 #include "order.hpp"
 
 using OrderID = std::string;
@@ -43,8 +42,7 @@ private:
   Bids bids{pool};
   Asks asks{pool};
 
-  ObjectPool<Order> order_storage;
-  std::unordered_map<OrderID, Order *> order_ids;
+  ObjectResource<OrderID, Order> orders;
 };
 
 template <typename Level>
@@ -53,22 +51,16 @@ void OrderBook<Level>::addToLadder(OrderID order_id, Price price,
                                    Quantity quantity, side_t side,
                                    LadderType &ladder,
                                    OpposingLadder &opposing) {
-  auto on_filled = [this](Order &order) {
-    order_ids.erase(order.id);
-    order_storage.destroyOrder(&order);
-  };
-
-  opposing.matchAgainst(quantity, price, on_filled);
+  opposing.matchAgainst(quantity, price, [&](Order &order) { orders.erase(order); });
   if (quantity > 0) {
-    Order *order = order_storage.createOrder(order_id, price, quantity, side);
-    order_ids[order_id] = order;
+		Order* order = orders.create(order_id, order_id, price, quantity, side);
     ladder.addOrder(order, price, quantity);
   }
 }
 
 template <typename Level>
 bool OrderBook<Level>::update(OrderID order_id, side_t side, Level level) {
-  if (order_ids.find(order_id) != order_ids.end())
+  if (orders.contains(order_id))
     return false;
 
   side == side_t::BID
@@ -79,12 +71,9 @@ bool OrderBook<Level>::update(OrderID order_id, side_t side, Level level) {
 
 template <typename Level>
 bool OrderBook<Level>::cancel(OrderID order_id, side_t side) {
-  if (auto it = order_ids.find(order_id); it != order_ids.end()) {
-    Order &order = *it->second;
-    side == side_t::BID ? bids.removeOrder(order) : asks.removeOrder(order);
-
-    order_ids.erase(order_id);
-    order_storage.destroyOrder(&order);
+  if (auto order = orders.find(order_id)) {
+    side == side_t::BID ? bids.removeOrder(*order) : asks.removeOrder(*order);
+    orders.erase(*order);
     return true;
   }
 

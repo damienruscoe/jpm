@@ -38,21 +38,19 @@ private:
       Order,
       boost::intrusive::member_hook<Order, boost::intrusive::list_member_hook<>,
                                     &Order::ladder_hook>>;
-  OrderList orders;
 
 public:
-  Quantity total_qty{0};
 
   using iterator = typename OrderList::iterator;
   using const_iterator = typename OrderList::const_iterator;
 
-  void addOrder(Order &order, Quantity qty) {
+  void addOrder(Order &order, Quantity quantity) {
     orders.push_back(order);
-    total_qty += qty;
+    total_quantity += quantity;
   }
 
   void removeOrder(Order &order) {
-    total_qty -= order.quantity;
+    total_quantity -= order.quantity;
     orders.erase(orders.iterator_to(order));
   }
 
@@ -62,7 +60,7 @@ public:
       Order &order = *it++;
 
       Quantity delta = std::min(order.quantity, remaining);
-      total_qty -= delta;
+      total_quantity -= delta;
       remaining -= delta;
       order.quantity -= delta;
 
@@ -75,6 +73,14 @@ public:
   }
 
   bool empty() const { return orders.empty(); }
+
+  Quantity getQuantity() const { return total_quantity; }
+
+private:
+
+  OrderList orders;
+  Quantity total_quantity{0};
+
 };
 
 template <typename Price, typename Quantity,
@@ -87,9 +93,9 @@ public:
 
   Ladder(std::pmr::unsynchronized_pool_resource &pool) : book(&pool) {}
 
-  void addOrder(Order *order, Price price, Quantity qty) {
+  void addOrder(Order *order, Price price, Quantity quantity) {
     auto [it, added] = book.try_emplace(price, LevelData{});
-    it->second.addOrder(*order, qty);
+    it->second.addOrder(*order, quantity);
   }
 
   void removeOrder(Order &order) {
@@ -116,7 +122,7 @@ public:
     if (empty())
       return std::nullopt;
     auto it = book.begin();
-    return Level{it->first, it->second.total_qty};
+    return Level{it->first, it->second.getQuantity()};
   }
 
   template <typename Level> std::vector<Level> getTop(uint16_t depth) const {
@@ -124,7 +130,7 @@ public:
     for (const auto &level : book) {
       if (result.size() >= depth)
         break;
-      result.push_back({level.first, level.second.total_qty});
+      result.push_back({level.first, level.second.getQuantity()});
     }
     return result;
   }

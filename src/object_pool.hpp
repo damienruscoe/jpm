@@ -49,12 +49,12 @@ std::pmr::unsynchronized_pool_resource pool(options);
 */
   //}
 
-  template <typename... Args> T *createOrder(Args &&...args) {
+  template <typename... Args> T *create(Args &&...args) {
     void *mem = pool.allocate(sizeof(T), alignof(T));
     return new (mem) T(std::forward<Args>(args)...);
   }
 
-  void destroyOrder(T *order) {
+  void destroy(T *order) {
     order->~T();
     pool.deallocate(order, sizeof(T), alignof(T));
   }
