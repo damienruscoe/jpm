@@ -34,9 +34,9 @@ public:
   std::vector<Level> getTopAsk(uint16_t depth = 10) const;
 
 private:
-  template <typename LadderType>
-  void addToLadder(OrderID order_id, Price price, Quantity qty, side_t side,
-                   LadderType &ladder);
+  template <typename LadderType, typename OpposingLadder>
+  void addToLadder(OrderID order_id, Price price, Quantity quantity,
+                   side_t side, LadderType &ladder, OpposingLadder &opposing);
 
   OrderStorage<Order> storage;
 
@@ -47,13 +47,22 @@ private:
 };
 
 template <typename Level>
-template <typename LadderType>
-void OrderBook<Level>::addToLadder(OrderID order_id, Price price, Quantity qty,
-                                   side_t side, LadderType &ladder) {
+template <typename LadderType, typename OpposingLadder>
+void OrderBook<Level>::addToLadder(OrderID order_id, Price price,
+                                   Quantity quantity, side_t side,
+                                   LadderType &ladder,
+                                   OpposingLadder &opposing) {
+  auto on_filled = [this](Order &order) {
+    id_to_order_ptr.erase(order.id);
+    storage.destroyOrder(&order);
+  };
 
-  Order *order = storage.createOrder(order_id, price, qty, side);
-  id_to_order_ptr[order_id] = order;
-  ladder.addOrder(order, price, qty);
+  opposing.matchAgainst(quantity, price, on_filled);
+  if (quantity > 0) {
+    Order *order = storage.createOrder(order_id, price, quantity, side);
+    id_to_order_ptr[order_id] = order;
+    ladder.addOrder(order, price, quantity);
+  }
 }
 
 template <typename Level>
@@ -61,38 +70,20 @@ bool OrderBook<Level>::update(OrderID order_id, side_t side, Level level) {
   if (id_to_order_ptr.find(order_id) != id_to_order_ptr.end())
     return false;
 
-  Quantity remaining = level.quantity;
-
-  auto on_filled = [this](Order &order) {
-    id_to_order_ptr.erase(order.id);
-    storage.destroyOrder(&order);
-  };
-
-  if (side == side_t::BID) {
-    asks.matchAgainst(remaining, level.price, on_filled);
-    if (remaining > 0)
-      addToLadder(order_id, level.price, remaining, side, bids);
-  } else {
-    bids.matchAgainst(remaining, level.price, on_filled);
-    if (remaining > 0)
-      addToLadder(order_id, level.price, remaining, side, asks);
-  }
-
+  side == side_t::BID
+      ? addToLadder(order_id, level.price, level.quantity, side, bids, asks)
+      : addToLadder(order_id, level.price, level.quantity, side, asks, bids);
   return true;
 }
+
 template <typename Level>
 bool OrderBook<Level>::cancel(OrderID order_id, side_t side) {
   if (auto it = id_to_order_ptr.find(order_id); it != id_to_order_ptr.end()) {
     Order &order = *it->second;
-    if (side == side_t::BID) {
-      bids.removeOrder(order);
-    } else {
-      asks.removeOrder(order);
-    }
+    side == side_t::BID ? bids.removeOrder(order) : asks.removeOrder(order);
 
     id_to_order_ptr.erase(order_id);
     storage.destroyOrder(&order);
-
     return true;
   }
 
