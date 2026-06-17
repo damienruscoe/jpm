@@ -5,9 +5,9 @@
 #include <variant>
 #include <vector>
 
-#include "object_resource.hpp"
 #include "fixed_point.hpp"
 #include "ladder.hpp"
+#include "object_resource.hpp"
 
 using OrderID = std::string;
 
@@ -50,9 +50,10 @@ void OrderBook<Level>::addToLadder(OrderID order_id, Price price,
                                    Quantity quantity, side_t side,
                                    LadderType &ladder,
                                    OpposingLadder &opposing) {
-  opposing.matchAgainst(quantity, price, [&](Order &order) { orders.erase(order); });
+  opposing.matchAgainst(quantity, price,
+                        [&](Order &order) { orders.erase(order); });
   if (quantity > 0) {
-		Order* order = orders.create(order_id, order_id, price, quantity, side);
+    Order *order = orders.create(order_id, order_id, price, quantity, side);
     ladder.addOrder(order, price, quantity);
   }
 }
