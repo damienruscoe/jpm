@@ -33,26 +33,26 @@ concept MatchingEngine = requires(Ladder &ladder, Opposing &opposing,
 
 class PriceTimeMatchingEngine {
 public:
-  template <typename AggressorMap, typename OpposingMap, typename Resource,
-            typename Price, typename Quantity>
+  template <typename AggressorMap, typename OpposingMap, typename Order>
   static void insertOrder(AggressorMap &aggressor, OpposingMap &opposing,
-                          Resource &orders,
-                          typename Resource::key_type order_id, Price price,
-                          Quantity quantity, side_t side) {
+                          Order &order) {
     const auto comp = opposing.key_comp();
     const auto level_end = opposing.end();
+    auto quantity = order.quantity;
 
     auto level = opposing.begin();
-    while (quantity > 0 && level != level_end && !comp(price, level->first)) {
+    while (quantity > 0 && level != level_end &&
+           !comp(order.price, level->first)) {
       const bool cleared = level->second.matchAgainst(
-          quantity, [&](auto &order) { orders.erase(order); });
+          quantity, [&](auto & /*matched_order*/) {});
       level = cleared ? opposing.erase(level) : std::next(level);
     }
 
     if (quantity > 0) {
-      auto *order = orders.create(order_id, order_id, price, quantity, side);
-      auto [it, added] = aggressor.try_emplace(price);
-      it->second.addOrder(*order);
+      // Update quantity if partial match
+      order.quantity = quantity;
+      auto [it, added] = aggressor.try_emplace(order.price);
+      it->second.addOrder(order);
     }
   }
 
@@ -63,15 +63,16 @@ public:
       market_side.erase(it);
   }
 
-  template <typename AggressorMap, typename OpposingMap, typename Resource,
-            typename Price, typename Quantity>
+  template <typename AggressorMap, typename OpposingMap, typename Order>
   static bool amendOrder(AggressorMap &aggressor, OpposingMap &opposing,
-                         Resource &orders, typename Resource::key_type order_id,
-                         typename Resource::value_type &order, Price price,
-                         Quantity quantity, side_t side) {
+                         Order &order, typename Order::Price new_price,
+                         typename Order::Quantity new_quantity) {
     removeOrder(aggressor, order, order.price);
-    orders.erase(order);
-    insertOrder(aggressor, opposing, orders, order_id, price, quantity, side);
+
+    order.price = new_price;
+    order.quantity = new_quantity;
+
+    insertOrder(aggressor, opposing, order);
     return true;
   }
 };

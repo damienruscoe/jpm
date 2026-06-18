@@ -64,15 +64,18 @@ std::vector<Level> getTop(const MarketSide &market_side, uint16_t depth) {
 
 template <typename Level>
 bool OrderBook<Level>::update(OrderID order_id, side_t side, Level level) {
-
   if (orders.contains(order_id))
     return false;
 
-  side == side_t::BID
-      ? MatchingEngine::insertOrder(bids, asks, orders, order_id, level.price,
-                                    level.quantity, side)
-      : MatchingEngine::insertOrder(asks, bids, orders, order_id, level.price,
-                                    level.quantity, side);
+  auto *order =
+      orders.create(order_id, order_id, level.price, level.quantity, side);
+
+  side == side_t::BID ? MatchingEngine::insertOrder(bids, asks, *order)
+                      : MatchingEngine::insertOrder(asks, bids, *order);
+
+  if (order->quantity == 0) {
+    orders.erase(*order);
+  }
   return true;
 }
 
@@ -93,12 +96,10 @@ template <typename Level>
 bool OrderBook<Level>::amend(OrderID order_id, side_t side, Level level) {
   if (auto *order = orders.find(order_id)) {
     return side == side_t::BID
-               ? MatchingEngine::amendOrder(bids, asks, orders, order_id,
-                                            *order, level.price, level.quantity,
-                                            side)
-               : MatchingEngine::amendOrder(asks, bids, orders, order_id,
-                                            *order, level.price, level.quantity,
-                                            side);
+               ? MatchingEngine::amendOrder(bids, asks, *order, level.price,
+                                            level.quantity)
+               : MatchingEngine::amendOrder(asks, bids, *order, level.price,
+                                            level.quantity);
   }
 
   return false;
