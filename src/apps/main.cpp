@@ -27,9 +27,8 @@ struct BtcUsd {
   Quantity quantity{};
 };
 
-using Book = OrderBook<BtcUsd, PriceTimeMatchingEngine>;
-Book book;
-TopOfBookRender<Book> top_of_book;
+OrderBook<BtcUsd, PriceTimeMatchingEngine> book;
+TopOfBookRenderer top_of_book{book};
 
 int main(int argc, char *argv[]) {
   std::string filename = "test/test_data.csv";
