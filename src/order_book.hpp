@@ -30,32 +30,81 @@ public:
   std::vector<Level> getTopAsk(uint16_t depth = 10) const;
 
 private:
-  template <typename LadderType, typename OpposingLadder>
-  void addToLadder(OrderID order_id, Price price, Quantity quantity,
-                   side_t side, LadderType &ladder, OpposingLadder &opposing);
+  template <typename MarketSide, typename OpposingLadder>
+  void match(OrderID order_id, Price price, Quantity quantity, side_t side,
+             MarketSide &market_side, OpposingLadder &opposing);
 
-  using Bids = MarketSide<Order, Price, Quantity, std::greater<Price>>;
-  using Asks = MarketSide<Order, Price, Quantity, std::less<Price>>;
+  template <typename MarketSide>
+  std::vector<Level> getTop(const MarketSide &market_side,
+                            uint16_t depth) const;
+
+  template <typename MarketSide>
+  std::optional<Level> getBest(const MarketSide &market_side) const;
+
+  template <typename MarketSide>
+  void removeOrder(MarketSide &market_side, Order &order, Price price);
+
+  using BidsBook = std::pmr::map<Price, PriceLevel<Order>, std::greater<Price>>;
+  using AsksBook = std::pmr::map<Price, PriceLevel<Order>, std::less<Price>>;
 
   std::pmr::unsynchronized_pool_resource pool;
-  Bids bids{pool};
-  Asks asks{pool};
+  BidsBook bids{&pool};
+  AsksBook asks{&pool};
 
   ObjectResource<OrderID, Order> orders;
 };
 
 template <typename Level>
-template <typename LadderType, typename OpposingLadder>
-void OrderBook<Level>::addToLadder(OrderID order_id, Price price,
-                                   Quantity quantity, side_t side,
-                                   LadderType &ladder,
-                                   OpposingLadder &opposing) {
-  opposing.matchAgainst(quantity, price,
-                        [&](Order &order) { orders.erase(order); });
+template <typename MarketSide, typename OpposingLadder>
+void OrderBook<Level>::match(OrderID order_id, Price price, Quantity quantity,
+                             side_t side, MarketSide &aggressor,
+                             OpposingLadder &opposing) {
+  const auto comp = opposing.key_comp();
+  const auto level_end = opposing.end();
+
+  auto level = opposing.begin();
+  while (quantity > 0 && level != level_end && !comp(price, level->first)) {
+    const bool cleared = level->second.matchAgainst(
+        quantity, [&](Order &order) { orders.erase(order); });
+    level = cleared ? opposing.erase(level) : std::next(level);
+  }
+
   if (quantity > 0) {
     Order *order = orders.create(order_id, order_id, price, quantity, side);
-    ladder.addOrder(*order, price);
+    auto [it, added] = aggressor.try_emplace(price);
+    it->second.addOrder(*order);
   }
+}
+
+template <typename Level>
+template <typename MarketSide>
+void OrderBook<Level>::removeOrder(MarketSide &market_side, Order &order,
+                                   Price price) {
+  const auto it = market_side.find(price);
+  if (it != market_side.end() && it->second.removeOrder(order))
+    market_side.erase(it);
+}
+
+template <typename Level>
+template <typename MarketSide>
+std::optional<Level>
+OrderBook<Level>::getBest(const MarketSide &market_side) const {
+  auto it = market_side.begin();
+  return it == market_side.end() ? std::nullopt
+                                 : Level{it->first, it->second.getQuantity()};
+}
+
+template <typename Level>
+template <typename MarketSide>
+std::vector<Level> OrderBook<Level>::getTop(const MarketSide &market_side,
+                                            uint16_t depth) const {
+  std::vector<Level> result{};
+  for (const auto &level : market_side) {
+    if (result.size() >= depth)
+      break;
+    result.push_back({level.first, level.second.getQuantity()});
+  }
+  return result;
 }
 
 template <typename Level>
@@ -64,16 +113,16 @@ bool OrderBook<Level>::update(OrderID order_id, side_t side, Level level) {
     return false;
 
   side == side_t::BID
-      ? addToLadder(order_id, level.price, level.quantity, side, bids, asks)
-      : addToLadder(order_id, level.price, level.quantity, side, asks, bids);
+      ? match(order_id, level.price, level.quantity, side, bids, asks)
+      : match(order_id, level.price, level.quantity, side, asks, bids);
   return true;
 }
 
 template <typename Level>
 bool OrderBook<Level>::cancel(OrderID order_id, side_t side) {
   if (auto order = orders.find(order_id)) {
-    side == side_t::BID ? bids.removeOrder(*order, order->price)
-                        : asks.removeOrder(*order, order->price);
+    side == side_t::BID ? removeOrder(bids, *order, order->price)
+                        : removeOrder(asks, *order, order->price);
     orders.erase(*order);
     return true;
   }
@@ -101,20 +150,20 @@ std::vector<Level> OrderBook<Level>::getTop(side_t side, uint16_t depth) const {
 
 template <typename Level>
 std::optional<Level> OrderBook<Level>::getBestAsk() const {
-  return asks.template getBest<Level>();
+  return getBest<Level>(asks);
 }
 
 template <typename Level>
 std::optional<Level> OrderBook<Level>::getBestBid() const {
-  return bids.template getBest<Level>();
+  return getBest<Level>(bids);
 }
 
 template <typename Level>
 std::vector<Level> OrderBook<Level>::getTopAsk(uint16_t depth) const {
-  return asks.template getTop<Level>(depth);
+  return getTop(asks, depth);
 }
 
 template <typename Level>
 std::vector<Level> OrderBook<Level>::getTopBid(uint16_t depth) const {
-  return bids.template getTop<Level>(depth);
+  return getTop(bids, depth);
 }
