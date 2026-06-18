@@ -33,12 +33,12 @@ concept MatchingEngine = requires(Ladder &ladder, Opposing &opposing,
 
 class PriceTimeMatchingEngine {
 public:
-  template <typename AggressorMap, typename OpposingMap, typename Order>
-  static void insertOrder(AggressorMap &aggressor, OpposingMap &opposing,
-                          Order &order) {
+  template <typename OpposingMap, typename Order>
+  static void matchOrder(OpposingMap &opposing,
+                         Order &order) {
     const auto comp = opposing.key_comp();
     const auto level_end = opposing.end();
-    auto quantity = order.quantity;
+    auto &quantity = order.quantity;
 
     auto level = opposing.begin();
     while (quantity > 0 && level != level_end &&
@@ -47,13 +47,20 @@ public:
           quantity, [&](auto & /*matched_order*/) {});
       level = cleared ? opposing.erase(level) : std::next(level);
     }
+  }
 
-    if (quantity > 0) {
-      // Update quantity if partial match
-      order.quantity = quantity;
-      auto [it, added] = aggressor.try_emplace(order.price);
-      it->second.addOrder(order);
-    }
+  template <typename AggressorMap, typename Order>
+  static void insertOrder_impl(AggressorMap &aggressor, Order &order) {
+		auto [it, added] = aggressor.try_emplace(order.price);
+		it->second.addOrder(order);
+  }
+
+  template <typename AggressorMap, typename OpposingMap, typename Order>
+  static void insertOrder(AggressorMap &aggressor, OpposingMap &opposing,
+                          Order &order) {
+    matchOrder(opposing, order);
+    if (order.quantity > 0)
+			insertOrder_impl(aggressor, order);
   }
 
   template <typename MarketSide, typename Order, typename Price>
