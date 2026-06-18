@@ -67,21 +67,22 @@ bool OrderBook<Level>::update(OrderID order_id, side_t side, Level level) {
   if (orders.contains(order_id))
     return false;
 
-  auto *order =
-      orders.create(order_id, order_id, level.price, level.quantity, side);
+  auto quantity = level.quantity;
+  side == side_t::BID ? MatchingEngine::matchPrice(asks, level.price, quantity)
+                      : MatchingEngine::matchPrice(bids, level.price, quantity);
 
-  side == side_t::BID ? MatchingEngine::insertOrder(bids, asks, *order)
-                      : MatchingEngine::insertOrder(asks, bids, *order);
-
-  if (order->quantity == 0) {
-    orders.erase(*order);
+  if (quantity > 0) {
+    auto *order =
+        orders.create(order_id, order_id, level.price, quantity, side);
+    side == side_t::BID ? MatchingEngine::insertOrder(bids, *order)
+                        : MatchingEngine::insertOrder(asks, *order);
   }
   return true;
 }
 
 template <typename Level>
 bool OrderBook<Level>::cancel(OrderID order_id, side_t side) {
-  if (auto order = orders.find(order_id)) {
+  if (auto *order = orders.find(order_id)) {
     side == side_t::BID
         ? MatchingEngine::removeOrder(bids, *order, order->price)
         : MatchingEngine::removeOrder(asks, *order, order->price);

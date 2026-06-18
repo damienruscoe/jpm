@@ -51,7 +51,7 @@ public:
     total_quantity += order.quantity;
   }
 
-  [[nodiscard]] bool removeOrder(Order &order) {
+  [[nodiscard]] bool removeOrder(const Order &order) {
     total_quantity -= order.quantity;
     orders.erase(orders.iterator_to(order));
     return orders.empty();
