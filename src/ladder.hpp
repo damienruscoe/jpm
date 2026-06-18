@@ -12,20 +12,22 @@
 #include <vector>
 
 enum class side_t { BID, ASK };
-using OrderID = std::string;
 
 template <typename PriceT, typename QuantityT> struct Order {
   using Price = PriceT;
   using Quantity = QuantityT;
 
-  OrderID id;
+  std::string id;
   Price price;
   Quantity quantity;
   side_t side;
   boost::intrusive::list_member_hook<> intrusive_list_hook;
 
-  Order(OrderID _id, Price _price, Quantity _quantity, side_t _side)
+  Order(std::string _id, Price _price, Quantity _quantity, side_t _side)
       : id(std::move(_id)), price(_price), quantity(_quantity), side(_side) {}
+
+  Order(std::string_view _id_sv, Price _price, Quantity _quantity, side_t _side)
+      : id(_id_sv), price(_price), quantity(_quantity), side(_side) {}
 };
 
 template <typename T>
@@ -74,8 +76,6 @@ public:
     }
     return orders.empty();
   }
-
-  //[[nodiscard]] bool empty() const { return orders.empty(); }
 
   Quantity getQuantity() const { return total_quantity; }
 

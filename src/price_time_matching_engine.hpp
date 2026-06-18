@@ -62,7 +62,7 @@ public:
   }
 
   template <typename AggressorMap, typename OpposingMap, typename Order>
-  static bool amendOrder(AggressorMap &aggressor, OpposingMap &opposing,
+  static void amendOrder(AggressorMap &aggressor, OpposingMap &opposing,
                          Order &order, typename Order::Price new_price,
                          typename Order::Quantity new_quantity) {
     removeOrder(aggressor, order, order.price);
@@ -74,7 +74,5 @@ public:
 
       insertOrder(aggressor, order);
     }
-
-    return true;
   }
 };

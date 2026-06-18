@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
       //  std::cout << "[VALID] " << *msg << std::endl;
       count++;
 
-      const auto order_id = std::string{msg->order_id};
+      const auto order_id = msg->order_id;
       const auto side = msg->side == Side::Buy ? side_t::BID : side_t::ASK;
 
       const BtcUsd level = BtcUsd{msg->price, msg->quantity};

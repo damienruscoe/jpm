@@ -9,7 +9,7 @@
 #include "ladder.hpp"
 #include "object_resource.hpp"
 
-using OrderID = std::string;
+using OrderID = std::string_view;
 
 template <typename Level, typename MatchingEnginePolicy> class OrderBook {
 public:
@@ -38,7 +38,7 @@ private:
   BidsBook bids{&pool};
   AsksBook asks{&pool};
 
-  ObjectResource<OrderID, Order> orders;
+  ObjectResource<std::string, Order> orders;
 };
 
 namespace utils {
@@ -67,7 +67,7 @@ bool OrderBook<Level, MatchingEngine>::update(OrderID order_id, side_t side,
   if (orders.contains(order_id))
     return false;
 
-  auto &quantity = level.quantity;
+  auto quantity = level.quantity;
   side == side_t::BID ? MatchingEngine::matchPrice(asks, level.price, quantity)
                       : MatchingEngine::matchPrice(bids, level.price, quantity);
 
@@ -96,11 +96,11 @@ template <typename Level, typename MatchingEngine>
 bool OrderBook<Level, MatchingEngine>::amend(OrderID order_id, side_t side,
                                              Level level) {
   if (auto *order = orders.find(order_id)) {
-    return side == side_t::BID
-               ? MatchingEngine::amendOrder(bids, asks, *order, level.price,
-                                            level.quantity)
-               : MatchingEngine::amendOrder(asks, bids, *order, level.price,
-                                            level.quantity);
+    side == side_t::BID
+        ? MatchingEngine::amendOrder(bids, asks, *order, level.price,
+                                     level.quantity)
+        : MatchingEngine::amendOrder(asks, bids, *order, level.price,
+                                     level.quantity);
     return true;
   }
   return false;
