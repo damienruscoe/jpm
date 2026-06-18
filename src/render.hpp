@@ -8,22 +8,29 @@
 
 std::ostream &nl(std::ostream &os);
 
-template <typename Level> class TopOfBookRender {
+template <typename OrderBook> class TopOfBookRender {
 public:
-  void render(const OrderBook<Level> &book) {
+  void render(const OrderBook &book) {
     const auto bid = book.getBestBid();
     const auto ask = book.getBestAsk();
-    if (bid && ask) {
+    auto new_bests = std::make_pair(bid, ask);
+
+    if (bid && ask && new_bests != prev_bests) {
       std::cout << *bid << " - " << *ask << nl;
     }
   }
 
 private:
-  std::pair<std::optional<Level>, std::optional<Level>> prev_bests =
+  using BidLevel =
+      typename decltype(std::declval<OrderBook>().getBestBid())::value_type;
+  using AskLevel =
+      typename decltype(std::declval<OrderBook>().getBestAsk())::value_type;
+
+  std::pair<std::optional<BidLevel>, std::optional<AskLevel>> prev_bests =
       std::make_pair(std::nullopt, std::nullopt);
 };
 
-template <typename Level> void render_book(const OrderBook<Level> &book) {
+template <typename OrderBook> void render_book(const OrderBook &book) {
   const auto top_asks = book.getTopAsk();
   const auto top_bids = book.getTopBid();
 

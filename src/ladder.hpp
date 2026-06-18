@@ -22,7 +22,7 @@ template <typename PriceT, typename QuantityT> struct Order {
   Price price;
   Quantity quantity;
   side_t side;
-  boost::intrusive::list_member_hook<> ladder_hook;
+  boost::intrusive::list_member_hook<> intrusive_list_hook;
 
   Order(OrderID _id, Price _price, Quantity _quantity, side_t _side)
       : id(std::move(_id)), price(_price), quantity(_quantity), side(_side) {}
@@ -33,7 +33,7 @@ concept LadderOrder = requires(T o) {
   typename T::Price;
   typename T::Quantity;
   { o.quantity } -> std::convertible_to<typename T::Quantity>;
-  {o.ladder_hook};
+  {o.intrusive_list_hook};
 };
 
 template <LadderOrder Order> struct PriceLevel {
@@ -43,7 +43,7 @@ private:
   using OrderList = boost::intrusive::list<
       Order,
       boost::intrusive::member_hook<Order, boost::intrusive::list_member_hook<>,
-                                    &Order::ladder_hook>>;
+                                    &Order::intrusive_list_hook>>;
 
 public:
   void addOrder(Order &order) {
@@ -72,10 +72,10 @@ public:
         on_filled(order);
       }
     }
-    return empty();
+    return orders.empty();
   }
 
-  [[nodiscard]] bool empty() const { return orders.empty(); }
+  //[[nodiscard]] bool empty() const { return orders.empty(); }
 
   Quantity getQuantity() const { return total_quantity; }
 
