@@ -3,7 +3,12 @@
 
 template <typename ID, typename T> struct ObjectResource {
 public:
+  using key_type = ID;
+  using value_type = T;
+
   template <typename... Args> T *create(ID id, Args &&...args) {
+    if (m_id_map.find(id) != m_id_map.end())
+      return nullptr; // TODO: Is this the correct interface?
     T *order = m_storage.create(std::forward<Args>(args)...);
     m_id_map[id] = order;
     return order;

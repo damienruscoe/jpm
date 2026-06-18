@@ -8,6 +8,7 @@
 #include "fixed_point.hpp"
 #include "ladder.hpp"
 #include "object_resource.hpp"
+#include "price_time_matching_engine.hpp"
 
 using OrderID = std::string;
 
@@ -30,6 +31,7 @@ public:
   std::vector<Level> getTopAsk(uint16_t depth = 10) const;
 
 private:
+  using MatchingEngine = PriceTimeMatchingEngine;
   using BidsBook = std::pmr::map<Price, PriceLevel<Order>, std::greater<Price>>;
   using AsksBook = std::pmr::map<Price, PriceLevel<Order>, std::less<Price>>;
 
@@ -40,37 +42,7 @@ private:
   ObjectResource<OrderID, Order> orders;
 };
 
-namespace market_side_utils {
-
-template <typename MarketSide, typename OpposingLadder, typename OrderID,
-          typename Order, typename Price, typename Quantity>
-void match(MarketSide &aggressor, OpposingLadder &opposing,
-           ObjectResource<OrderID, Order> &orders, OrderID order_id,
-           Price price, Quantity quantity, side_t side) {
-  const auto comp = opposing.key_comp();
-  const auto level_end = opposing.end();
-
-  auto level = opposing.begin();
-  while (quantity > 0 && level != level_end && !comp(price, level->first)) {
-    const bool cleared = level->second.matchAgainst(
-        quantity, [&](Order &order) { orders.erase(order); });
-    level = cleared ? opposing.erase(level) : std::next(level);
-  }
-
-  if (quantity > 0) {
-    Order *order = orders.create(order_id, order_id, price, quantity, side);
-    auto [it, added] = aggressor.try_emplace(price);
-    it->second.addOrder(*order);
-  }
-}
-
-template <typename MarketSide, typename Order, typename Price>
-void removeOrder(MarketSide &market_side, Order &order, Price price) {
-  const auto it = market_side.find(price);
-  if (it != market_side.end() && it->second.removeOrder(order))
-    market_side.erase(it);
-}
-
+namespace utils {
 template <typename Level, typename MarketSide>
 std::optional<Level> getBest(const MarketSide &market_side) {
   auto it = market_side.begin();
@@ -88,19 +60,19 @@ std::vector<Level> getTop(const MarketSide &market_side, uint16_t depth) {
   }
   return result;
 }
-
-} // namespace market_side_utils
+} // namespace utils
 
 template <typename Level>
 bool OrderBook<Level>::update(OrderID order_id, side_t side, Level level) {
+
   if (orders.contains(order_id))
     return false;
 
   side == side_t::BID
-      ? market_side_utils::match(bids, asks, orders, order_id, level.price,
-                                 level.quantity, side)
-      : market_side_utils::match(asks, bids, orders, order_id, level.price,
-                                 level.quantity, side);
+      ? MatchingEngine::insertOrder(bids, asks, orders, order_id, level.price,
+                                    level.quantity, side)
+      : MatchingEngine::insertOrder(asks, bids, orders, order_id, level.price,
+                                    level.quantity, side);
   return true;
 }
 
@@ -108,8 +80,8 @@ template <typename Level>
 bool OrderBook<Level>::cancel(OrderID order_id, side_t side) {
   if (auto order = orders.find(order_id)) {
     side == side_t::BID
-        ? market_side_utils::removeOrder(bids, *order, order->price)
-        : market_side_utils::removeOrder(asks, *order, order->price);
+        ? MatchingEngine::removeOrder(bids, *order, order->price)
+        : MatchingEngine::removeOrder(asks, *order, order->price);
     orders.erase(*order);
     return true;
   }
@@ -119,9 +91,16 @@ bool OrderBook<Level>::cancel(OrderID order_id, side_t side) {
 
 template <typename Level>
 bool OrderBook<Level>::amend(OrderID order_id, side_t side, Level level) {
-  if (cancel(order_id, side)) {
-    return update(order_id, side, level);
+  if (auto *order = orders.find(order_id)) {
+    return side == side_t::BID
+               ? MatchingEngine::amendOrder(bids, asks, orders, order_id,
+                                            *order, level.price, level.quantity,
+                                            side)
+               : MatchingEngine::amendOrder(asks, bids, orders, order_id,
+                                            *order, level.price, level.quantity,
+                                            side);
   }
+
   return false;
 }
 
@@ -137,20 +116,20 @@ std::vector<Level> OrderBook<Level>::getTop(side_t side, uint16_t depth) const {
 
 template <typename Level>
 std::optional<Level> OrderBook<Level>::getBestAsk() const {
-  return market_side_utils::getBest<Level>(asks);
+  return utils::getBest<Level>(asks);
 }
 
 template <typename Level>
 std::optional<Level> OrderBook<Level>::getBestBid() const {
-  return market_side_utils::getBest<Level>(bids);
+  return utils::getBest<Level>(bids);
 }
 
 template <typename Level>
 std::vector<Level> OrderBook<Level>::getTopAsk(uint16_t depth) const {
-  return market_side_utils::getTop<Level>(asks, depth);
+  return utils::getTop<Level>(asks, depth);
 }
 
 template <typename Level>
 std::vector<Level> OrderBook<Level>::getTopBid(uint16_t depth) const {
-  return market_side_utils::getTop<Level>(bids, depth);
+  return utils::getTop<Level>(bids, depth);
 }
