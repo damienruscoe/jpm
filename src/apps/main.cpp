@@ -50,18 +50,15 @@ int main(int argc, char *argv[]) {
   int count = 0;
   for (const auto &line : lines) {
     if (auto msg = parse_line(line)) {
-      // std::cout << "[\033[32mVALID\033[0m] " << *msg << std::endl;
-      //  std::cout << "[VALID] " << *msg << std::endl;
+      std::cout << "[\033[32mVALID\033[0m] " << *msg << std::endl;
       count++;
 
       const auto order_id = msg->order_id;
       const auto side = msg->side == Side::Buy ? side_t::BID : side_t::ASK;
 
-      const BtcUsd level = BtcUsd{msg->price, msg->quantity};
-      std::cout << *msg << std::endl;
       switch (msg->type) {
       case RequestType::New: {
-        auto added = book.newOrder(order_id, side, level);
+        auto added = book.newOrder(order_id, side, msg->price, msg->quantity);
         if (!added)
           std::cout << "[\033[31mERROR\033[0m] Adding new order failed"
                     << std::endl;
@@ -75,7 +72,7 @@ int main(int argc, char *argv[]) {
         break;
       }
       case RequestType::Amend: {
-        auto amended = book.amend(order_id, side, level);
+        auto amended = book.amend(order_id, side, msg->price, msg->quantity);
         if (!amended)
           std::cout << "[\033[31mERROR\033[0m] Amending order failed"
                     << std::endl;

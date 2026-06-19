@@ -10,8 +10,8 @@ class PriceTimeMatchingEngine {
 public:
   template <typename MarketSide, typename Price, typename Quantity,
             typename OrderCallback>
-  static void matchPrice(MarketSide &market_side, Price price,
-                         Quantity &quantity, OrderCallback &&on_filled) {
+  static Quantity matchPrice(MarketSide &market_side, const Price &price,
+                             Quantity quantity, OrderCallback &&on_filled) {
     const auto comp = typename MarketSide::key_compare{};
     const auto level_end = market_side.end();
 
@@ -21,6 +21,8 @@ public:
           quantity, std::forward<OrderCallback>(on_filled));
       level = cleared ? market_side.erase(level) : std::next(level);
     }
+
+    return quantity;
   }
 
   template <typename AggressorMap, typename Order>
@@ -41,13 +43,13 @@ public:
                          Order &order, typename Order::Price new_price,
                          typename Order::Quantity new_quantity,
                          OrderCallback &&on_filled) {
-    matchPrice(opposing, new_price, new_quantity,
-               std::forward<OrderCallback>(on_filled));
+    auto remaining = matchPrice(opposing, new_price, new_quantity,
+                                std::forward<OrderCallback>(on_filled));
 
     removeOrder(aggressor, order);
-    if (new_quantity > 0) {
+    if (remaining > 0) {
       order.price = new_price;
-      order.quantity = new_quantity;
+      order.quantity = remaining;
 
       insertOrder(aggressor, order);
     }

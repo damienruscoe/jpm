@@ -15,11 +15,13 @@ public:
   using StoredOrderID = typename Level::OrderID;
 
   template <typename OrderID>
-  [[nodiscard]] bool newOrder(OrderID &&order_id, side_t side, Level level);
+  [[nodiscard]] bool newOrder(OrderID &&order_id, side_t side,
+                              const Price &price, const Quantity &quantity);
   template <typename OrderID>
   [[nodiscard]] bool cancel(OrderID &&order_id, side_t side);
   template <typename OrderID>
-  [[nodiscard]] bool amend(OrderID &&order_id, side_t side, Level level);
+  [[nodiscard]] bool amend(OrderID &&order_id, side_t side, const Price &price,
+                           const Quantity &quantity);
 
   std::optional<Level> getBest(side_t side) const;
   std::optional<Level> getBestBid() const;
@@ -67,20 +69,21 @@ std::vector<Level> getTop(const MarketSide &market_side, uint16_t depth) {
 template <typename Level, typename MatchingEngine>
 template <typename OrderID>
 bool OrderBook<Level, MatchingEngine>::newOrder(OrderID &&order_id, side_t side,
-                                                Level level) {
+                                                const Price &price,
+                                                const Quantity &quantity) {
   if (orders.contains(order_id))
     return false;
 
   auto on_filled = std::bind_front(&OrderBook::on_filled, this);
-  auto &quantity = level.quantity;
 
-  side == side_t::BID ? MatchingEngine::matchPrice(asks, level.price, quantity,
-                                                   std::move(on_filled))
-                      : MatchingEngine::matchPrice(bids, level.price, quantity,
-                                                   std::move(on_filled));
+  auto remaining = side == side_t::BID
+                       ? MatchingEngine::matchPrice(asks, price, quantity,
+                                                    std::move(on_filled))
+                       : MatchingEngine::matchPrice(bids, price, quantity,
+                                                    std::move(on_filled));
 
-  if (quantity > 0) {
-    auto *order = orders.create(order_id, order_id, level.price, quantity);
+  if (remaining > 0) {
+    auto *order = orders.create(order_id, order_id, price, remaining);
     side == side_t::BID ? MatchingEngine::insertOrder(bids, *order)
                         : MatchingEngine::insertOrder(asks, *order);
   }
@@ -102,15 +105,16 @@ bool OrderBook<Level, MatchingEngine>::cancel(OrderID &&order_id, side_t side) {
 template <typename Level, typename MatchingEngine>
 template <typename OrderID>
 bool OrderBook<Level, MatchingEngine>::amend(OrderID &&order_id, side_t side,
-                                             Level level) {
+                                             const Price &price,
+                                             const Quantity &quantity) {
   if (auto *order = orders.find(std::forward<OrderID>(order_id))) {
     auto on_filled = std::bind_front(&OrderBook::on_filled, this);
 
     side == side_t::BID
-        ? MatchingEngine::amendOrder(bids, asks, *order, level.price,
-                                     level.quantity, std::move(on_filled))
-        : MatchingEngine::amendOrder(asks, bids, *order, level.price,
-                                     level.quantity, std::move(on_filled));
+        ? MatchingEngine::amendOrder(bids, asks, *order, price, quantity,
+                                     std::move(on_filled))
+        : MatchingEngine::amendOrder(asks, bids, *order, price, quantity,
+                                     std::move(on_filled));
     return true;
   }
   return false;
