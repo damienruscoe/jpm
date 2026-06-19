@@ -75,7 +75,7 @@ bool OrderBook<Level, MatchingEngine>::update(OrderID &&order_id, side_t side,
 
   if (quantity > 0) {
     auto *order =
-        orders.create(order_id, order_id, level.price, quantity, side);
+        orders.create(order_id, order_id, level.price, quantity);
     side == side_t::BID ? MatchingEngine::insertOrder(bids, *order)
                         : MatchingEngine::insertOrder(asks, *order);
   }

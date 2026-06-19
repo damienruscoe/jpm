@@ -20,14 +20,13 @@ template <typename OrderID, typename PriceT, typename QuantityT> struct Order {
   OrderID id;
   Price price;
   Quantity quantity;
-  side_t side;
   boost::intrusive::list_member_hook<> intrusive_list_hook;
 
-  Order(std::string _id, Price _price, Quantity _quantity, side_t _side)
-      : id(std::move(_id)), price(_price), quantity(_quantity), side(_side) {}
+  Order(std::string _id, Price _price, Quantity _quantity)
+      : id(std::move(_id)), price(_price), quantity(_quantity) {}
 
-  Order(std::string_view _id_sv, Price _price, Quantity _quantity, side_t _side)
-      : id(_id_sv), price(_price), quantity(_quantity), side(_side) {}
+  Order(std::string_view _id_sv, Price _price, Quantity _quantity)
+      : id(_id_sv), price(_price), quantity(_quantity) {}
 };
 
 template <typename T>
