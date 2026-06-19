@@ -1,10 +1,6 @@
 #pragma once
 
-#include <boost/intrusive/list.hpp>
-#include <cstddef>
-#include <iostream>
 #include <memory_resource>
-#include <vector>
 
 /*
   1. Define a Tracking Resource
@@ -41,13 +37,13 @@ template <typename T,
 class ObjectPool {
 
 public:
-  // ObjectPool() : allocator(&pool) {
-  /*
-std::pmr::pool_options options;
-options.max_blocks_per_chunk = 1024; // You can suggest chunk size
-std::pmr::unsynchronized_pool_resource pool(options);
-*/
-  //}
+#if 0
+  ObjectPool() : allocator(&pool) {
+		std::pmr::pool_options options;
+		options.max_blocks_per_chunk = 1024; // You can suggest chunk size
+		std::pmr::unsynchronized_pool_resource pool(options);
+  }
+#endif
 
   template <typename... Args> T *create(Args &&...args) {
     void *mem = pool.allocate(sizeof(T), alignof(T));
@@ -59,17 +55,16 @@ std::pmr::unsynchronized_pool_resource pool(options);
     pool.deallocate(order, sizeof(T), alignof(T));
   }
 
-  /*
-void warm_memory(size_t total_bytes) {
-std::vector<char> buffer(total_bytes);
+#if 0
+	void warm_memory(size_t total_bytes) {
+		std::vector<char> buffer(total_bytes);
 
-// Touch every 4KB (OS page) to fault in the page
-// and every 64 bytes (CPU cache line) to fill the cache.
-for (size_t i = 0; i < total_bytes; i += 64) {
-buffer[i] = 0;
-}
-}
-  */
+		// Touch every 4KB (OS page) to fault in the page
+		// and every 64 bytes (CPU cache line) to fill the cache.
+		for (size_t i = 0; i < total_bytes; i += 64)
+			buffer[i] = 0;
+	}
+#endif
 
 private:
   Resource pool;

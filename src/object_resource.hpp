@@ -1,6 +1,5 @@
 #pragma once
 #include "object_pool.hpp"
-#include <functional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -23,20 +22,21 @@ template <> struct MapTraits<std::string> {
     }
   };
   using KeyEqual = std::equal_to<>;
-  /*
-struct KeyEqual {
-using is_transparent = void;
-bool operator()(const std::string &lhs, const std::string &rhs) const {
-return lhs == rhs;
-}
-bool operator()(const std::string &lhs, std::string_view rhs) const {
-return lhs == rhs;
-}
-bool operator()(std::string_view lhs, const std::string &rhs) const {
-return lhs == rhs;
-}
-};
-  */
+
+#if 0
+	struct KeyEqual {
+		using is_transparent = void;
+		bool operator()(const std::string &lhs, const std::string &rhs) const {
+			return lhs == rhs;
+		}
+		bool operator()(const std::string &lhs, std::string_view rhs) const {
+			return lhs == rhs;
+		}
+		bool operator()(std::string_view lhs, const std::string &rhs) const {
+			return lhs == rhs;
+		}
+	};
+#endif
 };
 
 template <typename ID, typename T> struct ObjectResource {

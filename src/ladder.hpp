@@ -1,15 +1,7 @@
 #pragma once
 
 #include <boost/intrusive/list.hpp>
-#include <cstdint>
 #include <functional>
-#include <map>
-#include <memory_resource>
-#include <optional>
-#include <string>
-#include <string_view>
-#include <variant>
-#include <vector>
 
 enum class side_t { BID, ASK };
 
@@ -22,11 +14,10 @@ template <typename OrderID, typename PriceT, typename QuantityT> struct Order {
   Quantity quantity;
   boost::intrusive::list_member_hook<> intrusive_list_hook;
 
-  Order(std::string _id, Price _price, Quantity _quantity)
-      : id(std::move(_id)), price(_price), quantity(_quantity) {}
-
-  Order(std::string_view _id_sv, Price _price, Quantity _quantity)
-      : id(_id_sv), price(_price), quantity(_quantity) {}
+  template <typename _OrderID>
+  Order(_OrderID &&_id_sv, Price _price, Quantity _quantity)
+      : id(std::forward<_OrderID>(_id_sv)), price(_price), quantity(_quantity) {
+  }
 };
 
 template <typename T>

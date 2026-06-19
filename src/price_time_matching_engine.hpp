@@ -6,40 +6,13 @@
 #include <optional>
 #include <vector>
 
-template <typename T>
-concept LadderStorage = requires(T m) {
-  typename T::key_type;
-  typename T::mapped_type;
-  {
-    m.key_comp()
-    } -> std::invocable<typename T::key_type, typename T::key_type>;
-  {m.begin()};
-  {m.end()};
-  {m.erase(m.begin())};
-  {m.try_emplace(typename T::key_type{})};
-  {m.find(typename T::key_type{})};
-};
-
-/*
-template <typename T, typename Level, typename Ladder, typename Opposing,
-          typename Order>
-concept MatchingEngine = requires(Ladder &ladder, Opposing &opposing,
-                                  Order &order) {
-  {T::insertOrder(ladder, opposing, order.id, order.price, order.quantity,
-                  order.side, nullptr)};
-  {T::removeOrder(ladder, order, order.price)};
-  { T::template getBest<Level>(ladder) } -> std::same_as<std::optional<Level>>;
-  { T::template getTop<Level>(ladder, 0) } -> std::same_as<std::vector<Level>>;
-};
-*/
-
 class PriceTimeMatchingEngine {
 public:
   template <typename MarketSide, typename Price, typename Quantity,
             typename OrderCallback>
   static void matchPrice(MarketSide &market_side, Price price,
                          Quantity &quantity, OrderCallback &&on_filled) {
-    const auto comp = market_side.key_comp();
+    const auto comp = typename MarketSide::key_compare{};
     const auto level_end = market_side.end();
 
     auto level = market_side.begin();
