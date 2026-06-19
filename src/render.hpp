@@ -51,7 +51,7 @@ void render_book(const OrderBook &book) {
     ss << *it << nl;
 
   ss << "---------------------------" << nl;
-
+#if 0
   if (top_asks.empty() || top_bids.empty()) {
     ss << "Spread: " << nl;
   } else {
@@ -59,8 +59,8 @@ void render_book(const OrderBook &book) {
     auto spread = top_asks[0].price - top_bids[0].price;
     ss << "Spread: " << spread << nl;
   }
-
   ss << "---------------------------" << nl;
+#endif
 
   for (auto it = top_bids.cbegin(); it != top_bids.cend(); ++it)
     ss << *it << nl;

@@ -22,6 +22,8 @@ struct BtcUsd {
     return os << level.price << ' ' << level.quantity;
   }
 
+  auto operator<=>(const BtcUsd &) const = default;
+
   Price price{};
   Quantity quantity{};
 };
@@ -56,24 +58,31 @@ int main(int argc, char *argv[]) {
       const auto side = msg->side == Side::Buy ? side_t::BID : side_t::ASK;
 
       const BtcUsd level = BtcUsd{msg->price, msg->quantity};
+      std::cout << *msg << std::endl;
       switch (msg->type) {
       case RequestType::New: {
         auto added = book.newOrder(order_id, side, level);
-        std::cout << "Order " << (added ? "Added" : "Adding failed");
+        if (!added)
+          std::cout << "[\033[31mERROR\033[0m] Adding new order failed"
+                    << std::endl;
         break;
       }
       case RequestType::Cancel: {
         auto cancelled = book.cancel(order_id, side);
-        std::cout << "Order " << (cancelled ? "Cancelled" : "Cancel failed");
+        if (!cancelled)
+          std::cout << "[\033[31mERROR\033[0m] Cancelling existing order failed"
+                    << std::endl;
         break;
       }
       case RequestType::Amend: {
         auto amended = book.amend(order_id, side, level);
-        std::cout << "Order " << (amended ? "Amended" : "Amend failed");
+        if (!amended)
+          std::cout << "[\033[31mERROR\033[0m] Amending order failed"
+                    << std::endl;
         break;
       }
       }
-      std::cout << std::endl;
+
       // top_of_book.render();
       render_book(book);
     }

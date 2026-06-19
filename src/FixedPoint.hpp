@@ -69,13 +69,7 @@ public:
   int64_t GetRaw() const { return m_raw_value; }
   double ToDouble() const { return static_cast<double>(m_raw_value) / 10000.0; }
 
-  bool operator>(const FixedPointAI &other) const {
-    return m_raw_value > other.m_raw_value;
-  }
-
-  bool operator<(const FixedPointAI &other) const {
-    return m_raw_value < other.m_raw_value;
-  }
+  auto operator<=>(const FixedPointAI &) const = default;
 
   friend FixedPointAI operator-(const FixedPointAI &lhs,
                                 const FixedPointAI &rhs) {
