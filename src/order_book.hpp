@@ -31,6 +31,8 @@ public:
   std::vector<Level> getTopAsk(uint16_t depth = 10) const;
 
 private:
+  void on_filled(Order &order) { orders.erase(order.id); };
+
   using MatchingEngine = MatchingEnginePolicy;
   using BidsBook = std::pmr::map<Price, PriceLevel<Order>, std::greater<Price>>;
   using AsksBook = std::pmr::map<Price, PriceLevel<Order>, std::less<Price>>;
@@ -69,13 +71,16 @@ bool OrderBook<Level, MatchingEngine>::update(OrderID &&order_id, side_t side,
   if (orders.contains(order_id))
     return false;
 
-  auto quantity = level.quantity;
-  side == side_t::BID ? MatchingEngine::matchPrice(asks, level.price, quantity)
-                      : MatchingEngine::matchPrice(bids, level.price, quantity);
+  auto on_filled = std::bind_front(&OrderBook::on_filled, this);
+  auto &quantity = level.quantity;
+
+  side == side_t::BID ? MatchingEngine::matchPrice(asks, level.price, quantity,
+                                                   std::move(on_filled))
+                      : MatchingEngine::matchPrice(bids, level.price, quantity,
+                                                   std::move(on_filled));
 
   if (quantity > 0) {
-    auto *order =
-        orders.create(order_id, order_id, level.price, quantity);
+    auto *order = orders.create(order_id, order_id, level.price, quantity);
     side == side_t::BID ? MatchingEngine::insertOrder(bids, *order)
                         : MatchingEngine::insertOrder(asks, *order);
   }
@@ -100,11 +105,13 @@ template <typename OrderID>
 bool OrderBook<Level, MatchingEngine>::amend(OrderID &&order_id, side_t side,
                                              Level level) {
   if (auto *order = orders.find(std::forward<OrderID>(order_id))) {
+    auto on_filled = std::bind_front(&OrderBook::on_filled, this);
+
     side == side_t::BID
         ? MatchingEngine::amendOrder(bids, asks, *order, level.price,
-                                     level.quantity)
+                                     level.quantity, std::move(on_filled))
         : MatchingEngine::amendOrder(asks, bids, *order, level.price,
-                                     level.quantity);
+                                     level.quantity, std::move(on_filled));
     return true;
   }
   return false;

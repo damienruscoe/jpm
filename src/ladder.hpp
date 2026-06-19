@@ -70,7 +70,7 @@ public:
 
       if (!quantity) {
         orders.erase(orders.iterator_to(order));
-        on_filled(order);
+        std::invoke(on_filled, order);
       }
     }
     return orders.empty();
