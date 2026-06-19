@@ -13,11 +13,11 @@
 
 enum class side_t { BID, ASK };
 
-template <typename PriceT, typename QuantityT> struct Order {
+template <typename OrderID, typename PriceT, typename QuantityT> struct Order {
   using Price = PriceT;
   using Quantity = QuantityT;
 
-  std::string id;
+  OrderID id;
   Price price;
   Quantity quantity;
   side_t side;
@@ -32,7 +32,6 @@ template <typename PriceT, typename QuantityT> struct Order {
 
 template <typename T>
 concept LadderOrder = requires(T o) {
-  typename T::Price;
   typename T::Quantity;
   { o.quantity } -> std::convertible_to<typename T::Quantity>;
   {o.intrusive_list_hook};
@@ -63,13 +62,14 @@ public:
   [[nodiscard]] bool matchAgainst(Quantity &remaining, Callback &&on_filled) {
     for (auto it = orders.begin(); remaining > 0 && it != orders.end();) {
       Order &order = *it++;
+      Quantity &quantity = order.quantity;
 
-      Quantity delta = std::min(order.quantity, remaining);
+      Quantity delta = std::min(quantity, remaining);
       total_quantity -= delta;
       remaining -= delta;
-      order.quantity -= delta;
+      quantity -= delta;
 
-      if (!order.quantity) {
+      if (!quantity) {
         orders.erase(orders.iterator_to(order));
         on_filled(order);
       }

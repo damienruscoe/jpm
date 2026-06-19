@@ -9,17 +9,18 @@
 #include "ladder.hpp"
 #include "object_resource.hpp"
 
-using OrderID = std::string_view;
-
 template <typename Level, typename MatchingEnginePolicy> class OrderBook {
 public:
   using Price = typename Level::Price;
   using Quantity = typename Level::Quantity;
-  using Order = ::Order<Price, Quantity>;
+  using Order = ::Order<std::string, Price, Quantity>;
 
-  [[nodiscard]] bool update(OrderID order_id, side_t side, Level level);
-  [[nodiscard]] bool cancel(OrderID order_id, side_t side);
-  [[nodiscard]] bool amend(OrderID order_id, side_t side, Level level);
+  template <typename OrderID>
+  [[nodiscard]] bool update(OrderID &&order_id, side_t side, Level level);
+  template <typename OrderID>
+  [[nodiscard]] bool cancel(OrderID &&order_id, side_t side);
+  template <typename OrderID>
+  [[nodiscard]] bool amend(OrderID &&order_id, side_t side, Level level);
 
   std::optional<Level> getBest(side_t side) const;
   std::optional<Level> getBestBid() const;
@@ -62,7 +63,8 @@ std::vector<Level> getTop(const MarketSide &market_side, uint16_t depth) {
 } // namespace utils
 
 template <typename Level, typename MatchingEngine>
-bool OrderBook<Level, MatchingEngine>::update(OrderID order_id, side_t side,
+template <typename OrderID>
+bool OrderBook<Level, MatchingEngine>::update(OrderID &&order_id, side_t side,
                                               Level level) {
   if (orders.contains(order_id))
     return false;
@@ -81,21 +83,23 @@ bool OrderBook<Level, MatchingEngine>::update(OrderID order_id, side_t side,
 }
 
 template <typename Level, typename MatchingEngine>
-bool OrderBook<Level, MatchingEngine>::cancel(OrderID order_id, side_t side) {
-  if (auto *order = orders.find(order_id)) {
+template <typename OrderID>
+bool OrderBook<Level, MatchingEngine>::cancel(OrderID &&order_id, side_t side) {
+  if (auto *order = orders.find(std::forward<OrderID>(order_id))) {
     side == side_t::BID
         ? MatchingEngine::removeOrder(bids, *order, order->price)
         : MatchingEngine::removeOrder(asks, *order, order->price);
-    orders.erase(*order);
+    orders.erase(order->id);
     return true;
   }
   return false;
 }
 
 template <typename Level, typename MatchingEngine>
-bool OrderBook<Level, MatchingEngine>::amend(OrderID order_id, side_t side,
+template <typename OrderID>
+bool OrderBook<Level, MatchingEngine>::amend(OrderID &&order_id, side_t side,
                                              Level level) {
-  if (auto *order = orders.find(order_id)) {
+  if (auto *order = orders.find(std::forward<OrderID>(order_id))) {
     side == side_t::BID
         ? MatchingEngine::amendOrder(bids, asks, *order, level.price,
                                      level.quantity)

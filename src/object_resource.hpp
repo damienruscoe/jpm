@@ -44,30 +44,29 @@ public:
   using key_type = ID;
   using value_type = T;
 
-  template <typename... Args> T *create(std::string_view id, Args &&...args) {
-    if (m_id_map.find(id) != m_id_map.end())
-      return nullptr;
-    T *order = m_storage.create(std::forward<Args>(args)...);
-    m_id_map[ID(id)] = order; // ID conversion here!
-    return order;
+  template <typename K, typename... Args> T *create(K &&key, Args &&...args) {
+    if (auto it = m_id_map.find(key); it == m_id_map.end()) {
+      T *order = m_storage.create(std::forward<Args>(args)...);
+      m_id_map.emplace_hint(it, ID{std::forward<K>(key)}, order);
+      return order;
+    }
+    return nullptr;
   }
 
-  void erase(T &order) {
-    m_id_map.erase(order.id);
-    m_storage.destroy(&order);
+  template <typename K> void erase(K &&key) {
+    if (auto it = m_id_map.find(std::forward<K>(key)); it != m_id_map.end()) {
+      T &order = *it->second;
+      m_id_map.erase(it);
+      m_storage.destroy(&order);
+    }
   };
 
-  void erase(std::string_view id) {
-    if (auto it = m_id_map.find(id); it != m_id_map.end())
-      erase(*it->second);
-  };
-
-  [[nodiscard]] bool contains(std::string_view id_sv) const {
-    return m_id_map.find(id_sv) != m_id_map.end();
+  template <typename K> [[nodiscard]] bool contains(K &&key) const {
+    return m_id_map.find(std::forward<K>(key)) != m_id_map.end();
   }
 
-  T *find(std::string_view id_sv) const {
-    auto it = m_id_map.find(id_sv);
+  template <typename K> T *find(K &&key) const {
+    auto it = m_id_map.find(std::forward<K>(key));
     return it != m_id_map.end() ? it->second : nullptr;
   }
 
