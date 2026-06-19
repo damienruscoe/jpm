@@ -15,19 +15,12 @@ template <typename OrderID, typename PriceT, typename QuantityT> struct Order {
   boost::intrusive::list_member_hook<> intrusive_list_hook;
 
   template <typename _OrderID>
-  Order(_OrderID &&_id_sv, Price _price, Quantity _quantity)
-      : id(std::forward<_OrderID>(_id_sv)), price(_price), quantity(_quantity) {
-  }
+  Order(_OrderID &&_id, Price _price, Quantity _quantity)
+      : id(std::forward<_OrderID>(_id)), price(std::move(_price)),
+        quantity(std::move(_quantity)) {}
 };
 
-template <typename T>
-concept LadderOrder = requires(T o) {
-  typename T::Quantity;
-  { o.quantity } -> std::convertible_to<typename T::Quantity>;
-  {o.intrusive_list_hook};
-};
-
-template <LadderOrder Order> struct PriceLevel {
+template <typename Order> struct PriceLevel {
 private:
   using Quantity = typename Order::Quantity;
 

@@ -29,9 +29,8 @@ public:
   }
 
   template <typename MarketSide, typename Order>
-  static void removeOrder(MarketSide &market_side, Order &order,
-                          typename Order::Price price) {
-    const auto it = market_side.find(price);
+  static void removeOrder(MarketSide &market_side, Order &order) {
+    const auto it = market_side.find(order.price);
     if (it != market_side.end() && it->second.removeOrder(order))
       market_side.erase(it);
   }
@@ -45,7 +44,7 @@ public:
     matchPrice(opposing, new_price, new_quantity,
                std::forward<OrderCallback>(on_filled));
 
-    removeOrder(aggressor, order, order.price);
+    removeOrder(aggressor, order);
     if (new_quantity > 0) {
       order.price = new_price;
       order.quantity = new_quantity;

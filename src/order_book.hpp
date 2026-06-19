@@ -13,7 +13,6 @@ public:
   using Price = typename Level::Price;
   using Quantity = typename Level::Quantity;
   using StoredOrderID = typename Level::OrderID;
-  using Order = ::Order<StoredOrderID, Price, Quantity>;
 
   template <typename OrderID>
   [[nodiscard]] bool newOrder(OrderID &&order_id, side_t side, Level level);
@@ -31,11 +30,12 @@ public:
   std::vector<Level> getTopAsk(uint16_t depth = 10) const;
 
 private:
-  void on_filled(Order &order) { orders.erase(order.id); };
-
+  using Order = ::Order<StoredOrderID, Price, Quantity>;
   using MatchingEngine = MatchingEnginePolicy;
   using BidsBook = std::pmr::map<Price, PriceLevel<Order>, std::greater<Price>>;
   using AsksBook = std::pmr::map<Price, PriceLevel<Order>, std::less<Price>>;
+
+  void on_filled(Order &order) { orders.erase(order.id); };
 
   std::pmr::unsynchronized_pool_resource pool;
   BidsBook bids{&pool};
@@ -91,9 +91,8 @@ template <typename Level, typename MatchingEngine>
 template <typename OrderID>
 bool OrderBook<Level, MatchingEngine>::cancel(OrderID &&order_id, side_t side) {
   if (auto *order = orders.find(std::forward<OrderID>(order_id))) {
-    side == side_t::BID
-        ? MatchingEngine::removeOrder(bids, *order, order->price)
-        : MatchingEngine::removeOrder(asks, *order, order->price);
+    side == side_t::BID ? MatchingEngine::removeOrder(bids, *order)
+                        : MatchingEngine::removeOrder(asks, *order);
     orders.erase(order->id);
     return true;
   }
