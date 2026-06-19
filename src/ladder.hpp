@@ -59,14 +59,17 @@ public:
 
   template <typename Callback>
   [[nodiscard]] bool matchAgainst(Quantity &remaining, Callback &&on_filled) {
-    for (auto it = orders.begin(); remaining > 0 && it != orders.end();) {
+    const auto end = orders.end();
+    for (auto it = orders.begin(); remaining > 0 && it != end;) {
+      // The OrderList is being modified while we are iterating, so bump
+      // the iterator now before it becomes invalid.
       Order &order = *it++;
       Quantity &quantity = order.quantity;
 
       Quantity delta = std::min(quantity, remaining);
       total_quantity -= delta;
-      remaining -= delta;
       quantity -= delta;
+      remaining -= delta;
 
       if (!quantity) {
         orders.erase(orders.iterator_to(order));
