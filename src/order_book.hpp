@@ -13,8 +13,8 @@ template <typename Level, typename MatchingEnginePolicy> class OrderBook {
 public:
   using Price = typename Level::Price;
   using Quantity = typename Level::Quantity;
-  using OrderID = typename Level::OrderID;
-  using Order = ::Order<OrderID, Price, Quantity>;
+  using StoredOrderID = typename Level::OrderID;
+  using Order = ::Order<StoredOrderID, Price, Quantity>;
 
   template <typename OrderID>
   [[nodiscard]] bool newOrder(OrderID &&order_id, side_t side, Level level);
