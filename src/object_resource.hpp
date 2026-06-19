@@ -59,7 +59,7 @@ public:
       m_id_map.erase(it);
       m_storage.destroy(&order);
     }
-  };
+  }
 
   template <typename K> [[nodiscard]] bool contains(K &&key) const {
     return m_id_map.find(std::forward<K>(key)) != m_id_map.end();
