@@ -9,6 +9,7 @@
 #include <iostream>
 
 struct BtcUsd {
+  using OrderID = std::string;
   using Price = FixedPointAI;
   using Quantity = uint32_t;
 
@@ -20,8 +21,6 @@ struct BtcUsd {
   friend std::ostream &operator<<(std::ostream &os, const BtcUsd &level) {
     return os << level.price << ' ' << level.quantity;
   }
-
-  // auto operator<=>(const BtcUsd& level) const = default;
 
   Price price{};
   Quantity quantity{};
@@ -59,7 +58,7 @@ int main(int argc, char *argv[]) {
       const BtcUsd level = BtcUsd{msg->price, msg->quantity};
       switch (msg->type) {
       case RequestType::New: {
-        auto added = book.update(order_id, side, level);
+        auto added = book.newOrder(order_id, side, level);
         std::cout << "Order " << (added ? "Added" : "Adding failed");
         break;
       }
@@ -75,7 +74,7 @@ int main(int argc, char *argv[]) {
       }
       }
       std::cout << std::endl;
-      // top_of_book.render(book);
+      // top_of_book.render();
       render_book(book);
     }
   }

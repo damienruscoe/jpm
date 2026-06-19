@@ -13,10 +13,11 @@ template <typename Level, typename MatchingEnginePolicy> class OrderBook {
 public:
   using Price = typename Level::Price;
   using Quantity = typename Level::Quantity;
-  using Order = ::Order<std::string, Price, Quantity>;
+  using OrderID = typename Level::OrderID;
+  using Order = ::Order<OrderID, Price, Quantity>;
 
   template <typename OrderID>
-  [[nodiscard]] bool update(OrderID &&order_id, side_t side, Level level);
+  [[nodiscard]] bool newOrder(OrderID &&order_id, side_t side, Level level);
   template <typename OrderID>
   [[nodiscard]] bool cancel(OrderID &&order_id, side_t side);
   template <typename OrderID>
@@ -66,8 +67,8 @@ std::vector<Level> getTop(const MarketSide &market_side, uint16_t depth) {
 
 template <typename Level, typename MatchingEngine>
 template <typename OrderID>
-bool OrderBook<Level, MatchingEngine>::update(OrderID &&order_id, side_t side,
-                                              Level level) {
+bool OrderBook<Level, MatchingEngine>::newOrder(OrderID &&order_id, side_t side,
+                                                Level level) {
   if (orders.contains(order_id))
     return false;
 
