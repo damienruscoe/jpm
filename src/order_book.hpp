@@ -1,102 +1,13 @@
 #pragma once
 
-#include <map>
+#include "order_book_side.hpp"
+
+#include <memory_resource>
 #include <optional>
 #include <vector>
 
 #include "fixed_point.hpp"
-#include "ladder.hpp"
 #include "object_resource.hpp"
-
-template <typename Order, typename Comparitor> class MarketSide {
-public:
-  using Price = typename Order::Price;
-  using Quantity = typename Order::Quantity;
-
-  MarketSide(std::pmr::unsynchronized_pool_resource &pool) : book(&pool) {}
-
-  template <typename OrderCallback>
-  Quantity matchPrice(const Price &price, Quantity qty,
-                      OrderCallback &&on_filled) {
-    const auto comp = typename Book::key_compare{};
-    const auto level_end = book.end();
-
-    auto level = book.begin();
-    while (qty > 0 && level != level_end && !comp(price, level->first)) {
-      const bool cleared = level->second.matchAgainst(
-          qty, std::forward<OrderCallback>(on_filled));
-      level = cleared ? book.erase(level) : std::next(level);
-    }
-
-    return qty;
-  }
-
-  void insertOrder(Order &order) { book[order.price].addOrder(order); }
-
-  void removeOrder(Order &order) {
-    const auto it = book.find(order.price);
-    if (it != book.end() && it->second.removeOrder(order))
-      book.erase(it);
-  }
-
-  void amendOrder(Order &order, Price price, Quantity qty) {
-    removeOrder(order);
-    if (qty > 0) {
-      order.price = price;
-      order.quantity = qty;
-      insertOrder(order);
-    }
-  }
-
-  template <typename Level> std::optional<Level> getBest() const {
-    auto it = book.begin();
-    return it == book.end() ? std::nullopt
-                            : Level{it->first, it->second.getQuantity()};
-  }
-
-  template <typename Level> std::vector<Level> getTop(uint16_t depth) const {
-    std::vector<Level> result{};
-    for (const auto &[price, price_orders] : book) {
-      if (result.size() >= depth)
-        break;
-      result.push_back({price, price_orders.getQuantity()});
-    }
-    return result;
-  }
-
-private:
-  using Book = std::pmr::map<Price, PriceLevel<Order>, Comparitor>;
-  Book book;
-};
-
-template <typename Price, typename Quantity> struct CrossingTradeDispatcher {
-  template <typename OrderID, typename OrderBook, typename AggressorSide,
-            typename RestingSide>
-  static void newOrder(OrderBook &order_book, AggressorSide &aggressor,
-                       RestingSide &resting, OrderID &&order_id,
-                       const Price &price, const Quantity &qty) {
-    const auto on_filled = std::bind_front(&OrderBook::on_filled, &order_book);
-
-    if (const auto remaining =
-            aggressor.matchPrice(price, qty, std::move(on_filled))) {
-      auto *order =
-          order_book.orders.create(order_id, order_id, price, remaining);
-      resting.insertOrder(*order);
-    }
-  }
-
-  template <typename Order, typename OrderBook, typename AggressorSide,
-            typename RestingSide>
-  static void amend(OrderBook &order_book, AggressorSide &aggressor,
-                    RestingSide &resting, Order *order, const Price &price,
-                    const Quantity &qty) {
-    const auto on_filled = std::bind_front(&OrderBook::on_filled, &order_book);
-
-    const auto remaining =
-        aggressor.matchPrice(price, qty, std::move(on_filled));
-    resting.amendOrder(*order, price, remaining);
-  }
-};
 
 template <typename Level> class OrderBook {
 public:
@@ -122,12 +33,40 @@ public:
   std::vector<Level> getTopAsk(uint16_t depth = 10) const;
 
 private:
-  using CrossingTradeDispatcher = ::CrossingTradeDispatcher<Price, Quantity>;
-  friend CrossingTradeDispatcher;
-
   using Order = ::Order<StoredOrderID, Price, Quantity>;
-  using BidsBook = MarketSide<Order, std::greater<Price>>;
-  using AsksBook = MarketSide<Order, std::less<Price>>;
+  using BidsBook = OrderBookSide<Order, std::greater<Price>>;
+  using AsksBook = OrderBookSide<Order, std::less<Price>>;
+  using Orders = ObjectResource<StoredOrderID, Order>;
+
+  struct CrossingTradeDispatcher {
+    template <typename AggressorSide>
+    static auto matchPrice(OrderBook &order_book, AggressorSide &aggressor,
+                           const Price &price, const Quantity &qty) {
+      const auto on_filled =
+          std::bind_front(&OrderBook::on_filled, &order_book);
+      return aggressor.matchPrice(price, qty, std::move(on_filled));
+    }
+
+    template <typename OrderID, typename AggressorSide, typename RestingSide>
+    static void emplaceOrder(OrderBook &order_book, AggressorSide &aggressor,
+                             RestingSide &resting, OrderID &&order_id,
+                             const Price &price, const Quantity &qty) {
+      if (const auto remaining =
+              matchPrice(order_book, aggressor, price, qty)) {
+        auto *order =
+            order_book.orders.create(order_id, order_id, price, remaining);
+        resting.insertOrder(*order);
+      }
+    }
+
+    template <typename AggressorSide, typename RestingSide>
+    static void amend(OrderBook &order_book, AggressorSide &aggressor,
+                      RestingSide &resting, Order *order, const Price &price,
+                      const Quantity &qty) {
+      const auto remaining = matchPrice(order_book, aggressor, price, qty);
+      resting.amendOrder(*order, price, remaining);
+    }
+  };
 
   void on_filled(Order &order) { orders.erase(order.id); };
 
@@ -135,7 +74,7 @@ private:
   BidsBook bids{pool};
   AsksBook asks{pool};
 
-  ObjectResource<std::string, Order> orders;
+  Orders orders;
 };
 
 template <typename Level>
@@ -147,9 +86,9 @@ bool OrderBook<Level>::newOrder(OrderID &&order_id, side_t side,
     return false;
 
   side == side_t::BID
-      ? CrossingTradeDispatcher::newOrder(
+      ? CrossingTradeDispatcher::emplaceOrder(
             *this, asks, bids, std::forward<OrderID>(order_id), price, qty)
-      : CrossingTradeDispatcher::newOrder(
+      : CrossingTradeDispatcher::emplaceOrder(
             *this, bids, asks, std::forward<OrderID>(order_id), price, qty);
 
   return true;
