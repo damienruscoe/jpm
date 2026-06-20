@@ -24,11 +24,9 @@ public:
   [[nodiscard]] bool amend(OrderID &&order_id, side_t side, const Price &price,
                            const Quantity &qty);
 
-  std::optional<Level> getBest(side_t side) const;
   std::optional<Level> getBestBid() const;
   std::optional<Level> getBestAsk() const;
 
-  std::vector<Level> getTop(side_t side, uint16_t depth = 10) const;
   std::vector<Level> getTopBid(uint16_t depth = 10) const;
   std::vector<Level> getTopAsk(uint16_t depth = 10) const;
 
@@ -117,16 +115,6 @@ bool OrderBook<Level>::amend(OrderID &&order_id, side_t side,
     return true;
   }
   return false;
-}
-
-template <typename Level>
-std::optional<Level> OrderBook<Level>::getBest(side_t side) const {
-  return side == side_t::ASK ? getBestAsk() : getBestBid();
-}
-
-template <typename Level>
-std::vector<Level> OrderBook<Level>::getTop(side_t side, uint16_t depth) const {
-  return side == side_t::ASK ? getTopAsk(depth) : getTopBid(depth);
 }
 
 template <typename Level>
