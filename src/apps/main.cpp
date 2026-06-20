@@ -3,7 +3,6 @@
 #include "mmfile.hpp"
 #include "order_book.hpp"
 #include "parser.hpp"
-#include "price_time_matching_engine.hpp"
 #include "render.hpp"
 
 #include <iostream>
@@ -28,7 +27,7 @@ struct BtcUsd {
   Quantity quantity{};
 };
 
-OrderBook<BtcUsd, PriceTimeMatchingEngine> book;
+OrderBook<BtcUsd> book;
 TopOfBookRenderer top_of_book{book};
 
 int main(int argc, char *argv[]) {

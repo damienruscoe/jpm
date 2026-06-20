@@ -8,7 +8,97 @@
 #include "ladder.hpp"
 #include "object_resource.hpp"
 
-template <typename Level, typename MatchingEnginePolicy> class OrderBook {
+template <typename Order, typename Comparitor> class MarketSide {
+public:
+  using Price = typename Order::Price;
+  using Quantity = typename Order::Quantity;
+
+  MarketSide(std::pmr::unsynchronized_pool_resource &pool) : book(&pool) {}
+
+  template <typename OrderCallback>
+  Quantity matchPrice(const Price &price, Quantity qty,
+                      OrderCallback &&on_filled) {
+    const auto comp = typename Book::key_compare{};
+    const auto level_end = book.end();
+
+    auto level = book.begin();
+    while (qty > 0 && level != level_end && !comp(price, level->first)) {
+      const bool cleared = level->second.matchAgainst(
+          qty, std::forward<OrderCallback>(on_filled));
+      level = cleared ? book.erase(level) : std::next(level);
+    }
+
+    return qty;
+  }
+
+  void insertOrder(Order &order) { book[order.price].addOrder(order); }
+
+  void removeOrder(Order &order) {
+    const auto it = book.find(order.price);
+    if (it != book.end() && it->second.removeOrder(order))
+      book.erase(it);
+  }
+
+  void amendOrder(Order &order, Price price, Quantity qty) {
+    removeOrder(order);
+    if (qty > 0) {
+      order.price = price;
+      order.quantity = qty;
+      insertOrder(order);
+    }
+  }
+
+  template <typename Level> std::optional<Level> getBest() const {
+    auto it = book.begin();
+    return it == book.end() ? std::nullopt
+                            : Level{it->first, it->second.getQuantity()};
+  }
+
+  template <typename Level> std::vector<Level> getTop(uint16_t depth) const {
+    std::vector<Level> result{};
+    for (const auto &[price, price_orders] : book) {
+      if (result.size() >= depth)
+        break;
+      result.push_back({price, price_orders.getQuantity()});
+    }
+    return result;
+  }
+
+private:
+  using Book = std::pmr::map<Price, PriceLevel<Order>, Comparitor>;
+  Book book;
+};
+
+template <typename Price, typename Quantity> struct CrossingTradeDispatcher {
+  template <typename OrderID, typename OrderBook, typename AggressorSide,
+            typename RestingSide>
+  static void newOrder(OrderBook &order_book, AggressorSide &aggressor,
+                       RestingSide &resting, OrderID &&order_id,
+                       const Price &price, const Quantity &qty) {
+    const auto on_filled = std::bind_front(&OrderBook::on_filled, &order_book);
+
+    if (const auto remaining =
+            aggressor.matchPrice(price, qty, std::move(on_filled))) {
+      auto *order =
+          order_book.orders.create(order_id, order_id, price, remaining);
+      resting.insertOrder(*order);
+    }
+  }
+
+  template <typename Order, typename OrderBook, typename AggressorSide,
+            typename RestingSide>
+  static void amend(OrderBook &order_book, AggressorSide &aggressor,
+                    RestingSide &resting, Order *order, const Price &price,
+                    const Quantity &qty) {
+    const auto on_filled = std::bind_front(&OrderBook::on_filled, &order_book);
+
+    const auto remaining =
+        aggressor.matchPrice(price, qty, std::move(on_filled));
+    resting.amendOrder(*order, price, remaining);
+  }
+};
+
+template <typename Level> class OrderBook {
 public:
   using Price = typename Level::Price;
   using Quantity = typename Level::Quantity;
@@ -16,12 +106,12 @@ public:
 
   template <typename OrderID>
   [[nodiscard]] bool newOrder(OrderID &&order_id, side_t side,
-                              const Price &price, const Quantity &quantity);
+                              const Price &price, const Quantity &qty);
   template <typename OrderID>
   [[nodiscard]] bool cancel(OrderID &&order_id, side_t side);
   template <typename OrderID>
   [[nodiscard]] bool amend(OrderID &&order_id, side_t side, const Price &price,
-                           const Quantity &quantity);
+                           const Quantity &qty);
 
   std::optional<Level> getBest(side_t side) const;
   std::optional<Level> getBestBid() const;
@@ -32,124 +122,90 @@ public:
   std::vector<Level> getTopAsk(uint16_t depth = 10) const;
 
 private:
+  using CrossingTradeDispatcher = ::CrossingTradeDispatcher<Price, Quantity>;
+  friend CrossingTradeDispatcher;
+
   using Order = ::Order<StoredOrderID, Price, Quantity>;
-  using MatchingEngine = MatchingEnginePolicy;
-  using BidsBook = std::pmr::map<Price, PriceLevel<Order>, std::greater<Price>>;
-  using AsksBook = std::pmr::map<Price, PriceLevel<Order>, std::less<Price>>;
+  using BidsBook = MarketSide<Order, std::greater<Price>>;
+  using AsksBook = MarketSide<Order, std::less<Price>>;
 
   void on_filled(Order &order) { orders.erase(order.id); };
 
   std::pmr::unsynchronized_pool_resource pool;
-  BidsBook bids{&pool};
-  AsksBook asks{&pool};
+  BidsBook bids{pool};
+  AsksBook asks{pool};
 
   ObjectResource<std::string, Order> orders;
 };
 
-namespace utils {
-template <typename Level, typename MarketSide>
-std::optional<Level> getBest(const MarketSide &market_side) {
-  auto it = market_side.begin();
-  return it == market_side.end() ? std::nullopt
-                                 : Level{it->first, it->second.getQuantity()};
-}
-
-template <typename Level, typename MarketSide>
-std::vector<Level> getTop(const MarketSide &market_side, uint16_t depth) {
-  std::vector<Level> result{};
-  for (const auto &level : market_side) {
-    if (result.size() >= depth)
-      break;
-    result.push_back({level.first, level.second.getQuantity()});
-  }
-  return result;
-}
-} // namespace utils
-
-template <typename Level, typename MatchingEngine>
+template <typename Level>
 template <typename OrderID>
-bool OrderBook<Level, MatchingEngine>::newOrder(OrderID &&order_id, side_t side,
-                                                const Price &price,
-                                                const Quantity &quantity) {
+bool OrderBook<Level>::newOrder(OrderID &&order_id, side_t side,
+                                const Price &price, const Quantity &qty) {
+
   if (orders.contains(order_id))
     return false;
 
-  auto on_filled = std::bind_front(&OrderBook::on_filled, this);
+  side == side_t::BID
+      ? CrossingTradeDispatcher::newOrder(
+            *this, asks, bids, std::forward<OrderID>(order_id), price, qty)
+      : CrossingTradeDispatcher::newOrder(
+            *this, bids, asks, std::forward<OrderID>(order_id), price, qty);
 
-  auto remaining = side == side_t::BID
-                       ? MatchingEngine::matchPrice(asks, price, quantity,
-                                                    std::move(on_filled))
-                       : MatchingEngine::matchPrice(bids, price, quantity,
-                                                    std::move(on_filled));
-
-  if (remaining > 0) {
-    auto *order = orders.create(order_id, order_id, price, remaining);
-    side == side_t::BID ? MatchingEngine::insertOrder(bids, *order)
-                        : MatchingEngine::insertOrder(asks, *order);
-  }
   return true;
 }
 
-template <typename Level, typename MatchingEngine>
+template <typename Level>
 template <typename OrderID>
-bool OrderBook<Level, MatchingEngine>::cancel(OrderID &&order_id, side_t side) {
+bool OrderBook<Level>::cancel(OrderID &&order_id, side_t side) {
   if (auto *order = orders.find(std::forward<OrderID>(order_id))) {
-    side == side_t::BID ? MatchingEngine::removeOrder(bids, *order)
-                        : MatchingEngine::removeOrder(asks, *order);
+    side == side_t::BID ? bids.removeOrder(*order) : asks.removeOrder(*order);
     orders.erase(order->id);
     return true;
   }
   return false;
 }
 
-template <typename Level, typename MatchingEngine>
+template <typename Level>
 template <typename OrderID>
-bool OrderBook<Level, MatchingEngine>::amend(OrderID &&order_id, side_t side,
-                                             const Price &price,
-                                             const Quantity &quantity) {
+bool OrderBook<Level>::amend(OrderID &&order_id, side_t side,
+                             const Price &price, const Quantity &qty) {
   if (auto *order = orders.find(std::forward<OrderID>(order_id))) {
-    auto on_filled = std::bind_front(&OrderBook::on_filled, this);
-
     side == side_t::BID
-        ? MatchingEngine::amendOrder(bids, asks, *order, price, quantity,
-                                     std::move(on_filled))
-        : MatchingEngine::amendOrder(asks, bids, *order, price, quantity,
-                                     std::move(on_filled));
+        ? CrossingTradeDispatcher::amend(*this, asks, bids, order, price, qty)
+        : CrossingTradeDispatcher::amend(*this, bids, asks, order, price, qty);
+
     return true;
   }
   return false;
 }
 
-template <typename Level, typename MatchingEngine>
-std::optional<Level>
-OrderBook<Level, MatchingEngine>::getBest(side_t side) const {
+template <typename Level>
+std::optional<Level> OrderBook<Level>::getBest(side_t side) const {
   return side == side_t::ASK ? getBestAsk() : getBestBid();
 }
 
-template <typename Level, typename MatchingEngine>
-std::vector<Level>
-OrderBook<Level, MatchingEngine>::getTop(side_t side, uint16_t depth) const {
+template <typename Level>
+std::vector<Level> OrderBook<Level>::getTop(side_t side, uint16_t depth) const {
   return side == side_t::ASK ? getTopAsk(depth) : getTopBid(depth);
 }
 
-template <typename Level, typename MatchingEngine>
-std::optional<Level> OrderBook<Level, MatchingEngine>::getBestAsk() const {
-  return utils::getBest<Level>(asks);
+template <typename Level>
+std::optional<Level> OrderBook<Level>::getBestAsk() const {
+  return asks.template getBest<Level>();
 }
 
-template <typename Level, typename MatchingEngine>
-std::optional<Level> OrderBook<Level, MatchingEngine>::getBestBid() const {
-  return utils::getBest<Level>(bids);
+template <typename Level>
+std::optional<Level> OrderBook<Level>::getBestBid() const {
+  return bids.template getBest<Level>();
 }
 
-template <typename Level, typename MatchingEngine>
-std::vector<Level>
-OrderBook<Level, MatchingEngine>::getTopAsk(uint16_t depth) const {
-  return utils::getTop<Level>(asks, depth);
+template <typename Level>
+std::vector<Level> OrderBook<Level>::getTopAsk(uint16_t depth) const {
+  return asks.template getTop<Level>(depth);
 }
 
-template <typename Level, typename MatchingEngine>
-std::vector<Level>
-OrderBook<Level, MatchingEngine>::getTopBid(uint16_t depth) const {
-  return utils::getTop<Level>(bids, depth);
+template <typename Level>
+std::vector<Level> OrderBook<Level>::getTopBid(uint16_t depth) const {
+  return bids.template getTop<Level>(depth);
 }
