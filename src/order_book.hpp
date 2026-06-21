@@ -51,8 +51,8 @@ private:
                              const Price &price, const Quantity &qty) {
       if (const auto remaining =
               matchPrice(order_book, aggressor, price, qty)) {
-        auto *order =
-            order_book.orders.create(order_id, order_id, price, remaining);
+        auto *order = order_book.orders.create(std::forward<OrderID>(order_id),
+                                               price, remaining);
         resting.insertOrder(*order);
       }
     }
