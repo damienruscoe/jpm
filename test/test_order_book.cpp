@@ -157,12 +157,78 @@ TEST_F(OrderBookTest, TestFillOrderMultipleLevelsWithRemaining) {
 	assertBookTopPriceLevels(book, {}, { { "10.2", 1000 } });
 }
 
-TEST_F(OrderBookTest, TestOrderBookCancelOfPartiallyFilled) {
+TEST_F(OrderBookTest, TestCancelOfPartiallyFilled) {
 	process(book, "102,N,A001,S,2000,10.2");
 	process(book, "102,N,A002,S,5000,10.2");
 	process(book, "102,N,A003,B,1000,10.2 // Partially fill A001");
 	process(book, "102,C,A001,S,2000,10.2 // Attempt to cancel 2000 when 1000 has been partially filled; Only 1000 will be cancelled");
 
 	assertBookTopPriceLevels(book, { { "10.2", 5000 } }, {});
+}
+
+TEST_F(OrderBookTest, TestDuplicateOrderID) {
+	process(book, "102,N,A001,S,2000,10.2");
+	auto msg = parse_line("102,N,A001,S,2000,10.2");
+	bool success = book.newOrder(msg->order_id, convertSide(msg->side), msg->price, msg->quantity);
+	ASSERT_FALSE(success);
+}
+
+TEST_F(OrderBookTest, TestCancelNonExistent) {
+	bool success = book.cancel("NONEXISTENT", side_t::BID);
+	ASSERT_FALSE(success);
+}
+
+TEST_F(OrderBookTest, TestAmendNoChange) {
+	process(book, "102,N,A001,S,2000,10.2");
+	process(book, "102,A,A001,S,2000,10.2");
+	assertBookTopPriceLevels(book, { { "10.2", 2000 } }, {});
+}
+
+TEST_F(OrderBookTest, TestAmendSimple) {
+	process(book, "102,N,A001,S,2000,10.2");
+	process(book, "102,A,A001,S,3000,10.2");
+	assertBookTopPriceLevels(book, { { "10.2", 3000 } }, {});
+}
+
+TEST_F(OrderBookTest, TestAmendNoCrossing) {
+	process(book, "102,N,A001,S,2000,10.2");
+	process(book, "102,N,A002,B,2000,10.1");
+	process(book, "102,A,A002,B,2000,10.0 // Amend A002 to 10.0");
+	
+	assertBookTopPriceLevels(book, { { "10.2", 2000 } }, { { "10.0", 2000 } });
+}
+
+TEST_F(OrderBookTest, TestAmendCrossing) {
+	process(book, "102,N,A001,S,2000,10.2");
+	process(book, "102,N,A002,B,2000,10.1");
+	process(book, "102,A,A002,B,2000,10.2 // Amend A002 to 10.2, should cross with A001");
+	
+	assertBookTopPriceLevels(book, {}, {});
+}
+
+TEST_F(OrderBookTest, TestAmendFullFill) {
+	process(book, "102,N,A003,S,2000,10.3");
+	process(book, "102,A,A003,S,2000,10.2 // Still resting after an amendment");
+	process(book, "102,N,A004,B,2000,10.2");
+	assertBookTopPriceLevels(book, {}, {});
+}
+
+TEST_F(OrderBookTest, TestAmendPartialFill) {
+	process(book, "102,N,A001,S,5000,10.2");
+	process(book, "102,A,A001,S,5000,10.2 // No change");
+	process(book, "102,N,A002,B,2000,10.2 // A001 partially filled");
+	assertBookTopPriceLevels(book, { { "10.2", 3000 } }, {});
+}
+
+TEST_F(OrderBookTest, TestAmendMultipleLevels) {
+	process(book, "102,N,A001,S,2000,10.1");
+	process(book, "102,N,A002,S,2000,10.2");
+	process(book, "102,N,A003,B,3000,10.2 // Fully fill A001; Partially fill A002");
+
+	assertBookTopPriceLevels(book, { { "10.2", 1000 } }, {});
+
+	process(book, "102,A,A002,S,3000,10.2 // Amend remaining A002");
+
+	assertBookTopPriceLevels(book, { { "10.2", 3000 } }, {});
 }
 
