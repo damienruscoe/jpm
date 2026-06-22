@@ -1,6 +1,41 @@
 #include "../src/parser.hpp"
 #include <gtest/gtest.h>
+#include <sstream>
+#include <string_view>
 
+TEST(ParserUtilsTest, Split) {
+  auto [first, second] = split("a,b,c", ',');
+  EXPECT_EQ(first, "a");
+  EXPECT_EQ(second, "b,c");
+
+  auto [f2, s2] = split("abc", ',');
+  EXPECT_EQ(f2, "abc");
+  EXPECT_EQ(s2, "");
+}
+
+TEST(ParserUtilsTest, TrimInlineComments) {
+  EXPECT_EQ(trim_inline_comments("code // comment"), "code ");
+  EXPECT_EQ(trim_inline_comments("code"), "code");
+  EXPECT_EQ(trim_inline_comments("// comment"), "");
+}
+
+TEST(ParserUtilsTest, TrimWhitespacePrefix) {
+  EXPECT_EQ(trim_whitespace_prefix("  \tcode"), "code");
+  EXPECT_EQ(trim_whitespace_prefix("code"), "code");
+  EXPECT_EQ(trim_whitespace_prefix("   "), "");
+}
+
+TEST(ParserUtilsTest, TrimWhitespaceSuffix) {
+  EXPECT_EQ(trim_whitespace_suffix("code  \t "), "code");
+  EXPECT_EQ(trim_whitespace_suffix("code"), "code");
+  EXPECT_EQ(trim_whitespace_suffix("   "), "");
+}
+
+TEST(ParserUtilsTest, TrimWhitespace) {
+  EXPECT_EQ(trim_whitespace("  \tcode  \t "), "code");
+  EXPECT_EQ(trim_whitespace("code"), "code");
+  EXPECT_EQ(trim_whitespace("   "), "");
+}
 struct ValidParserTestData {
   std::string input;
   std::string description;
@@ -25,6 +60,16 @@ TEST_P(ParserValidTest, ValidInput) {
   EXPECT_EQ(msg->side, param.expected.side);
   EXPECT_EQ(msg->quantity, param.expected.quantity);
   EXPECT_DOUBLE_EQ(msg->price.ToDouble(), param.expected.price.ToDouble());
+}
+
+TEST(ParserTest, MessageStreamOperator) {
+  Message msg{101,  RequestType::New,   "A001", Side::Buy,
+              1000, FixedPointAI(32000)};
+  std::stringstream ss;
+  ss << msg;
+
+  EXPECT_EQ(ss.str(), "Ticker: 101 | Type: N | ID:       A001 | Side: B | Qty: "
+                      "1000 | Price: 3.20");
 }
 
 INSTANTIATE_TEST_SUITE_P(

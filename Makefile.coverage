@@ -17,6 +17,7 @@ $(TEST_TARGET): $(TEST_SRCS)
 run_coverage: $(TEST_TARGET)
 	LLVM_PROFILE_FILE="coverage.profraw" ./$(TEST_TARGET)
 	llvm-profdata-14 merge -sparse coverage.profraw -o coverage.profdata
+	llvm-cov-14 report -instr-profile=coverage.profdata ./matching_engine_tests_cov
 	llvm-cov-14 show ./$(TEST_TARGET) -instr-profile=coverage.profdata -format=html > coverage_report.html
 	@echo "Coverage report generated: coverage_report.html"
 

@@ -40,13 +40,15 @@ INSTANTIATE_TEST_SUITE_P(
         InvalidParserTestData{"101 ,N,A001,S,3000,6.8", "Space After Ticker"},
         InvalidParserTestData{",N,A001,S,3000,6.8", "Missing Ticker"},
         InvalidParserTestData{"0,N,A001,B,1000,3.2", "Ticker 0"},
-        InvalidParserTestData{"-1,N,A001,B,1000,3.2", "Negative ticker"},
+        InvalidParserTestData{"-5,N,A001,B,1000,3.2", "Negative ticker"},
         InvalidParserTestData{"ABC,N,A001,B,1000,3.2", "Non-numeric ticker"},
         InvalidParserTestData{"101A,N,A001,B,1000,3.2", "Trailing ticker junk"},
         InvalidParserTestData{"101 101,N,A001,B,1000,3.2",
                               "Ticker with spaces"},
         InvalidParserTestData{"4294967296,N,A001,B,1000,3.2",
                               "Ticker Overflow"},
+        InvalidParserTestData{"-2147483648,N,A001,B,1000,3.2",
+                              "Ticker Underflow"},
 
         // Type
         InvalidParserTestData{"101, N,A001,S,3000,6.8", "Space Before Type"},

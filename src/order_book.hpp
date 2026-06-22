@@ -37,17 +37,16 @@ private:
   using Orders = ObjectResource<StoredOrderID, Order>;
 
   struct CrossingTradeDispatcher {
-    template <typename AggressorSide>
-    static auto matchPrice(OrderBook &order_book, AggressorSide &aggressor,
+
+    static auto matchPrice(OrderBook &order_book, auto &aggressor,
                            const Price &price, const Quantity &qty) {
-      const auto on_filled =
-          std::bind_front(&OrderBook::on_filled, &order_book);
+      auto on_filled = std::bind_front(&OrderBook::on_filled, &order_book);
       return aggressor.matchPrice(price, qty, std::move(on_filled));
     }
 
-    template <typename OrderID, typename AggressorSide, typename RestingSide>
-    static void emplaceOrder(OrderBook &order_book, AggressorSide &aggressor,
-                             RestingSide &resting, OrderID &&order_id,
+    template <typename OrderID>
+    static void emplaceOrder(OrderBook &order_book, auto &aggressor,
+                             auto &resting, OrderID &&order_id,
                              const Price &price, const Quantity &qty,
                              side_t side) {
       if (const auto remaining =
@@ -58,10 +57,8 @@ private:
       }
     }
 
-    template <typename AggressorSide, typename RestingSide>
-    static bool amend(OrderBook &order_book, AggressorSide &aggressor,
-                      RestingSide &resting, Order *order, const Price &price,
-                      const Quantity &qty) {
+    static bool amend(OrderBook &order_book, auto &aggressor, auto &resting,
+                      Order *order, const Price &price, const Quantity &qty) {
       const auto remaining = matchPrice(order_book, aggressor, price, qty);
       resting.amendOrder(*order, price, remaining);
       return true;

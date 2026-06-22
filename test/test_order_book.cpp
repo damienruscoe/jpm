@@ -9,10 +9,6 @@ struct Level {
   using Price = FixedPointAI;
   using Quantity = uint32_t;
 
-  friend std::ostream &operator<<(std::ostream &os, const Level &level) {
-    return os << level.price << ' ' << level.quantity;
-  }
-
   auto operator<=>(const Level &) const = default;
 
   Price price{};
@@ -134,6 +130,19 @@ TEST_F(OrderBookTest, GivenExampleMarket2) {
   // A006 will be removed from order book
   processOrderSuccess(book, "102,C,A006,B,2000,10.1");
   assertBookTopPriceLevels(book, {{"10.2", 2000}}, {{"10.1", 2000}});
+}
+
+TEST_F(OrderBookTest, GetBest) {
+  processOrderSuccess(book, "102,N,A001,S,4000,13.0");
+  processOrderSuccess(book, "102,N,A002,S,3000,12.0");
+  processOrderSuccess(book, "102,N,A003,B,2000,11.0");
+  processOrderSuccess(book, "102,N,A004,B,1000,10.0");
+
+  ASSERT_EQ(book.getBestAsk()->price, Book::Price::Parse("12.0"));
+  ASSERT_EQ(book.getBestAsk()->quantity, 3000);
+
+  ASSERT_EQ(book.getBestBid()->price, Book::Price::Parse("11.0"));
+  ASSERT_EQ(book.getBestBid()->quantity, 2000);
 }
 
 TEST_F(OrderBookTest, TestPriceTimePriority_TimePriority) {

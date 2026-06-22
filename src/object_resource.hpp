@@ -5,8 +5,24 @@
 #include <unordered_set>
 
 template <typename ID, typename T> struct SetTraits {
-  using Hasher = std::hash<ID>;
-  using KeyEqual = std::equal_to<ID>;
+  struct Hasher {
+    using is_transparent = void;
+    size_t operator()(const T *ptr) const { return std::hash<ID>{}(ptr->id); }
+    size_t operator()(const ID &id) const { return std::hash<ID>{}(id); }
+  };
+
+  struct KeyEqual {
+    using is_transparent = void;
+    bool operator()(const T *lhs, const T *rhs) const {
+      return lhs->id == rhs->id;
+    }
+    bool operator()(const T *lhs, const ID &rhs) const {
+      return lhs->id == rhs;
+    }
+    bool operator()(const ID &lhs, const T *rhs) const {
+      return lhs == rhs->id;
+    }
+  };
 };
 
 template <typename T> struct SetTraits<std::string, T> {
