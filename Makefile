@@ -26,7 +26,7 @@ run_tests: $(TEST_TARGET)
 	./$(TEST_TARGET)
 
 format:
-	clang-format -i src/*.hpp src/*.cpp src/apps/*.cpp
+	clang-format -i test/*.cpp src/*.hpp src/*.cpp src/apps/*.cpp
 
 clean:
 	rm -f $(TARGET) $(TEST_TARGET) fuzz_harness
