@@ -12,23 +12,11 @@ struct BtcUsd {
   using Price = FixedPointGeneric;
   using Quantity = uint32_t;
 
-  // using Price = FixedPointGeneric<2, uint64_t>;
-  //  using Price = FixedPointGeneric<3, uint64_t>;
-  // using Quantity = FixedPointGeneric<8, uint32_t>;
-  //  using Quantity = FixedPointGeneric<8, uint64_t>;
-
   friend std::ostream &operator<<(std::ostream &os, const BtcUsd &level) {
     return os << level.price << ' ' << level.quantity;
   }
 
-  bool operator<(const BtcUsd &other) const {
-    if (price != other.price)
-      return price < other.price;
-    return quantity < other.quantity;
-  }
-  bool operator==(const BtcUsd &other) const {
-    return price == other.price && quantity == other.quantity;
-  }
+	auto operator<=>(const BtcUsd&) const = default;
 
   Price price{};
   Quantity quantity{};
