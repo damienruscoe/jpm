@@ -1,6 +1,11 @@
 #include "../src/object_resource.hpp"
 #include <gtest/gtest.h>
 
+template <typename T, typename ReturnType = decltype(T::id)>
+struct GetMockIdField {
+  static ReturnType get(const T *t) { return t->id; };
+};
+
 struct MockObject {
   std::string id;
   int value;
@@ -10,7 +15,7 @@ struct MockObject {
 
 class ObjectResourceTest : public ::testing::Test {
 protected:
-  ObjectResource<std::string, MockObject> resource;
+  ObjectResource<MockObject, GetMockIdField<MockObject>> resource;
 };
 
 TEST_F(ObjectResourceTest, CreateAndFind) {
@@ -61,7 +66,7 @@ TEST_F(ObjectResourceTest, DuplicateIdBehavior) {
 }
 
 TEST(ObjectResourceIntTest, KeyEqualBranchCoverage) {
-  ObjectResource<int, MockIntObject> intResource;
+  ObjectResource<MockIntObject, GetMockIdField<MockIntObject>> intResource;
   intResource.create(1, 100);
 
   // This triggers the KeyEqual operators:

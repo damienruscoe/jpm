@@ -9,6 +9,10 @@
 #include "fixed_point.hpp"
 #include "object_resource.hpp"
 
+template <typename T, typename ReturnType = decltype(T::id)> struct GetIdField {
+  static ReturnType get(const T *t) { return t->id; };
+};
+
 template <typename Level> class OrderBook {
 public:
   using Price = typename Level::Price;
@@ -34,7 +38,7 @@ private:
   using Order = ::Order<StoredOrderID, Price, Quantity>;
   using BidsBook = OrderBookSide<Order, std::greater<Price>>;
   using AsksBook = OrderBookSide<Order, std::less<Price>>;
-  using Orders = ObjectResource<StoredOrderID, Order>;
+  using Orders = ObjectResource<Order, GetIdField<Order>>;
 
   struct CrossingTradeDispatcher {
 

@@ -4,32 +4,35 @@
 #include <string_view>
 #include <unordered_set>
 
-template <typename ID, typename T> struct SetTraits {
+template <typename KeyGetter, typename ID, typename T> struct SetTraits {
   struct Hasher {
     using is_transparent = void;
-    size_t operator()(const T *ptr) const { return std::hash<ID>{}(ptr->id); }
+    size_t operator()(const T *ptr) const {
+      return std::hash<ID>{}(KeyGetter::get(ptr));
+    }
     size_t operator()(const ID &id) const { return std::hash<ID>{}(id); }
   };
 
   struct KeyEqual {
     using is_transparent = void;
     bool operator()(const T *lhs, const T *rhs) const {
-      return lhs->id == rhs->id;
+      return KeyGetter::get(lhs) == KeyGetter::get(rhs);
     }
     bool operator()(const T *lhs, const ID &rhs) const {
-      return lhs->id == rhs;
+      return KeyGetter::get(lhs) == rhs;
     }
     bool operator()(const ID &lhs, const T *rhs) const {
-      return lhs == rhs->id;
+      return lhs == KeyGetter::get(rhs);
     }
   };
 };
 
-template <typename T> struct SetTraits<std::string, T> {
+template <typename KeyGetter, typename T>
+struct SetTraits<KeyGetter, std::string, T> {
   struct Hasher {
     using is_transparent = void;
     size_t operator()(const T *ptr) const {
-      return std::hash<std::string>{}(ptr->id);
+      return std::hash<std::string>{}(KeyGetter::get(ptr));
     }
     size_t operator()(const std::string &s) const {
       return std::hash<std::string>{}(s);
@@ -45,32 +48,32 @@ template <typename T> struct SetTraits<std::string, T> {
   struct KeyEqual {
     using is_transparent = void;
     bool operator()(const T *lhs, const T *rhs) const {
-      return lhs->id == rhs->id;
+      return KeyGetter::get(lhs) == KeyGetter::get(rhs);
     }
     bool operator()(const T *lhs, const std::string &rhs) const {
-      return lhs->id == rhs;
+      return KeyGetter::get(lhs) == rhs;
     }
     bool operator()(const std::string &lhs, const T *rhs) const {
-      return lhs == rhs->id;
+      return lhs == KeyGetter::get(rhs);
     }
     bool operator()(const T *lhs, std::string_view rhs) const {
-      return lhs->id == rhs;
+      return KeyGetter::get(lhs) == rhs;
     }
     bool operator()(std::string_view lhs, const T *rhs) const {
-      return lhs == rhs->id;
+      return lhs == KeyGetter::get(rhs);
     }
     bool operator()(const T *lhs, const char *rhs) const {
-      return lhs->id == rhs;
+      return KeyGetter::get(lhs) == rhs;
     }
     bool operator()(const char *lhs, const T *rhs) const {
-      return lhs == rhs->id;
+      return lhs == KeyGetter::get(rhs);
     }
   };
 };
 
-template <typename ID, typename T> struct ObjectResource {
+template <typename T, typename KeyGetter> class ObjectResource {
 public:
-  using key_type = ID;
+  using key_type = decltype(KeyGetter::get(std::declval<T *>()));
   using value_type = T;
 
   template <typename... Args> T *create(Args &&...args) {
@@ -98,7 +101,7 @@ public:
 
 private:
   ObjectPool<T> m_storage;
-  std::unordered_set<T *, typename SetTraits<ID, T>::Hasher,
-                     typename SetTraits<ID, T>::KeyEqual>
+  std::unordered_set<T *, typename SetTraits<KeyGetter, key_type, T>::Hasher,
+                     typename SetTraits<KeyGetter, key_type, T>::KeyEqual>
       m_id_set;
 };
