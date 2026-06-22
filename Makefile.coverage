@@ -1,0 +1,26 @@
+# Compiler and Flags
+CXX = clang++
+# Added coverage flags
+CXXFLAGS = -std=c++20 -O0 -Wall -Wextra -Wpedantic -Werror -fprofile-instr-generate -fcoverage-mapping
+GTEST_FLAGS = -lgtest -lgtest_main -pthread
+
+# Target executable
+TEST_TARGET = matching_engine_tests_cov
+
+# Source and Headers
+INC = -Isrc/
+TEST_SRCS = test/*.cpp src/mmfile.cpp src/parser.cpp
+
+$(TEST_TARGET): $(TEST_SRCS)
+	$(CXX) $(CXXFLAGS) $(INC) $(TEST_SRCS) -o $(TEST_TARGET) $(GTEST_FLAGS)
+
+run_coverage: $(TEST_TARGET)
+	LLVM_PROFILE_FILE="coverage.profraw" ./$(TEST_TARGET)
+	llvm-profdata-14 merge -sparse coverage.profraw -o coverage.profdata
+	llvm-cov-14 show ./$(TEST_TARGET) -instr-profile=coverage.profdata -format=html > coverage_report.html
+	@echo "Coverage report generated: coverage_report.html"
+
+clean:
+	rm -f $(TEST_TARGET) *.profraw *.profdata coverage_report.html
+
+.PHONY: run_coverage clean
