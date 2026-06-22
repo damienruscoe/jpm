@@ -48,21 +48,23 @@ private:
     template <typename OrderID, typename AggressorSide, typename RestingSide>
     static void emplaceOrder(OrderBook &order_book, AggressorSide &aggressor,
                              RestingSide &resting, OrderID &&order_id,
-                             const Price &price, const Quantity &qty) {
+                             const Price &price, const Quantity &qty,
+                             side_t side) {
       if (const auto remaining =
               matchPrice(order_book, aggressor, price, qty)) {
         auto *order = order_book.orders.create(std::forward<OrderID>(order_id),
-                                               price, remaining);
+                                               price, remaining, side);
         resting.insertOrder(*order);
       }
     }
 
     template <typename AggressorSide, typename RestingSide>
-    static void amend(OrderBook &order_book, AggressorSide &aggressor,
+    static bool amend(OrderBook &order_book, AggressorSide &aggressor,
                       RestingSide &resting, Order *order, const Price &price,
                       const Quantity &qty) {
       const auto remaining = matchPrice(order_book, aggressor, price, qty);
       resting.amendOrder(*order, price, remaining);
+      return true;
     }
   };
 
@@ -84,10 +86,12 @@ bool OrderBook<Level>::newOrder(OrderID &&order_id, side_t side,
     return false;
 
   side == side_t::BID
-      ? CrossingTradeDispatcher::emplaceOrder(
-            *this, asks, bids, std::forward<OrderID>(order_id), price, qty)
-      : CrossingTradeDispatcher::emplaceOrder(
-            *this, bids, asks, std::forward<OrderID>(order_id), price, qty);
+      ? CrossingTradeDispatcher::emplaceOrder(*this, asks, bids,
+                                              std::forward<OrderID>(order_id),
+                                              price, qty, side)
+      : CrossingTradeDispatcher::emplaceOrder(*this, bids, asks,
+                                              std::forward<OrderID>(order_id),
+                                              price, qty, side);
 
   return true;
 }
@@ -108,11 +112,11 @@ template <typename OrderID>
 bool OrderBook<Level>::amend(OrderID &&order_id, side_t side,
                              const Price &price, const Quantity &qty) {
   if (auto *order = orders.find(std::forward<OrderID>(order_id))) {
-    side == side_t::BID
-        ? CrossingTradeDispatcher::amend(*this, asks, bids, order, price, qty)
-        : CrossingTradeDispatcher::amend(*this, bids, asks, order, price, qty);
-
-    return true;
+    return order->side == side &&
+           (side == side_t::BID ? CrossingTradeDispatcher::amend(
+                                      *this, asks, bids, order, price, qty)
+                                : CrossingTradeDispatcher::amend(
+                                      *this, bids, asks, order, price, qty));
   }
   return false;
 }

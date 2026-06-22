@@ -48,8 +48,9 @@ public:
 
   template <typename Level> std::optional<Level> getBest() const {
     auto it = book.begin();
-    return it == book.end() ? std::nullopt
-                            : std::make_optional(Level{it->first, it->second.getQuantity()});
+    return it == book.end()
+               ? std::nullopt
+               : std::make_optional(Level{it->first, it->second.getQuantity()});
   }
 
   template <typename Level> std::vector<Level> getTop(uint16_t depth) const {

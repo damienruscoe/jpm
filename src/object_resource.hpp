@@ -21,7 +21,7 @@ template <typename T> struct SetTraits<std::string, T> {
     size_t operator()(std::string_view sv) const {
       return std::hash<std::string_view>{}(sv);
     }
-    size_t operator()(const char* s) const {
+    size_t operator()(const char *s) const {
       return std::hash<std::string_view>{}(s);
     }
   };
@@ -43,10 +43,10 @@ template <typename T> struct SetTraits<std::string, T> {
     bool operator()(std::string_view lhs, const T *rhs) const {
       return lhs == rhs->id;
     }
-    bool operator()(const T *lhs, const char* rhs) const {
+    bool operator()(const T *lhs, const char *rhs) const {
       return lhs->id == rhs;
     }
-    bool operator()(const char* lhs, const T *rhs) const {
+    bool operator()(const char *lhs, const T *rhs) const {
       return lhs == rhs->id;
     }
   };

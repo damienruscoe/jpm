@@ -12,12 +12,13 @@ template <typename OrderID, typename PriceT, typename QuantityT> struct Order {
   OrderID id;
   Price price;
   Quantity quantity;
+  side_t side;
   boost::intrusive::list_member_hook<> intrusive_list_hook;
 
   template <typename _OrderID>
-  Order(_OrderID &&_id, Price _price, Quantity _quantity)
+  Order(_OrderID &&_id, Price _price, Quantity _quantity, side_t _side)
       : id(std::forward<_OrderID>(_id)), price(std::move(_price)),
-        quantity(std::move(_quantity)) {}
+        quantity(std::move(_quantity)), side(_side) {}
 };
 
 template <typename Order> struct PriceLevel {
