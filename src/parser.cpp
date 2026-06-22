@@ -128,7 +128,7 @@ std::cerr << "[\033[31mERROR\033[0m] " << message << ": \033[36m" << '"'
   // if (price_str.find(',') != std::string_view::npos)
   //  return error("Too many columns", line);
   try {
-    msg.price = FixedPointAI::Parse(price_str);
+    msg.price = FixedPointGeneric::Parse(price_str);
   } catch (...) {
     return error("Invalid price", price_str);
   }

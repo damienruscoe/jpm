@@ -1,4 +1,4 @@
-#include "../src/FixedPoint.hpp"
+#include "../src/FixedPointGeneric.hpp"
 #include "../src/order_book.hpp"
 #include "../src/parser.hpp"
 #include <gtest/gtest.h>
@@ -6,10 +6,16 @@
 
 struct Level {
   using OrderID = std::string;
-  using Price = FixedPointAI;
+  using Price = FixedPointGeneric;
   using Quantity = uint32_t;
 
-  auto operator<=>(const Level &) const = default;
+  bool operator<(const Level &other) const {
+    if (price != other.price) return price < other.price;
+    return quantity < other.quantity;
+  }
+  bool operator==(const Level &other) const {
+    return price == other.price && quantity == other.quantity;
+  }
 
   Price price{};
   Quantity quantity{};

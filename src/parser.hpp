@@ -1,6 +1,6 @@
 #pragma once
 
-#include "FixedPoint.hpp"
+#include "FixedPointGeneric.hpp"
 
 #include <iostream>
 #include <optional>
@@ -15,7 +15,7 @@ struct Message {
   std::string_view order_id;
   Side side;
   uint32_t quantity;
-  FixedPointAI price;
+  FixedPointGeneric price;
 };
 
 std::ostream &operator<<(std::ostream &os, const Message &msg);
