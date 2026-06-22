@@ -81,9 +81,10 @@ static inline std::ostream &StreamFP(std::ostream &os, BaseType v) {
 
 #ifdef USE_BOOST_FP
 #include "FixedPointCNL.hpp"
-template <int N, typename T = uint64_t> using FixedPoint = FixedPointCNL<N, T>;
-using FixedPointGeneric = FixedPoint<4>;
+template <int N, typename T = int64_t> using FixedPoint = FixedPointCNL<N, T>;
 #else
 #include "FixedPoint.hpp"
-using FixedPointGeneric = FixedPoint<4>;
+template <int N, typename T = int64_t> using FixedPoint = FixedPointCustom<N, T>;
 #endif
+
+using FixedPointGeneric = FixedPoint<4>;

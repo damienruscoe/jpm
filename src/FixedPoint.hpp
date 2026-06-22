@@ -2,27 +2,27 @@
 
 #include <string_view>
 
-template <int DecimalPlaces, typename BaseTypeT = int64_t> class FixedPoint {
+template <int DecimalPlaces, typename BaseTypeT = int64_t> class FixedPointCustom {
 public:
   using BaseType = BaseTypeT;
 
-  FixedPoint() : m_raw_value(0) {}
-  explicit FixedPoint(BaseType raw) : m_raw_value(raw) {}
+  FixedPointCustom() : m_raw_value(0) {}
+  explicit FixedPointCustom(BaseType raw) : m_raw_value(raw) {}
 
-  bool operator==(const FixedPoint &) const = default;
-  bool operator!=(const FixedPoint &) const = default;
+  bool operator==(const FixedPointCustom &) const = default;
+  bool operator!=(const FixedPointCustom &) const = default;
 
-  auto operator<=>(const FixedPoint &) const = default;
+  auto operator<=>(const FixedPointCustom &) const = default;
 
-  friend FixedPoint operator-(const FixedPoint &lhs, const FixedPoint &rhs) {
-    return FixedPoint{lhs.m_raw_value - rhs.m_raw_value};
+  friend FixedPointCustom operator-(const FixedPointCustom &lhs, const FixedPointCustom &rhs) {
+    return FixedPointCustom{lhs.m_raw_value - rhs.m_raw_value};
   }
 
-  static FixedPoint Parse(std::string_view str) {
-    return ParseFP<FixedPoint, DecimalPlaces>(str);
+  static FixedPointCustom Parse(std::string_view str) {
+    return ParseFP<FixedPointCustom, DecimalPlaces>(str);
   }
 
-  friend std::ostream &operator<<(std::ostream &os, const FixedPoint &fp) {
+  friend std::ostream &operator<<(std::ostream &os, const FixedPointCustom &fp) {
     return StreamFP<BaseType, DecimalPlaces>(os, fp.m_raw_value);
   }
 
