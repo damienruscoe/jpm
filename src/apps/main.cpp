@@ -22,7 +22,8 @@ struct BtcUsd {
   }
 
   bool operator<(const BtcUsd &other) const {
-    if (price != other.price) return price < other.price;
+    if (price != other.price)
+      return price < other.price;
     return quantity < other.quantity;
   }
   bool operator==(const BtcUsd &other) const {

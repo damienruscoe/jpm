@@ -6,7 +6,6 @@
 #include <optional>
 #include <vector>
 
-#include "fixed_point.hpp"
 #include "object_resource.hpp"
 
 template <typename T, typename ReturnType = decltype(T::id)> struct GetIdField {

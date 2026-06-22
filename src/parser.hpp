@@ -15,7 +15,7 @@ struct Message {
   std::string_view order_id;
   Side side;
   uint32_t quantity;
-  FixedPointGeneric price;
+  FixedPoint<4> price;
 };
 
 std::ostream &operator<<(std::ostream &os, const Message &msg);

@@ -10,7 +10,8 @@ struct Level {
   using Quantity = uint32_t;
 
   bool operator<(const Level &other) const {
-    if (price != other.price) return price < other.price;
+    if (price != other.price)
+      return price < other.price;
     return quantity < other.quantity;
   }
   bool operator==(const Level &other) const {

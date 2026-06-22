@@ -7,9 +7,8 @@
 #include <unordered_set>
 
 template <typename K>
-concept StringViewNormalizable =
-		std::convertible_to<K, std::string_view> &&
-		!std::same_as<std::decay_t<K>, std::string_view>;
+concept StringViewNormalizable = std::convertible_to<K, std::string_view> &&
+    !std::same_as<std::decay_t<K>, std::string_view>;
 
 template <typename T, typename KeyGetter> class ObjectResource {
 public:
@@ -43,11 +42,12 @@ private:
     using is_transparent = void;
 
     template <typename K>
-    using normalized_t = std::conditional_t<StringViewNormalizable<K>,
-                                            std::string_view, K>;
+    using normalized_t =
+        std::conditional_t<StringViewNormalizable<K>, std::string_view, K>;
 
     size_t operator()(T *p) const {
-      return std::hash<normalized_t<decltype(KeyGetter::get(p))>>{}(KeyGetter::get(p));
+      return std::hash<normalized_t<decltype(KeyGetter::get(p))>>{}(
+          KeyGetter::get(p));
     }
 
     template <typename K> size_t operator()(const K &k) const {

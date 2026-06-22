@@ -1,6 +1,6 @@
 # Compiler and Flags
 CXX = clang++
-CXXFLAGS = -std=c++20 -O3 -Wall -Wextra -Wpedantic -Werror
+CXXFLAGS = -std=c++20 -ggdb -O3 -Wall -Wextra -Wpedantic -Werror
 
 ifdef USE_BOOST
 CXXFLAGS += -DUSE_BOOST_FP

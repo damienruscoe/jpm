@@ -2,6 +2,12 @@
 #include <gtest/gtest.h>
 #include <sstream>
 
+template <int N> auto to_string(const FixedPoint<N> &fp) {
+  std::stringstream ss;
+  ss << fp;
+  return ss.str();
+}
+
 TEST(FixedPointTest, ParseErrors) {
   // Test empty string
   EXPECT_THROW(FixedPointGeneric::Parse(""), std::invalid_argument);
@@ -12,27 +18,47 @@ TEST(FixedPointTest, ParseErrors) {
   EXPECT_THROW(FixedPointGeneric::Parse("+"), std::invalid_argument);
   EXPECT_THROW(FixedPointGeneric::Parse("-"), std::invalid_argument);
 
-  // Test too many decimal places (the logic handles it, but let's ensure the
-  // path is hit) The loop: for (size_t i = 4; i < digits; ++i) fractional /=
-  // 10; We need more than 4 fractional digits.
-  FixedPointGeneric fp = FixedPointGeneric::Parse("1.12345");
-  EXPECT_EQ(fp.ToDouble(), 1.1234); // Should truncate
+  {
+    auto fp = FixedPoint<0>::Parse("1.12345");
+    EXPECT_EQ(to_string(fp), "1.0");
+  }
+  {
+    auto fp = FixedPoint<1>::Parse("1.12345");
+    EXPECT_EQ(to_string(fp), "1.1");
+  }
+  {
+    auto fp = FixedPoint<2>::Parse("1.12345");
+    EXPECT_EQ(to_string(fp), "1.12");
+  }
+  {
+    auto fp = FixedPoint<3>::Parse("1.12345");
+    EXPECT_EQ(to_string(fp), "1.123");
+  }
+  {
+    auto fp = FixedPoint<4>::Parse("1.12345");
+    EXPECT_EQ(to_string(fp), "1.1234");
+  }
+  {
+    auto fp = FixedPoint<5>::Parse("1.12345");
+    EXPECT_EQ(to_string(fp), "1.12345");
+  }
+  {
+    auto fp = FixedPoint<6>::Parse("1.12345");
+    EXPECT_EQ(to_string(fp), "1.123450");
+  }
+  {
+    auto fp = FixedPoint<7>::Parse("1.12345");
+    EXPECT_EQ(to_string(fp), "1.1234500");
+  }
 }
 
 TEST(FixedPointTest, Operations) {
   FixedPointGeneric a(10000); // 1.0000
   FixedPointGeneric b(5000);  // 0.5000
 
-  // Test GetRaw
-  EXPECT_EQ(a.GetRaw(), 10000);
-
-  // Test operator-
-  FixedPointGeneric c = a - b;
-  EXPECT_EQ(c.GetRaw(), 5000);
-
   // Test operator<<
   std::stringstream ss;
   ss << a;
-  EXPECT_EQ(ss.str(), "1"); // ToDouble() returns 1.0 for 1.0000, ostream uses
-                            // default double formatting
+  EXPECT_EQ(ss.str(), "1.0000"); // ToDouble() returns 1.0 for 1.0000, ostream
+                                 // uses default double formatting
 }

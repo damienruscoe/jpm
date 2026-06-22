@@ -15,8 +15,7 @@ std::ostream &operator<<(std::ostream &os, const Message &msg) {
      << " | ID: " << std::setw(10) << msg.order_id
      << " | Side: " << SIDE_STRINGS[static_cast<size_t>(msg.side)]
      << " | Qty: " << msg.quantity
-     << " | Price: " << std::fixed
-     << std::setprecision(2) << msg.price.ToDouble();
+     << " | Price: " << msg.price;
   return os;
 }
 // clang-format on

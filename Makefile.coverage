@@ -1,14 +1,18 @@
 # Compiler and Flags
 CXX = clang++
 # Added coverage flags
-CXXFLAGS = -std=c++20 -O0 -Wall -Wextra -Wpedantic -Werror -fprofile-instr-generate -fcoverage-mapping
+CXXFLAGS = -std=c++20 -ggdb -O0 -Wall -Wextra -Wpedantic -Werror -fprofile-instr-generate -fcoverage-mapping
 GTEST_FLAGS = -lgtest -lgtest_main -pthread
+
+ifdef USE_BOOST
+CXXFLAGS += -DUSE_BOOST_FP
+endif
 
 # Target executable
 TEST_TARGET = matching_engine_tests_cov
 
 # Source and Headers
-INC = -Isrc/
+INC = -Isrc/ -Ideps/cnl/include
 TEST_SRCS = test/*.cpp src/mmfile.cpp src/parser.cpp
 
 $(TEST_TARGET): $(TEST_SRCS)
