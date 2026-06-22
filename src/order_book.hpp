@@ -38,7 +38,7 @@ private:
   using Order = ::Order<StoredOrderID, Price, Quantity>;
   using BidsBook = OrderBookSide<Order, std::greater<Price>>;
   using AsksBook = OrderBookSide<Order, std::less<Price>>;
-  using Orders = ObjectResource<Order, GetIdField<Order>>;
+  using Orders = ObjectResource<Order, GetIdField<Order, std::string_view>>;
 
   struct CrossingTradeDispatcher {
 

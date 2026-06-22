@@ -90,3 +90,45 @@ TEST_F(ObjectResourceTest, HeterogeneousLookup) {
   EXPECT_NE(resource.find(std::string_view("ID1")), nullptr);
   EXPECT_NE(resource.find("ID1"), nullptr);
 }
+
+/*
+struct CaseInsensitiveTraits {
+  struct Hasher {
+    using is_transparent = void;
+    size_t operator()(const MockObject *ptr) const {
+      std::string s = ptr->id;
+      for (char &c : s) c = std::tolower(c);
+      return std::hash<std::string>{}(s);
+    }
+    size_t operator()(std::string_view s) const {
+      std::string temp(s);
+      for (char &c : temp) c = std::tolower(c);
+      return std::hash<std::string>{}(temp);
+    }
+  };
+
+  struct KeyEqual {
+    using is_transparent = void;
+    bool operator()(const MockObject *lhs, const MockObject *rhs) const {
+      return strcasecmp(lhs->id.c_str(), rhs->id.c_str()) == 0;
+    }
+    bool operator()(const MockObject *lhs, std::string_view rhs) const {
+      return strcasecmp(lhs->id.c_str(), std::string(rhs).c_str()) == 0;
+    }
+    bool operator()(std::string_view lhs, const MockObject *rhs) const {
+      return strcasecmp(std::string(lhs).c_str(), rhs->id.c_str()) == 0;
+    }
+  };
+};
+
+TEST(ObjectResourceCustomTraitsTest, CaseInsensitiveLookup) {
+  ObjectResource<MockObject, GetMockIdField<MockObject>, CaseInsensitiveTraits>
+      resource;
+  resource.create("Id1", 100);
+
+  EXPECT_TRUE(resource.contains("id1"));
+  EXPECT_TRUE(resource.contains("ID1"));
+  EXPECT_NE(resource.find("id1"), nullptr);
+  EXPECT_NE(resource.find("ID1"), nullptr);
+}
+*/
