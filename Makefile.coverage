@@ -21,10 +21,10 @@ $(TEST_TARGET): $(TEST_SRCS)
 	$(CXX) $(CXXFLAGS) $(CXX_DEBUG_FLAGS) $(INC) $(TEST_SRCS) -o $(TEST_TARGET) $(GTEST_FLAGS)
 
 run_coverage: $(COVERAGE_TARGET)
-	LLVM_PROFILE_FILE="coverage.profraw" ./$(COVERAGE_TARGET) --gtest_brief=1
+	LLVM_PROFILE_FILE="coverage.profraw" ./$(COVERAGE_TARGET)
 	llvm-profdata-14 merge -sparse coverage.profraw -o coverage.profdata
-	llvm-cov-14 report -instr-profile=coverage.profdata ./$(COVERAGE_TARGET)
-	llvm-cov-14 show ./$(COVERAGE_TARGET) -instr-profile=coverage.profdata -format=html > coverage_report.html
+	llvm-cov-14 report -instr-profile=coverage.profdata ./$(COVERAGE_TARGET) src/ test/
+	llvm-cov-14 show ./$(COVERAGE_TARGET) -instr-profile=coverage.profdata -format=html src/ test/ > coverage_report.html
 	@echo "Coverage report generated: coverage_report.html"
 
 clean:

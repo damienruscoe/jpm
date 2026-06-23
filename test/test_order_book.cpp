@@ -9,8 +9,6 @@ class OrderBookTest : public testing::Test {
 protected:
   OrderBookTest() {}
 
-  // ~OrderBookTest() override = default;
-
   using Price = FixedPoint<4>;
   using Quantity = uint32_t;
   using Book = OrderBook<FixedSizeOrderID, Price, Quantity>;
