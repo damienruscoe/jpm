@@ -1,6 +1,4 @@
-#include "../src/FixedPointGeneric.hpp"
-#include "../src/FixedPoint.hpp"
-#include "../src/FixedPointCNL.hpp"
+#include "../src/fixed_point.hpp"
 #include <gtest/gtest.h>
 #include <string>
 
@@ -10,7 +8,7 @@ protected:
   using FPType = T;
 };
 
-using FixedPointTypes = ::testing::Types<FixedPoint<4>, FixedPointCNL<4>>;
+using FixedPointTypes = ::testing::Types<FixedPoint<4>>;
 TYPED_TEST_SUITE(FixedPointTest, FixedPointTypes);
 
 // 2. Data-parameterized test structures
@@ -28,7 +26,7 @@ static auto to_string(const auto &fp) {
   return ss.str();
 }
 
-TYPED_TEST(FixedPointTest, ZeroInitialized) {
+TYPED_TEST(FixedPointTest, DefaultInitialized) {
   auto fp = TypeParam();
   EXPECT_EQ(to_string(fp), "0.0000");
 }
@@ -40,27 +38,27 @@ TYPED_TEST(FixedPointTest, ValueInitialized) {
   }
   {
     auto fp = TypeParam(1);
-    EXPECT_EQ(to_string(fp), "0.0001");
-  }
-  {
-    auto fp = TypeParam(2);
-    EXPECT_EQ(to_string(fp), "0.0002");
-  }
-  {
-    auto fp = TypeParam(10000);
     EXPECT_EQ(to_string(fp), "1.0000");
   }
   {
-    auto fp = TypeParam(20000);
+    auto fp = TypeParam(2);
     EXPECT_EQ(to_string(fp), "2.0000");
   }
   {
+    auto fp = TypeParam(10000);
+    EXPECT_EQ(to_string(fp), "10000.0000");
+  }
+  {
+    auto fp = TypeParam(20000);
+    EXPECT_EQ(to_string(fp), "20000.0000");
+  }
+  {
     auto fp = TypeParam(-1);
-    EXPECT_EQ(to_string(fp), "-0.0001");
+    EXPECT_EQ(to_string(fp), "-1.0000");
   }
   {
     auto fp = TypeParam(-10);
-    EXPECT_EQ(to_string(fp), "-0.0010");
+    EXPECT_EQ(to_string(fp), "-10.0000");
   }
 }
 

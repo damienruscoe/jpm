@@ -1,149 +1,117 @@
 #pragma once
 
-#include <array>
 #include <charconv>
+#include <cmath>
 #include <iomanip>
-#include <sstream>
+#include <iostream>
+#include <stdexcept>
+#include <string_view>
 
-// clang-format off
-constexpr auto Denom = std::to_array<unsigned long long>({
-	1,
-	10,
-	100,
-	1'000,
-	10'000,
-	100'000,
-	1'000'000,
-	10'000'000,
-	100'000'000,
-	1'000'000'000,
-	10'000'000'000,
-	100'000'000'000,
-	1'000'000'000'000
-});
-// clang-format on
+#include <cnl/scaled_integer.h>
 
-template <int Exponent, typename Value> class FixedPoint;
+template <typename BaseType, int DecimalPlaces>
+static inline BaseType ParseFP_Impl(std::string_view str) {
+  if (str.empty())
+    throw std::invalid_argument("empty");
 
-template <int Exponent, typename Value>
-std::ostream &operator<<(std::ostream &os,
-                         const FixedPoint<Exponent, Value> &fixed_point);
+  bool negative = false;
+  if (str[0] == '-') {
+    negative = true;
+    str.remove_prefix(1);
+  } else if (str[0] == '+') {
+    str.remove_prefix(1);
+  }
 
-template <int Exponent, typename Value = uint32_t> class FixedPoint {
+  if (str.empty())
+    throw std::invalid_argument("invalid");
+
+  BaseType integral = 0;
+  BaseType fractional = 0;
+
+  size_t dot_pos = str.find('.');
+  if (dot_pos == std::string_view::npos) {
+
+    auto [ptr, ec] =
+        std::from_chars(str.data(), str.data() + str.size(), integral);
+    if (ec != std::errc{} || ptr != str.data() + str.size())
+      throw std::invalid_argument("invalid");
+  } else {
+    if (dot_pos == 0 || dot_pos == str.size() - 1)
+      throw std::invalid_argument("invalid");
+
+    auto [ptr_i, ec_i] =
+        std::from_chars(str.data(), str.data() + dot_pos, integral);
+    if (ec_i != std::errc{})
+      throw std::invalid_argument("invalid");
+
+    std::string_view frac_part = str.substr(dot_pos + 1);
+
+    auto [ptr_f, ec_f] = std::from_chars(
+        frac_part.data(), frac_part.data() + frac_part.size(), fractional);
+    if (ec_f != std::errc{} || ptr_f != frac_part.data() + frac_part.size())
+      throw std::invalid_argument("invalid");
+
+    size_t digits = ptr_f - frac_part.data();
+    for (size_t i = digits; i < DecimalPlaces; ++i)
+      fractional *= 10;
+    for (size_t i = DecimalPlaces; i < digits; ++i)
+      fractional /= 10;
+  }
+
+  const uint64_t foo = (uint64_t)std::pow(10, DecimalPlaces);
+
+  BaseType val = (integral * foo) + (fractional);
+  return negative ? -val : val;
+}
+
+template <int DecimalPlaces, typename BaseTypeT = int64_t> 
+class FixedPoint {
+private:
+  using cnl_fp = cnl::scaled_integer<BaseTypeT, cnl::power<-DecimalPlaces, 10>>;
+
 public:
-  static_assert(Exponent < Denom.size() - 1);
+  using BaseType = BaseTypeT;
+	static constexpr int decimals = DecimalPlaces;
 
-  static constexpr int exponent = Exponent;
-  using value_t = Value;
+  FixedPoint() : m_value(0) {}
+  explicit FixedPoint(BaseType raw)
+      : m_value(cnl::from_rep<cnl_fp, BaseType>{}(raw * std::pow(10, DecimalPlaces))) {}
 
-  FixedPoint(Value v = 0) : v(v) {}
+	friend std::ostream &operator<<(std::ostream &os, const FixedPoint &fp) {
+		auto v = fp.get_raw_value();
+		if (v < 0) {
+			os << '-';
+			v = -v;
+		}
 
-  auto operator<=>(const FixedPoint &) const = default;
-  bool operator==(const FixedPoint &) const = default;
+		const uint64_t foo = std::pow(10, DecimalPlaces);
+		return os << (v / foo) << '.' << std::setfill('0') << std::setw(DecimalPlaces)
+							<< (v % foo);
+	}
 
-  operator bool() const;
+	friend FixedPoint operator-(const FixedPoint &lhs, const FixedPoint &rhs) {
+			return FixedPoint{lhs.get_raw_value() - rhs.get_raw_value(), true};
+	}
 
-  FixedPoint operator-(const FixedPoint &rhs) const;
-  FixedPoint &operator-=(const FixedPoint &rhs);
+	friend bool operator==(const FixedPoint& lhs, const FixedPoint& rhs) {
+			return lhs.get_raw_value() == rhs.get_raw_value();
+	}
 
-  FixedPoint operator+(const FixedPoint &rhs) const;
-  FixedPoint &operator+=(const FixedPoint &rhs);
+	friend auto operator<=>(const FixedPoint& lhs, const FixedPoint& rhs) {
+			return lhs.get_raw_value() <=> rhs.get_raw_value();
+	}
 
-  friend std::ostream &operator<< <>(std::ostream &,
-                                     const FixedPoint<Exponent, Value> &);
-
-  std::string to_str() const;
-  double to_double() const;
-
-  static FixedPoint Parse(std::string_view str);
+	static FixedPoint Parse(std::string_view str) {
+			return FixedPoint(ParseFP_Impl<BaseType, decimals>(str), true);
+	}
 
 private:
-  Value v;
+  FixedPoint(cnl_fp val) : m_value(val) {}
+  FixedPoint(BaseType raw, bool)
+      : m_value(cnl::from_rep<cnl_fp, BaseType>{}(raw)) {}
+
+  BaseType get_raw_value() const { return cnl::to_rep<cnl_fp>{}(m_value); }
+
+  cnl_fp m_value;
 };
 
-template <int Exponent, typename Value>
-FixedPoint<Exponent, Value>::operator bool() const {
-  return v != 0;
-}
-
-template <int Exponent, typename Value>
-FixedPoint<Exponent, Value> FixedPoint<Exponent, Value>::operator-(
-    const FixedPoint<Exponent, Value> &rhs) const {
-  return v - rhs.v;
-}
-
-template <int Exponent, typename Value>
-FixedPoint<Exponent, Value> &FixedPoint<Exponent, Value>::operator-=(
-    const FixedPoint<Exponent, Value> &rhs) {
-  v -= rhs.v;
-  return *this;
-}
-
-template <int Exponent, typename Value>
-FixedPoint<Exponent, Value> FixedPoint<Exponent, Value>::operator+(
-    const FixedPoint<Exponent, Value> &rhs) const {
-  return v + rhs.v;
-}
-
-template <int Exponent, typename Value>
-FixedPoint<Exponent, Value> &FixedPoint<Exponent, Value>::operator+=(
-    const FixedPoint<Exponent, Value> &rhs) {
-  v += rhs.v;
-  return *this;
-}
-
-template <int Exponent, typename Value>
-std::ostream &operator<<(std::ostream &os,
-                         const FixedPoint<Exponent, Value> &fixed_point) {
-  if constexpr (Exponent == 0) {
-    return os << fixed_point.v;
-  } else {
-    const auto &divisor = Denom[Exponent];
-    const auto whole = fixed_point.v / divisor;
-    const auto fractional = fixed_point.v % divisor;
-
-    std::ios state(nullptr);
-    state.copyfmt(os);
-
-    os << whole << "." << std::setfill('0') << std::setw(Exponent)
-       << fractional;
-
-    os.copyfmt(state);
-    return os;
-  }
-}
-
-template <int Exponent, typename Value>
-std::string FixedPoint<Exponent, Value>::to_str() const {
-  std::ostringstream ss;
-  ss << *this;
-  return ss.str();
-}
-
-template <int Exponent, typename Value>
-double FixedPoint<Exponent, Value>::to_double() const {
-  const auto &divisor = Denom[Exponent];
-  return (double)v / divisor;
-}
-
-template <int Exponent, typename Value>
-FixedPoint<Exponent, Value>
-FixedPoint<Exponent, Value>::Parse(std::string_view str) {
-  Value x{0}, y{0};
-  const char *end = str.data() + str.size();
-
-  auto [ptr, err] = std::from_chars(str.data(), end, x);
-
-  if (ptr != str.data() + str.size() && *ptr == '.') {
-    const char *frac_start = ++ptr;
-    const char *frac_end = std::min(frac_start + Exponent, end);
-
-    auto [ptr2, err2] = std::from_chars(frac_start, frac_end, y);
-
-    size_t digits_read = ptr2 - frac_start;
-    if (digits_read < Exponent)
-      y *= Denom[Exponent - digits_read];
-  }
-
-  return FixedPoint(x * Denom[Exponent] + y);
-}

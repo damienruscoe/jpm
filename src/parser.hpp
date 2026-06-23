@@ -1,6 +1,6 @@
 #pragma once
 
-#include "FixedPointGeneric.hpp"
+#include "fixed_point.hpp"
 
 #include <iostream>
 #include <optional>

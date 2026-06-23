@@ -1,8 +1,12 @@
-#include "../src/FixedPointGeneric.hpp"
+#include "../src/fixed_point.hpp"
 #include "../src/order_book.hpp"
 #include "../src/parser.hpp"
 #include <gtest/gtest.h>
 #include <ranges>
+
+namespace {
+using FixedPointGeneric = FixedPoint<4>;
+}
 
 struct Level {
   using OrderID = std::string;
