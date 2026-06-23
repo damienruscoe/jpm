@@ -1,6 +1,7 @@
 #pragma once
 
 #include "order_book_side.hpp"
+#include "order_id.hpp"
 
 #include <memory_resource>
 #include <optional>
@@ -61,7 +62,7 @@ private:
   using Order = ::Order<StoredOrderID, Price, Quantity>;
   using BidsBook = OrderBookSide<Order, std::greater<Price>>;
   using AsksBook = OrderBookSide<Order, std::less<Price>>;
-  using Orders = ObjectResource<Order, GetIdField<Order, std::string_view>>;
+  using Orders = ObjectResource<Order, GetIdField<Order, StoredOrderID>>;
 
   struct CrossingTradeDispatcher {
 

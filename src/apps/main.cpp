@@ -2,6 +2,7 @@
 #include "line_view.hpp"
 #include "mmfile.hpp"
 #include "order_book.hpp"
+#include "order_id.hpp"
 #include "parser.hpp"
 #include "render.hpp"
 
@@ -21,7 +22,7 @@ int main(int argc, char *argv[]) {
 
   LineView lines(file.data(), file.size());
 
-  OrderBook<std::string, FixedPoint<4>, uint32_t> book;
+  OrderBook<FixedSizeOrderID, FixedPoint<4>, uint32_t> book;
   TopOfBookRenderer top_of_book{book};
 
   std::cout << "--- Starting Parser Test ---" << std::endl;

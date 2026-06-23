@@ -1,6 +1,7 @@
 #include "../src/fixed_point.hpp"
 #include "../src/order_book.hpp"
 #include "../src/parser.hpp"
+#include "../src/order_id.hpp"
 #include <gtest/gtest.h>
 #include <ranges>
 
@@ -12,7 +13,7 @@ protected:
 
   using Price = FixedPoint<4>;
   using Quantity = uint32_t;
-  using Book = OrderBook<std::string, Price, Quantity>;
+  using Book = OrderBook<FixedSizeOrderID, Price, Quantity>;
   Book book;
 };
 
