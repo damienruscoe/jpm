@@ -1,7 +1,7 @@
 #include "../src/fixed_point.hpp"
 #include "../src/order_book.hpp"
-#include "../src/parser.hpp"
 #include "../src/order_id.hpp"
+#include "../src/parser.hpp"
 #include <gtest/gtest.h>
 #include <ranges>
 
@@ -32,37 +32,35 @@ TEST_F(OrderBookTest, IsEmpty) {
   }
 }
 
-side_t convertSide(Side side) {
-  return side == Side::Buy ? side_t::BID : side_t::ASK;
-}
-
 template <typename OrderBook>
-bool processOrder(OrderBook &book, std::string_view dsl_add_order) {
-  auto msg = parse_line(dsl_add_order);
-  EXPECT_NE(msg, std::nullopt); // Test data provided the string. This is a test
-                                // error on failure
+bool processOrder(OrderBook &book, const auto &msg_str) {
+  auto msg = parse_line(msg_str);
+
+  // This should only fail if the test has provided invalid data
+  if (!msg.has_value())
+    return false;
+
+  auto side = msg->side == Side::Buy ? side_t::BID : side_t::ASK;
 
   switch (msg->type) {
   case RequestType::New:
-    return book.newOrder(msg->order_id, convertSide(msg->side), msg->price,
-                         msg->quantity);
+    return book.newOrder(msg->order_id, side, msg->price, msg->quantity);
   case RequestType::Cancel:
-    return book.cancel(msg->order_id, convertSide(msg->side));
+    return book.cancel(msg->order_id, side);
   case RequestType::Amend:
-    return book.amend(msg->order_id, convertSide(msg->side), msg->price,
-                      msg->quantity);
+    return book.amend(msg->order_id, side, msg->price, msg->quantity);
   }
 }
 
 template <typename OrderBook>
-void processOrderSuccess(OrderBook &book, std::string_view dsl_add_order) {
-  bool success = processOrder(book, dsl_add_order);
+void processOrderSuccess(OrderBook &book, std::string_view msg_str) {
+  bool success = processOrder(book, msg_str);
   ASSERT_TRUE(success);
 }
 
 template <typename OrderBook>
-void processOrderFailure(OrderBook &book, std::string_view dsl_add_order) {
-  bool success = processOrder(book, dsl_add_order);
+void processOrderFailure(OrderBook &book, std::string_view msg_str) {
+  bool success = processOrder(book, msg_str);
   ASSERT_FALSE(success);
 }
 
@@ -71,7 +69,7 @@ void assertTopOfBook(const auto &top_of_book, const auto &expected) {
   ASSERT_EQ(top_of_book.size(), expected.size());
   size_t index = 0;
   for (const auto &[price, quantity] : expected) {
-    ASSERT_EQ(top_of_book[index].price, Price::Parse(price));
+    ASSERT_EQ(top_of_book[index].price, *Price::Parse(price));
     ASSERT_EQ(top_of_book[index].quantity, quantity);
     ++index;
   }
@@ -130,10 +128,10 @@ TEST_F(OrderBookTest, GetBest) {
   processOrderSuccess(book, "102,N,A003,B,2000,11.0");
   processOrderSuccess(book, "102,N,A004,B,1000,10.0");
 
-  ASSERT_EQ(book.getBestAsk()->price, Book::Price::Parse("12.0"));
+  ASSERT_EQ(book.getBestAsk()->price, *Book::Price::Parse("12.0"));
   ASSERT_EQ(book.getBestAsk()->quantity, 3000);
 
-  ASSERT_EQ(book.getBestBid()->price, Book::Price::Parse("11.0"));
+  ASSERT_EQ(book.getBestBid()->price, *Book::Price::Parse("11.0"));
   ASSERT_EQ(book.getBestBid()->quantity, 2000);
 }
 
@@ -201,6 +199,33 @@ TEST_F(OrderBookTest, TestFillOrderMultipleLevelsWithRemaining) {
   processOrderSuccess(book, "102,N,A003,B,5000,10.2");
 
   assertBookTopPriceLevels(book, {}, {{"10.2", 1000}});
+}
+
+TEST_F(OrderBookTest, TestAmendZeroPrice) {
+  processOrderSuccess(book, "102,N,A001,S,2000,10.2");
+  processOrderFailure(book, "102,A,A001,S,3000,0");
+
+  assertBookTopPriceLevels(book, {{"10.2", 2000}}, {});
+}
+
+TEST_F(OrderBookTest, TestAmendNegativePrice) {
+  processOrderSuccess(book, "102,N,A001,S,2000,10.2");
+  processOrderFailure(book, "102,A,A001,S,3000,-20.1");
+
+  assertBookTopPriceLevels(book, {{"10.2", 2000}}, {});
+}
+
+TEST_F(OrderBookTest, TestAmendZeroQuantity) {
+  processOrderSuccess(book, "102,N,A001,S,2000,10.2");
+  processOrderFailure(book, "102,A,A001,S,0,10.2");
+  assertBookTopPriceLevels(book, {{"10.2", 2000}}, {});
+}
+
+TEST_F(OrderBookTest, TestAmendNegativeQuantity) {
+  processOrderSuccess(book, "102,N,A001,S,2000,10.2");
+  processOrderFailure(book, "102,A,A001,S,-300,10.2");
+
+  assertBookTopPriceLevels(book, {{"10.2", 2000}}, {});
 }
 
 TEST_F(OrderBookTest, TestAmendCannotChangeSidesS2B) {

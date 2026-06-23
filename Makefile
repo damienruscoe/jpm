@@ -16,7 +16,7 @@ TEST_TARGET = matching_engine_tests
 INC = -Isrc/ -Ideps/cnl/include
 SRCS = src/apps/main.cpp src/*.cpp
 FUZZ_SRCS = src/apps/fuzz_harness.cpp src/mmfile.cpp src/parser.cpp
-TEST_SRCS = test/*.cpp src/mmfile.cpp src/parser.cpp
+TEST_SRCS = test/*.cpp src/*.cpp
 
 # AFL target
 all: $(TARGET) $(TEST_TARGET)

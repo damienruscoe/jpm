@@ -46,74 +46,161 @@ TEST(FixedPointTest, ValueInitialized) {
   }
 }
 
-TEST(FixedPointTest, Parsing) {
+TEST(FixedPointTest, ParsingVariousPrecisions) {
   {
-    auto fp = FixedPoint<0>::Parse("1.12345");
+    auto fp = *FixedPoint<0>::Parse("1.12345");
     EXPECT_EQ(to_test_string(fp), "1.0");
   }
   {
-    auto fp = FixedPoint<1>::Parse("1.12345");
+    auto fp = *FixedPoint<1>::Parse("1.12345");
     EXPECT_EQ(to_test_string(fp), "1.1");
   }
   {
-    auto fp = FixedPoint<2>::Parse("1.12345");
+    auto fp = *FixedPoint<2>::Parse("1.12345");
     EXPECT_EQ(to_test_string(fp), "1.12");
   }
   {
-    auto fp = FixedPoint<3>::Parse("1.12345");
+    auto fp = *FixedPoint<3>::Parse("1.12345");
     EXPECT_EQ(to_test_string(fp), "1.123");
   }
   {
-    auto fp = FixedPoint<4>::Parse("1.12345");
+    auto fp = *FixedPoint<4>::Parse("1.12345");
     EXPECT_EQ(to_test_string(fp), "1.1234");
   }
   {
-    auto fp = FixedPoint<5>::Parse("1.12345");
+    auto fp = *FixedPoint<5>::Parse("1.12345");
     EXPECT_EQ(to_test_string(fp), "1.12345");
   }
   {
-    auto fp = FixedPoint<6>::Parse("1.12345");
+    auto fp = *FixedPoint<6>::Parse("1.12345");
     EXPECT_EQ(to_test_string(fp), "1.123450");
   }
   {
-    auto fp = FixedPoint<7>::Parse("1.12345");
+    auto fp = *FixedPoint<7>::Parse("1.12345");
     EXPECT_EQ(to_test_string(fp), "1.1234500");
   }
+}
+
+TEST(FixedPointTest, Parsing) {
   {
-    auto fp = FixedPoint<4>::Parse("0");
+    auto fp = *FixedPoint<4>::Parse("0");
     EXPECT_EQ(to_test_string(fp), "0.0000");
   }
   {
-    auto fp = FixedPoint<4>::Parse("1");
+    auto fp = *FixedPoint<4>::Parse("1");
     EXPECT_EQ(to_test_string(fp), "1.0000");
   }
   {
-    auto fp = FixedPoint<4>::Parse("-1");
+    auto fp = *FixedPoint<4>::Parse("-1");
     EXPECT_EQ(to_test_string(fp), "-1.0000");
   }
   {
-    auto fp = FixedPoint<4>::Parse("1.2345");
-    EXPECT_EQ(to_test_string(fp), "1.2345");
-  }
-  {
-    auto fp = FixedPoint<4>::Parse("00001");
+    auto fp = *FixedPoint<4>::Parse("+1");
     EXPECT_EQ(to_test_string(fp), "1.0000");
   }
   {
-    auto fp = FixedPoint<4>::Parse("0.0001");
-    EXPECT_EQ(to_test_string(fp), "0.0001");
+    auto fp = *FixedPoint<4>::Parse("1.1");
+    EXPECT_EQ(to_test_string(fp), "1.1000");
+  }
+  {
+    auto fp = *FixedPoint<4>::Parse("1.5000000");
+    EXPECT_EQ(to_test_string(fp), "1.5000");
+  }
+  {
+    auto fp = *FixedPoint<4>::Parse("-1.5000000");
+    EXPECT_EQ(to_test_string(fp), "-1.5000");
+  }
+  {
+    auto fp = *FixedPoint<4>::Parse("1.0001");
+    EXPECT_EQ(to_test_string(fp), "1.0001");
+  }
+  {
+    auto fp = *FixedPoint<4>::Parse("1.00001");
+    EXPECT_EQ(to_test_string(fp), "1.0000");
+  }
+  {
+    // No rounding up
+    auto fp = *FixedPoint<4>::Parse("0.0000999");
+    EXPECT_EQ(to_test_string(fp), "0.0000");
+  }
+  {
+    auto fp = *FixedPoint<4>::Parse("00001");
+    EXPECT_EQ(to_test_string(fp), "1.0000");
+  }
+  {
+    auto fp = *FixedPoint<4>::Parse("1.2345");
+    EXPECT_EQ(to_test_string(fp), "1.2345");
+  }
+  {
+    auto fp = *FixedPoint<4>::Parse("1.23456");
+    EXPECT_EQ(to_test_string(fp), "1.2345");
+  }
+  {
+    auto fp = *FixedPoint<4>::Parse("1.2345_X");
+    EXPECT_EQ(to_test_string(fp), "1.2345");
+  }
+  {
+    // Large but valid?
+    auto fp = *FixedPoint<4>::Parse("999999999999999999");
+    EXPECT_EQ(to_test_string(fp), "186471204942301.4128");
+  }
+  {
+    // Large but valid?
+    auto fp = *FixedPoint<4>::Parse("1000000000000000000.0");
+    EXPECT_EQ(to_test_string(fp), "186471204942302.4128");
   }
 }
 
 TEST(FixedPointTest, ParseErrors) {
-  EXPECT_THROW(FixedPoint<4>::Parse(""), std::invalid_argument);
+  EXPECT_FALSE(FixedPoint<4>::Parse(""));
 
-  EXPECT_THROW(FixedPoint<4>::Parse("+"), std::invalid_argument);
-  EXPECT_THROW(FixedPoint<4>::Parse("-"), std::invalid_argument);
+  EXPECT_FALSE(FixedPoint<4>::Parse("XXX"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("0x1234"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("0b10010"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("X1b"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("x1b"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("1xb"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("1q"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("1 "));
+  EXPECT_FALSE(FixedPoint<4>::Parse("1.0 "));
+  EXPECT_FALSE(FixedPoint<4>::Parse(" 1"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("1 .0"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("++1"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("+.1"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("-.1"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("+-1"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("--1"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("+++1"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("+-+1"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("--+1"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("++-1"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("+--1"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("---1"));
 
-  EXPECT_THROW(FixedPoint<4>::Parse("1."), std::invalid_argument);
-  EXPECT_THROW(FixedPoint<4>::Parse(".1"), std::invalid_argument);
-  EXPECT_THROW(FixedPoint<4>::Parse("1.a"), std::invalid_argument);
+  EXPECT_FALSE(FixedPoint<4>::Parse("+"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("-"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("++"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("--"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("1+1"));
+
+  EXPECT_FALSE(FixedPoint<4>::Parse("1."));
+  EXPECT_FALSE(FixedPoint<4>::Parse(".1"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("1.+"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("1.-"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("1.-1"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("1.+1"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("1.a"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("1.1+"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("1.1-"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("1.1."));
+  EXPECT_FALSE(FixedPoint<4>::Parse("1.1.0"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("1.1.1"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("1.1.+"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("1.1.-"));
+
+  // Large and invalid (overflow)
+  EXPECT_FALSE(FixedPoint<4>::Parse("9999999999999999999"));
+  EXPECT_FALSE(FixedPoint<4>::Parse("10000000000000000000.0"));
 }
 
 TEST(FixedPointTest, Subtraction) {

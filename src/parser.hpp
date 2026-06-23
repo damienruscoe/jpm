@@ -20,11 +20,4 @@ struct Message {
 
 std::ostream &operator<<(std::ostream &os, const Message &msg);
 
-std::pair<std::string_view, std::string_view> split(std::string_view s,
-                                                    char delim);
-std::string_view trim_inline_comments(std::string_view str);
-std::string_view trim_whitespace(std::string_view str);
-std::string_view trim_whitespace_prefix(std::string_view str);
-std::string_view trim_whitespace_suffix(std::string_view str);
-
 std::optional<Message> parse_line(std::string_view line);

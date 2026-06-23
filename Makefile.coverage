@@ -1,31 +1,33 @@
 # Compiler and Flags
 CXX = clang++
 # Added coverage flags
-CXXFLAGS = -std=c++20 -ggdb -O0 -Wall -Wextra -Wpedantic -Werror -fprofile-instr-generate -fcoverage-mapping
+CXX_SANITIZE_FLAGS = -fsanitize=address,undefined
+CXX_DEBUG_FLAGS = -ggdb
+CXXFLAGS = -std=c++20 -O0 -Wall -Wextra -Wpedantic -Werror -fprofile-instr-generate -fcoverage-mapping
 GTEST_FLAGS = -lgtest -lgtest_main -pthread
 
-ifdef USE_BOOST
-CXXFLAGS += -DUSE_BOOST_FP
-endif
-
 # Target executable
-TEST_TARGET = matching_engine_tests_cov
+COVERAGE_TARGET = matching_engine_tests_cov
+TEST_TARGET = matching_engine_tests_debug
 
 # Source and Headers
 INC = -Isrc/ -Ideps/cnl/include
-TEST_SRCS = test/*.cpp src/mmfile.cpp src/parser.cpp
+TEST_SRCS = test/*.cpp src/*.cpp
+
+$(COVERAGE_TARGET): $(TEST_SRCS)
+	$(CXX) $(CXX_SANITIZE_FLAGS) $(CXXFLAGS) $(INC) $(TEST_SRCS) -o $(COVERAGE_TARGET) $(GTEST_FLAGS)
 
 $(TEST_TARGET): $(TEST_SRCS)
-	$(CXX) $(CXXFLAGS) $(INC) $(TEST_SRCS) -o $(TEST_TARGET) $(GTEST_FLAGS)
+	$(CXX) $(CXXFLAGS) $(CXX_DEBUG_FLAGS) $(INC) $(TEST_SRCS) -o $(TEST_TARGET) $(GTEST_FLAGS)
 
-run_coverage: $(TEST_TARGET)
-	LLVM_PROFILE_FILE="coverage.profraw" ./$(TEST_TARGET)
+run_coverage: $(COVERAGE_TARGET)
+	LLVM_PROFILE_FILE="coverage.profraw" ./$(COVERAGE_TARGET) --gtest_brief=1
 	llvm-profdata-14 merge -sparse coverage.profraw -o coverage.profdata
-	llvm-cov-14 report -instr-profile=coverage.profdata ./matching_engine_tests_cov
-	llvm-cov-14 show ./$(TEST_TARGET) -instr-profile=coverage.profdata -format=html > coverage_report.html
+	llvm-cov-14 report -instr-profile=coverage.profdata ./$(COVERAGE_TARGET)
+	llvm-cov-14 show ./$(COVERAGE_TARGET) -instr-profile=coverage.profdata -format=html > coverage_report.html
 	@echo "Coverage report generated: coverage_report.html"
 
 clean:
-	rm -f $(TEST_TARGET) *.profraw *.profdata coverage_report.html
+	rm -f $(TEST_TARGET) $(COVERAGE_TARGET) *.profraw *.profdata coverage_*
 
 .PHONY: run_coverage clean

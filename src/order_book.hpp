@@ -95,11 +95,11 @@ private:
 
   void on_filled(Order &order) { orders.erase(order.id); };
 
+  Orders orders;
+
   std::pmr::unsynchronized_pool_resource pool;
   BidsBook bids{pool};
   AsksBook asks{pool};
-
-  Orders orders;
 };
 
 template <typename OrderID, typename Price, typename Quantity>

@@ -1,67 +1,21 @@
 #pragma once
 
+#include "str_utils.hpp"
 #include <charconv>
 #include <cmath>
 #include <iomanip>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 #include <string_view>
 
 #include <cnl/scaled_integer.h>
 
+namespace {
+
 template <typename BaseType, int DecimalPlaces>
-static inline BaseType ParseFP_Impl(std::string_view str) {
-  if (str.empty())
-    throw std::invalid_argument("empty");
+static inline std::optional<BaseType> parse_float(std::string_view str);
 
-  bool negative = false;
-  if (str[0] == '-') {
-    negative = true;
-    str.remove_prefix(1);
-  } else if (str[0] == '+') {
-    str.remove_prefix(1);
-  }
-
-  if (str.empty())
-    throw std::invalid_argument("invalid");
-
-  BaseType integral = 0;
-  BaseType fractional = 0;
-
-  size_t dot_pos = str.find('.');
-  if (dot_pos == std::string_view::npos) {
-
-    auto [ptr, ec] =
-        std::from_chars(str.data(), str.data() + str.size(), integral);
-    if (ec != std::errc{} || ptr != str.data() + str.size())
-      throw std::invalid_argument("invalid");
-  } else {
-    if (dot_pos == 0 || dot_pos == str.size() - 1)
-      throw std::invalid_argument("invalid");
-
-    auto [ptr_i, ec_i] =
-        std::from_chars(str.data(), str.data() + dot_pos, integral);
-    if (ec_i != std::errc{})
-      throw std::invalid_argument("invalid");
-
-    std::string_view frac_part = str.substr(dot_pos + 1);
-
-    auto [ptr_f, ec_f] = std::from_chars(
-        frac_part.data(), frac_part.data() + frac_part.size(), fractional);
-    if (ec_f != std::errc{} || ptr_f != frac_part.data() + frac_part.size())
-      throw std::invalid_argument("invalid");
-
-    size_t digits = ptr_f - frac_part.data();
-    for (size_t i = digits; i < DecimalPlaces; ++i)
-      fractional *= 10;
-    for (size_t i = DecimalPlaces; i < digits; ++i)
-      fractional /= 10;
-  }
-
-  const uint64_t foo = (uint64_t)std::pow(10, DecimalPlaces);
-
-  BaseType val = (integral * foo) + (fractional);
-  return negative ? -val : val;
 }
 
 template <int DecimalPlaces, typename BaseTypeT = int64_t> class FixedPoint {
@@ -101,8 +55,10 @@ public:
     return lhs.get_raw_value() <=> rhs.get_raw_value();
   }
 
-  static FixedPoint Parse(std::string_view str) {
-    return FixedPoint(ParseFP_Impl<BaseType, decimals>(str), true);
+  static std::optional<FixedPoint> Parse(std::string_view str) {
+    if (auto result = parse_float<BaseType, decimals>(str))
+      return {FixedPoint(*result, true)};
+    return std::nullopt;
   }
 
 private:
@@ -114,3 +70,59 @@ private:
 
   cnl_fp m_value;
 };
+
+namespace {
+
+template <typename T> auto parse_int(std::string_view str) {
+  T result{};
+
+  if (str.empty() || str.front() == '-')
+    return std::make_pair(result, false);
+
+  const bool success = parse_integer(str, result);
+  return std::make_pair(result, success);
+}
+
+template <typename BaseType, int DecimalPlaces>
+static inline std::optional<BaseType> parse_float(std::string_view str) {
+  if (str.empty())
+    return std::nullopt;
+
+  std::string_view whole_part = str;
+
+  const size_t dot_pos = str.find('.');
+  if (dot_pos != std::string_view::npos)
+    whole_part = whole_part.substr(0, dot_pos);
+
+  // Trim the sign from the whole part number
+  const bool negative = whole_part.front() == '-';
+  if (negative || whole_part.front() == '+')
+    whole_part.remove_prefix(1);
+
+  auto [result, success] = parse_int<BaseType>(whole_part);
+  if (!success)
+    return std::nullopt;
+
+  if constexpr (DecimalPlaces > 0) {
+    [[maybe_unused]] auto decimal_adjust = [](const BaseType &val,
+                                              unsigned adj = 0) {
+      return val * (uint64_t)std::pow(10, DecimalPlaces - adj);
+    };
+
+    result = decimal_adjust(result);
+
+    if (dot_pos != std::string_view::npos) {
+      std::string_view frac_part = str.substr(dot_pos + 1);
+      frac_part = frac_part.substr(0, DecimalPlaces);
+
+      auto [fractional, success] = parse_int<BaseType>(frac_part);
+      if (!success)
+        return std::nullopt;
+      result += decimal_adjust(fractional, frac_part.size());
+    }
+  }
+
+  return negative ? -result : result;
+}
+
+} // namespace
