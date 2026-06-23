@@ -64,46 +64,46 @@ static inline BaseType ParseFP_Impl(std::string_view str) {
   return negative ? -val : val;
 }
 
-template <int DecimalPlaces, typename BaseTypeT = int64_t> 
-class FixedPoint {
+template <int DecimalPlaces, typename BaseTypeT = int64_t> class FixedPoint {
 private:
   using cnl_fp = cnl::scaled_integer<BaseTypeT, cnl::power<-DecimalPlaces, 10>>;
 
 public:
   using BaseType = BaseTypeT;
-	static constexpr int decimals = DecimalPlaces;
+  static constexpr int decimals = DecimalPlaces;
 
   FixedPoint() : m_value(0) {}
   explicit FixedPoint(BaseType raw)
-      : m_value(cnl::from_rep<cnl_fp, BaseType>{}(raw * std::pow(10, DecimalPlaces))) {}
+      : m_value(cnl::from_rep<cnl_fp, BaseType>{}(
+            raw * std::pow(10, DecimalPlaces))) {}
 
-	friend std::ostream &operator<<(std::ostream &os, const FixedPoint &fp) {
-		auto v = fp.get_raw_value();
-		if (v < 0) {
-			os << '-';
-			v = -v;
-		}
+  friend std::ostream &operator<<(std::ostream &os, const FixedPoint &fp) {
+    auto v = fp.get_raw_value();
+    if (v < 0) {
+      os << '-';
+      v = -v;
+    }
 
-		const uint64_t foo = std::pow(10, DecimalPlaces);
-		return os << (v / foo) << '.' << std::setfill('0') << std::setw(DecimalPlaces)
-							<< (v % foo);
-	}
+    const uint64_t foo = std::pow(10, DecimalPlaces);
+    return os << (v / foo) << '.' << std::setfill('0')
+              << std::setw(DecimalPlaces) << (v % foo);
+  }
 
-	friend FixedPoint operator-(const FixedPoint &lhs, const FixedPoint &rhs) {
-			return FixedPoint{lhs.get_raw_value() - rhs.get_raw_value(), true};
-	}
+  friend FixedPoint operator-(const FixedPoint &lhs, const FixedPoint &rhs) {
+    return FixedPoint{lhs.get_raw_value() - rhs.get_raw_value(), true};
+  }
 
-	friend bool operator==(const FixedPoint& lhs, const FixedPoint& rhs) {
-			return lhs.get_raw_value() == rhs.get_raw_value();
-	}
+  friend bool operator==(const FixedPoint &lhs, const FixedPoint &rhs) {
+    return lhs.get_raw_value() == rhs.get_raw_value();
+  }
 
-	friend auto operator<=>(const FixedPoint& lhs, const FixedPoint& rhs) {
-			return lhs.get_raw_value() <=> rhs.get_raw_value();
-	}
+  friend auto operator<=>(const FixedPoint &lhs, const FixedPoint &rhs) {
+    return lhs.get_raw_value() <=> rhs.get_raw_value();
+  }
 
-	static FixedPoint Parse(std::string_view str) {
-			return FixedPoint(ParseFP_Impl<BaseType, decimals>(str), true);
-	}
+  static FixedPoint Parse(std::string_view str) {
+    return FixedPoint(ParseFP_Impl<BaseType, decimals>(str), true);
+  }
 
 private:
   FixedPoint(cnl_fp val) : m_value(val) {}
@@ -114,4 +114,3 @@ private:
 
   cnl_fp m_value;
 };
-

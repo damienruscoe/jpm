@@ -4,47 +4,27 @@
 #include <gtest/gtest.h>
 #include <ranges>
 
-namespace {
-using FixedPointGeneric = FixedPoint<4>;
-}
-
-struct Level {
-  using OrderID = std::string;
-  using Price = FixedPointGeneric;
-  using Quantity = uint32_t;
-
-  bool operator<(const Level &other) const {
-    if (price != other.price)
-      return price < other.price;
-    return quantity < other.quantity;
-  }
-  bool operator==(const Level &other) const {
-    return price == other.price && quantity == other.quantity;
-  }
-
-  Price price{};
-  Quantity quantity{};
-};
-
 class OrderBookTest : public testing::Test {
 protected:
   OrderBookTest() {}
 
   // ~OrderBookTest() override = default;
 
-  using Book = OrderBook<Level>;
+  using Price = FixedPoint<4>;
+  using Quantity = uint32_t;
+  using Book = OrderBook<std::string, Price, Quantity>;
   Book book;
 };
 
 TEST_F(OrderBookTest, IsEmpty) {
   {
-    auto top_of_book = book.getTopAsk(10);
+    auto top_of_book = book.getTopAsks(10);
     ASSERT_EQ(top_of_book.size(), 0);
     ASSERT_EQ(book.getBestBid(), std::nullopt);
     ASSERT_EQ(book.getBestAsk(), std::nullopt);
   }
   {
-    auto top_of_book = book.getTopBid(10);
+    auto top_of_book = book.getTopBids(10);
     ASSERT_EQ(top_of_book.size(), 0);
     ASSERT_EQ(book.getBestBid(), std::nullopt);
     ASSERT_EQ(book.getBestAsk(), std::nullopt);
@@ -103,8 +83,8 @@ void assertBookTopPriceLevels(const OrderBook &book,
                               const ExpectedTopOfBook &expected1,
                               const ExpectedTopOfBook &expected2) {
   auto reversed = ExpectedTopOfBook(expected1.rbegin(), expected1.rend());
-  assertTopOfBook<typename OrderBook::Price>(book.getTopAsk(10), reversed);
-  assertTopOfBook<typename OrderBook::Price>(book.getTopBid(10), expected2);
+  assertTopOfBook<typename OrderBook::Price>(book.getTopAsks(10), reversed);
+  assertTopOfBook<typename OrderBook::Price>(book.getTopBids(10), expected2);
 }
 
 TEST_F(OrderBookTest, GivenExampleMarket1) {

@@ -42,28 +42,23 @@ private:
 
 template <RenderableOrderBook OrderBook>
 void render_book(const OrderBook &book) {
-  const auto top_asks = book.getTopAsk();
-  const auto top_bids = book.getTopBid();
+  const auto top_asks = book.getTopAsks();
+  const auto top_bids = book.getTopBids();
 
   std::stringstream ss;
 
   for (auto it = top_asks.crbegin(); it != top_asks.crend(); ++it)
-    ss << *it << nl;
+    ss << it->price << ' ' << it->quantity << nl;
 
   ss << "---------------------------" << nl;
 #if 0
-  if (top_asks.empty() || top_bids.empty()) {
-    ss << "Spread: " << nl;
-  } else {
-    // Revert to original spread rendering: (ask - bid)
-    auto spread = top_asks[0].price - top_bids[0].price;
-    ss << "Spread: " << spread << nl;
-  }
-  ss << "---------------------------" << nl;
+  if (auto spread = book.getSpread())
+    ss << "Spread: " << *spread << nl
+       << "---------------------------" << nl;
 #endif
 
   for (auto it = top_bids.cbegin(); it != top_bids.cend(); ++it)
-    ss << *it << nl;
+    ss << it->price << ' ' << it->quantity << nl;
 
   ss << nl;
   std::cout << ss.str() << std::flush;

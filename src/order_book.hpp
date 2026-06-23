@@ -12,11 +12,17 @@ template <typename T, typename ReturnType = decltype(T::id)> struct GetIdField {
   static ReturnType get(const T *t) { return t->id; };
 };
 
-template <typename Level> class OrderBook {
+template <typename OrderID_t, typename Price_t, typename Quantity_t>
+class OrderBook {
 public:
-  using Price = typename Level::Price;
-  using Quantity = typename Level::Quantity;
-  using StoredOrderID = typename Level::OrderID;
+  using Price = Price_t;
+  using Quantity = Quantity_t;
+  using StoredOrderID = OrderID_t;
+
+  struct L2PriceLevel {
+    Price price;
+    Quantity quantity;
+  };
 
   template <typename OrderID>
   [[nodiscard]] bool newOrder(OrderID &&order_id, side_t side,
@@ -27,11 +33,29 @@ public:
   [[nodiscard]] bool amend(OrderID &&order_id, side_t side, const Price &price,
                            const Quantity &qty);
 
-  std::optional<Level> getBestBid() const;
-  std::optional<Level> getBestAsk() const;
+  std::optional<L2PriceLevel> getBestAsk() const {
+    return asks.template getBest<L2PriceLevel>();
+  }
 
-  std::vector<Level> getTopBid(uint16_t depth = 10) const;
-  std::vector<Level> getTopAsk(uint16_t depth = 10) const;
+  std::optional<L2PriceLevel> getBestBid() const {
+    return bids.template getBest<L2PriceLevel>();
+  }
+
+  std::vector<L2PriceLevel> getTopAsks(uint16_t depth = 10) const {
+    return asks.template getTop<L2PriceLevel>(depth);
+  }
+
+  std::vector<L2PriceLevel> getTopBids(uint16_t depth = 10) const {
+    return bids.template getTop<L2PriceLevel>(depth);
+  }
+
+  std::optional<Price> getSpread() const {
+    auto best_bid = getBestBid();
+    auto best_ask = getBestAsk();
+    if (best_bid && best_ask)
+      return best_ask->price - best_bid->price;
+    return std::nullopt;
+  }
 
 private:
   using Order = ::Order<StoredOrderID, Price, Quantity>;
@@ -77,29 +101,32 @@ private:
   Orders orders;
 };
 
-template <typename Level>
-template <typename OrderID>
-bool OrderBook<Level>::newOrder(OrderID &&order_id, side_t side,
-                                const Price &price, const Quantity &qty) {
+template <typename OrderID, typename Price, typename Quantity>
+template <typename OrderID_Param>
+bool OrderBook<OrderID, Price, Quantity>::newOrder(OrderID_Param &&order_id,
+                                                   side_t side,
+                                                   const Price &price,
+                                                   const Quantity &qty) {
 
   if (orders.contains(order_id))
     return false;
 
   side == side_t::BID
-      ? CrossingTradeDispatcher::emplaceOrder(*this, asks, bids,
-                                              std::forward<OrderID>(order_id),
-                                              price, qty, side)
-      : CrossingTradeDispatcher::emplaceOrder(*this, bids, asks,
-                                              std::forward<OrderID>(order_id),
-                                              price, qty, side);
+      ? CrossingTradeDispatcher::emplaceOrder(
+            *this, asks, bids, std::forward<OrderID_Param>(order_id), price,
+            qty, side)
+      : CrossingTradeDispatcher::emplaceOrder(
+            *this, bids, asks, std::forward<OrderID_Param>(order_id), price,
+            qty, side);
 
   return true;
 }
 
-template <typename Level>
-template <typename OrderID>
-bool OrderBook<Level>::cancel(OrderID &&order_id, side_t side) {
-  if (auto *order = orders.find(std::forward<OrderID>(order_id))) {
+template <typename OrderID, typename Price, typename Quantity>
+template <typename OrderID_Param>
+bool OrderBook<OrderID, Price, Quantity>::cancel(OrderID_Param &&order_id,
+                                                 side_t side) {
+  if (auto *order = orders.find(std::forward<OrderID_Param>(order_id))) {
     side == side_t::BID ? bids.removeOrder(*order) : asks.removeOrder(*order);
     orders.erase(order->id);
     return true;
@@ -107,11 +134,12 @@ bool OrderBook<Level>::cancel(OrderID &&order_id, side_t side) {
   return false;
 }
 
-template <typename Level>
-template <typename OrderID>
-bool OrderBook<Level>::amend(OrderID &&order_id, side_t side,
-                             const Price &price, const Quantity &qty) {
-  if (auto *order = orders.find(std::forward<OrderID>(order_id))) {
+template <typename OrderID, typename Price, typename Quantity>
+template <typename OrderID_Param>
+bool OrderBook<OrderID, Price, Quantity>::amend(OrderID_Param &&order_id,
+                                                side_t side, const Price &price,
+                                                const Quantity &qty) {
+  if (auto *order = orders.find(std::forward<OrderID_Param>(order_id))) {
     return order->side == side &&
            (side == side_t::BID ? CrossingTradeDispatcher::amend(
                                       *this, asks, bids, order, price, qty)
@@ -119,24 +147,4 @@ bool OrderBook<Level>::amend(OrderID &&order_id, side_t side,
                                       *this, bids, asks, order, price, qty));
   }
   return false;
-}
-
-template <typename Level>
-std::optional<Level> OrderBook<Level>::getBestAsk() const {
-  return asks.template getBest<Level>();
-}
-
-template <typename Level>
-std::optional<Level> OrderBook<Level>::getBestBid() const {
-  return bids.template getBest<Level>();
-}
-
-template <typename Level>
-std::vector<Level> OrderBook<Level>::getTopAsk(uint16_t depth) const {
-  return asks.template getTop<Level>(depth);
-}
-
-template <typename Level>
-std::vector<Level> OrderBook<Level>::getTopBid(uint16_t depth) const {
-  return bids.template getTop<Level>(depth);
 }
