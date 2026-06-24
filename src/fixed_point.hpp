@@ -27,7 +27,7 @@ public:
   static constexpr int decimals = DecimalPlaces;
 
   FixedPoint() : m_value(0) {}
-  explicit FixedPoint(BaseType raw)
+  /*explicit*/ FixedPoint(BaseType raw)
       : m_value(cnl::from_rep<cnl_fp, BaseType>{}(
             raw * std::pow(10, DecimalPlaces))) {}
 
@@ -38,13 +38,35 @@ public:
       v = -v;
     }
 
+    const char old_fill = os.fill();
     const uint64_t foo = std::pow(10, DecimalPlaces);
     return os << (v / foo) << '.' << std::setfill('0')
               << std::setw(DecimalPlaces) << (v % foo);
+    os.fill(old_fill);
+    return os;
   }
 
   friend FixedPoint operator-(const FixedPoint &lhs, const FixedPoint &rhs) {
     return FixedPoint{lhs.get_raw_value() - rhs.get_raw_value(), true};
+  }
+
+  friend FixedPoint operator+(const FixedPoint &lhs, const FixedPoint &rhs) {
+    return FixedPoint{lhs.get_raw_value() + rhs.get_raw_value(), true};
+  }
+
+  friend FixedPoint operator*(const FixedPoint &lhs, const FixedPoint &rhs) {
+    const auto Scale = std::pow(10, DecimalPlaces);
+    __int128_t intermediate =
+        static_cast<__int128_t>(lhs.get_raw_value()) * rhs.get_raw_value();
+    __int128_t raw_product = intermediate / Scale;
+    return FixedPoint{static_cast<int64_t>(raw_product), true};
+  }
+
+  friend FixedPoint operator/(const FixedPoint &lhs, const FixedPoint &rhs) {
+    const auto Scale = std::pow(10, DecimalPlaces);
+    __int128_t numerator = static_cast<__int128_t>(lhs.get_raw_value()) * Scale;
+    __int128_t raw_quotient = numerator / rhs.get_raw_value();
+    return FixedPoint{static_cast<int64_t>(raw_quotient), true};
   }
 
   friend bool operator==(const FixedPoint &lhs, const FixedPoint &rhs) {

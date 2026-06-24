@@ -9,11 +9,21 @@
 #include <optional>
 #include <vector>
 
+#include "formulas.hpp"
 #include "object_resource.hpp"
 
 template <typename T, typename ReturnType = decltype(T::id)> struct GetIdField {
   static ReturnType get(const T *t) { return t->id; };
 };
+
+template <typename Callable>
+static auto topOfBookInvocation(Callable &&fn, const auto &book) {
+  auto best_bid = book.getBestBid();
+  auto best_ask = book.getBestAsk();
+  return (best_bid && best_ask)
+             ? std::make_optional(std::invoke(fn, *best_bid, *best_ask))
+             : std::nullopt;
+}
 
 template <typename OrderID_T, typename Price_T, typename Quantity_T>
 struct OrderBookTraits {
@@ -31,8 +41,11 @@ public:
   using Orders = ObjectResource<Order, GetIdField<Order, StoredOrderID>>;
 
   struct L2PriceLevel {
+    bool operator==(const L2PriceLevel &) const = default;
+
     Price price;
     Quantity quantity;
+    Quantity total;
   };
 
   using TradeCallback = std::function<void(
@@ -69,11 +82,18 @@ public:
   const Orders &getOrders() const { return orders; }
 
   std::optional<Price> getSpread() const {
-    auto best_bid = getBestBid();
-    auto best_ask = getBestAsk();
-    if (best_bid && best_ask)
-      return best_ask->price - best_bid->price;
-    return std::nullopt;
+    return topOfBookInvocation(&Formulas<L2PriceLevel>::spread, *this);
+  }
+
+  std::optional<Price> getLastTradedPrice() const { return m_last_trade_price; }
+
+  std::optional<Price> getMidPrice() const {
+    return topOfBookInvocation(&Formulas<L2PriceLevel>::midPrice, *this);
+  }
+
+  std::optional<Price> getWeightedMidPrice() const {
+    return topOfBookInvocation(&Formulas<L2PriceLevel>::weightedMidPrice,
+                               *this);
   }
 
 private:
@@ -119,11 +139,12 @@ private:
   void on_filled(side_t side, const StoredOrderID &filled_order_id,
                  const Price &price, const Quantity &qty,
                  typename PriceLevel<Order>::FillStatus fill) {
-    if (on_trade_callback)
-      on_trade_callback(side, filled_order_id, price, qty, fill);
-
+    m_last_trade_price = price;
     if (fill == PriceLevel<Order>::FillStatus::Full)
       orders.erase(filled_order_id);
+
+    if (on_trade_callback)
+      on_trade_callback(side, filled_order_id, price, qty, fill);
   };
 
   Orders orders;
@@ -132,6 +153,8 @@ private:
   std::pmr::unsynchronized_pool_resource pool;
   BidsBook bids{pool};
   AsksBook asks{pool};
+
+  std::optional<Price> m_last_trade_price{};
 };
 
 template <typename Traits>

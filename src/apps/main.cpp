@@ -9,6 +9,32 @@
 #include <iostream>
 #include <memory>
 
+template <typename T, bool Owned> struct FmtValueOr {
+  using OptBindingRef =
+      std::conditional_t<Owned, std::optional<T>, const std::optional<T> &>;
+
+  FmtValueOr(OptBindingRef opt, std::string_view alt) : opt{opt}, alt{alt} {}
+
+  FmtValueOr(const FmtValueOr &) = delete;
+  FmtValueOr(FmtValueOr &&) noexcept = delete;
+  FmtValueOr &operator=(const FmtValueOr &) = delete;
+  FmtValueOr &operator=(FmtValueOr &&) = delete;
+
+  friend std::ostream &operator<<(std::ostream &os, const FmtValueOr &&o) {
+    return o.opt ? (os << *o.opt) : (os << o.alt);
+  }
+
+private:
+  OptBindingRef opt;
+  std::string_view alt;
+};
+
+template <typename T>
+FmtValueOr(const std::optional<T> &, std::string_view) -> FmtValueOr<T, false>;
+
+template <typename T>
+FmtValueOr(std::optional<T> &&, std::string_view) -> FmtValueOr<T, true>;
+
 [[maybe_unused]] constexpr std::string_view VALID = "[\033[32mVALID\033[0m] ";
 [[maybe_unused]] constexpr std::string_view ERROR = "[\033[31mERROR\033[0m] ";
 [[maybe_unused]] constexpr std::string_view TRADE = "[\033[94mTRADE\033[0m] ";
@@ -80,8 +106,15 @@ int main(int argc, char *argv[]) {
       }
       }
 
-      // render_horizontal_orderbook(book);
+      std::cout << "LTP: " << FmtValueOr{book.getLastTradedPrice(), "Unknown"}
+                << nl;
+      std::cout << "MID: " << FmtValueOr{book.getMidPrice(), "Unknown"} << nl;
+      std::cout << "MICRO: "
+                << FmtValueOr{book.getWeightedMidPrice(), "Unknown"} << nl;
+
+      render_horizontal_orderbook(book);
       // render_vertical_orderbook(book);
+      // top_of_book.render();
     } else
       std::cout << ERROR << msg.error() << nl;
   }

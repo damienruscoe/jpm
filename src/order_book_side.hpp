@@ -41,15 +41,21 @@ public:
     auto it = book.begin();
     return it == book.end()
                ? std::nullopt
-               : std::make_optional(Level{it->first, it->second.getQuantity()});
+               : std::make_optional(Level{it->first, it->second.getQuantity(),
+                                          it->second.getQuantity()});
   }
 
   template <typename Level> std::vector<Level> getTop(uint16_t depth) const {
+    using Quantity = decltype(std::declval<Level>().quantity);
+    Quantity total{};
+
     std::vector<Level> result{};
     for (const auto &[price, price_orders] : book) {
       if (result.size() >= depth)
         break;
-      result.push_back({price, price_orders.getQuantity()});
+      auto current_quantity = price_orders.getQuantity();
+      total += current_quantity;
+      result.push_back({price, current_quantity, total});
     }
     return result;
   }
