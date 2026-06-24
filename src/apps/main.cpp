@@ -58,7 +58,8 @@ int main(int argc, char *argv[]) {
       }
 
       // top_of_book.render();
-      render_book(book);
+      render_horizontal_orderbook(book);
+      // render_vertical_orderbook(book);
     } else
       std::cout << ERROR << *msg << std::endl;
   }
