@@ -66,19 +66,15 @@ private:
 
   struct CrossingTradeDispatcher {
 
-    static auto matchPrice(OrderBook &order_book, auto &aggressor,
-                           const Price &price, const Quantity &qty) {
-      auto on_filled = std::bind_front(&OrderBook::on_filled, &order_book);
-      return aggressor.matchPrice(price, qty, std::move(on_filled));
-    }
-
     template <typename OrderID>
     static void emplaceOrder(OrderBook &order_book, auto &aggressor,
                              auto &resting, OrderID &&order_id,
                              const Price &price, const Quantity &qty,
                              side_t side) {
+      auto on_filled =
+          std::bind_front(&OrderBook::on_filled, &order_book, side);
       if (const auto remaining =
-              matchPrice(order_book, aggressor, price, qty)) {
+              aggressor.matchPrice(price, qty, std::move(on_filled))) {
         auto *order = order_book.orders.create(std::forward<OrderID>(order_id),
                                                price, remaining, side);
         resting.insertOrder(*order);
@@ -87,13 +83,29 @@ private:
 
     static bool amend(OrderBook &order_book, auto &aggressor, auto &resting,
                       Order *order, const Price &price, const Quantity &qty) {
-      const auto remaining = matchPrice(order_book, aggressor, price, qty);
+      auto on_filled =
+          std::bind_front(&OrderBook::on_filled, &order_book, order->side);
+      const auto remaining =
+          aggressor.matchPrice(price, qty, std::move(on_filled));
       resting.amendOrder(*order, price, remaining);
       return true;
     }
   };
 
-  void on_filled(Order &order) { orders.erase(order.id); };
+  void on_filled(side_t side, const OrderID_t &filled_order_id,
+                 const Price &price, const Quantity &qty, bool partial) {
+    constexpr std::string_view TRADE = "[\033[94mTRADE\033[0m] ";
+
+    const int ticker = 101;
+    const char aggressor_side = side == side_t::ASK ? 'S' : 'B';
+
+    std::cout << TRADE << "Trade: " << ticker << " " << filled_order_id << " "
+              << qty << " " << price << ", AggrSide=" << aggressor_side
+              << (partial ? " (Partial)" : "") << std::endl;
+
+    if (!partial)
+      orders.erase(filled_order_id);
+  };
 
   Orders orders;
 

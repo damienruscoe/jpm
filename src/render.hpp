@@ -86,8 +86,8 @@ void render_horizontal_orderbook(const OrderBook &book, int depth = 99) {
   constexpr int EMPTY_LEN =
       1 + WIDTH_TOTAL + WIDTH_QUANTITY + WIDTH_PRICE + FIELD_SEP.size() * 2;
 
-	typename OrderBook::Quantity bid_total{};
-	typename OrderBook::Quantity ask_total{};
+  typename OrderBook::Quantity bid_total{};
+  typename OrderBook::Quantity ask_total{};
 
   while (ask.first != ask.second || bid.first != bid.second) {
     if (bid.first != bid.second) {
@@ -95,7 +95,7 @@ void render_horizontal_orderbook(const OrderBook &book, int depth = 99) {
       price_ss << bid.first->price;
       auto price = price_ss.str();
 
-			bid_total += bid.first->quantity;
+      bid_total += bid.first->quantity;
 
       ss << std::setfill(' ') << std::setw(WIDTH_TOTAL) << bid_total
          << FIELD_SEP << std::setfill(' ') << std::setw(WIDTH_QUANTITY)
@@ -111,7 +111,7 @@ void render_horizontal_orderbook(const OrderBook &book, int depth = 99) {
       price_ss << ask.first->price;
       auto price = price_ss.str();
 
-			ask_total += ask.first->quantity;
+      ask_total += ask.first->quantity;
 
       ss << RED << std::setfill(' ') << std::setw(WIDTH_PRICE) << price
          << NO_COLOUR << FIELD_SEP << std::setfill(' ')

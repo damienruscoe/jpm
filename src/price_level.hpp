@@ -49,16 +49,18 @@ public:
       // The OrderList is being modified while we are iterating, so bump
       // the iterator now before it becomes invalid.
       Order &order = *it++;
-      Quantity &quantity = order.quantity;
 
-      Quantity delta = std::min(quantity, remaining);
+      Quantity delta = std::min(order.quantity, remaining);
       total_quantity -= delta;
-      quantity -= delta;
+      order.quantity -= delta;
       remaining -= delta;
 
-      if (!quantity) {
+      if (order.quantity) {
+        // Partial fill
+        std::invoke(on_filled, order.id, order.price, delta, true);
+      } else {
         orders.erase(orders.iterator_to(order));
-        std::invoke(on_filled, order);
+        std::invoke(on_filled, order.id, order.price, delta, false);
       }
     }
     return orders.empty();
