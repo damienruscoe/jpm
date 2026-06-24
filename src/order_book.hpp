@@ -141,6 +141,14 @@ bool OrderBook<OrderID, Price, Quantity>::amend(OrderID_Param &&order_id,
                                                 side_t side, const Price &price,
                                                 const Quantity &qty) {
   if (auto *order = orders.find(std::forward<OrderID_Param>(order_id))) {
+    if (qty < order->quantity && price == order->price) {
+      // Reducing quantity only. Maintain PriceTime priority.
+      // This action cannot create any trades against resting.
+      // Updating the order quanity is the only action that needs to be taken.
+      order->quantity = qty;
+      return true;
+    }
+
     return order->side == side &&
            (side == side_t::BID ? CrossingTradeDispatcher::amend(
                                       *this, asks, bids, order, price, qty)

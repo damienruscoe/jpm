@@ -50,17 +50,17 @@ bool processOrder(OrderBook &book, const auto &msg_str) {
   }
 }
 
-template <typename OrderBook>
-void processOrderSuccess(OrderBook &book, std::string_view msg_str) {
-  bool success = processOrder(book, msg_str);
-  ASSERT_TRUE(success);
-}
+#define processOrderSuccess(book, msg_str)                                     \
+  {                                                                            \
+    bool success = processOrder(book, msg_str);                                \
+    ASSERT_TRUE(success);                                                      \
+  }
 
-template <typename OrderBook>
-void processOrderFailure(OrderBook &book, std::string_view msg_str) {
-  bool success = processOrder(book, msg_str);
-  ASSERT_FALSE(success);
-}
+#define processOrderFailure(book, msg_str)                                     \
+  {                                                                            \
+    bool success = processOrder(book, msg_str);                                \
+    ASSERT_FALSE(success);                                                     \
+  }
 
 template <typename Price>
 void assertTopOfBook(const auto &top_of_book, const auto &expected) {
@@ -257,7 +257,7 @@ TEST_F(OrderBookTest, TestAmendSimple) {
   assertBookTopPriceLevels(book, {{"10.2", 3000}}, {});
 }
 
-TEST_F(OrderBookTest, TestAmendNoCrossing) {
+TEST_F(OrderBookTest, TestAmend_DecreasingPrice_NoCrossing) {
   processOrderSuccess(book, "102,N,A001,S,2000,10.2");
   processOrderSuccess(book, "102,N,A002,B,2000,10.1");
   // Amend A002 to 10.0
@@ -266,13 +266,50 @@ TEST_F(OrderBookTest, TestAmendNoCrossing) {
   assertBookTopPriceLevels(book, {{"10.2", 2000}}, {{"10.0", 2000}});
 }
 
-TEST_F(OrderBookTest, TestAmendCrossing) {
+TEST_F(OrderBookTest, TestAmend_IncreasingPrice_Crossing) {
   processOrderSuccess(book, "102,N,A001,S,2000,10.2");
   processOrderSuccess(book, "102,N,A002,B,2000,10.1");
   // Amend A002 to 10.2, should cross with A001
   processOrderSuccess(book, "102,A,A002,B,2000,10.2");
 
   assertBookTopPriceLevels(book, {}, {});
+}
+
+TEST_F(OrderBookTest, TestAmend_IncreasingPrice_NoCrossing) {
+  processOrderSuccess(book, "102,N,A001,S,2000,10.3");
+  processOrderSuccess(book, "102,N,A002,B,2000,10.1");
+  // Amend A002 to 10.2, should NOT cross with A001
+  processOrderSuccess(book, "102,A,A002,B,2000,10.2");
+
+  assertBookTopPriceLevels(book, {{"10.3", 2000}}, {{"10.2", 2000}});
+}
+
+TEST_F(OrderBookTest, TestAmend_DecreaseQuantity_PriceTimePreserved) {
+  processOrderSuccess(book, "102,N,A001,S,2000,10.3");
+  processOrderSuccess(book, "102,N,A002,B,2000,10.1");
+  processOrderSuccess(book, "102,N,A003,B,2000,10.1");
+  // A002 is ahead of A003 in Price-Time Priority
+  // Amend A002 to a lower quantity should preserve Price-Time
+  processOrderSuccess(book, "102,A,A002,B,1000,10.1");
+
+  // If A002 is still ahead of A003 then a SELL order will fill A002 first
+  // Then we are unable to cancel A002 as it has been fully filled
+  processOrderSuccess(book, "102,N,A004,S,1000,10.1");
+  processOrderFailure(book, "102,C,A002,B,2000,10.1");
+}
+
+TEST_F(OrderBookTest, TestAmend_IncreasingQuantity_PriceTimeLost) {
+  processOrderSuccess(book, "102,N,A001,S,2000,10.3");
+  processOrderSuccess(book, "102,N,A002,B,2000,10.1");
+  processOrderSuccess(book, "102,N,A003,B,2000,10.1");
+  // A002 is ahead of A003 in Price-Time Priority
+  // Amend A002 to a higher quantity should lose Price-Time advantage
+  processOrderSuccess(book, "102,A,A002,B,3000,10.1");
+
+  // If A002 is now behind A003 then a SELL order will fill A003 first.
+  // Then we are still able to cancel A002 as it still in the orderbook.
+  processOrderSuccess(book, "102,N,A004,S,3000,10.1");
+  processOrderSuccess(book, "102,C,A002,B,3000,10.1");
 }
 
 TEST_F(OrderBookTest, TestAmendThenFullFill) {
