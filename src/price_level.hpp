@@ -31,6 +31,11 @@ private:
                                     &Order::intrusive_list_hook>>;
 
 public:
+  enum class FillStatus {
+    Partial,
+    Full,
+  };
+
   void addOrder(Order &order) {
     orders.push_back(order);
     total_quantity += order.quantity;
@@ -55,13 +60,14 @@ public:
       order.quantity -= delta;
       remaining -= delta;
 
-      if (order.quantity) {
-        // Partial fill
-        std::invoke(on_filled, order.id, order.price, delta, true);
-      } else {
+      if (!order.quantity)
+        // Remove this order from the PriceLevel linked list
+        // The order is not destructed.
         orders.erase(orders.iterator_to(order));
-        std::invoke(on_filled, order.id, order.price, delta, false);
-      }
+
+      // This may destroy the order. Do not access order after invoking.
+      std::invoke(on_filled, order.id, order.price, delta,
+                  order.quantity ? FillStatus::Partial : FillStatus::Full);
     }
     return orders.empty();
   }

@@ -2,6 +2,7 @@
 
 #include "order_book_side.hpp"
 #include "order_id.hpp"
+#include "price_level.hpp"
 
 #include <memory_resource>
 #include <optional>
@@ -93,7 +94,8 @@ private:
   };
 
   void on_filled(side_t side, const OrderID_t &filled_order_id,
-                 const Price &price, const Quantity &qty, bool partial) {
+                 const Price &price, const Quantity &qty,
+                 typename PriceLevel<Order>::FillStatus fill) {
     constexpr std::string_view TRADE = "[\033[94mTRADE\033[0m] ";
 
     const int ticker = 101;
@@ -101,9 +103,11 @@ private:
 
     std::cout << TRADE << "Trade: " << ticker << " " << filled_order_id << " "
               << qty << " " << price << ", AggrSide=" << aggressor_side
-              << (partial ? " (Partial)" : "") << std::endl;
+              << (fill == PriceLevel<Order>::FillStatus::Partial ? " (Partial)"
+                                                                 : "")
+              << std::endl;
 
-    if (!partial)
+    if (fill == PriceLevel<Order>::FillStatus::Full)
       orders.erase(filled_order_id);
   };
 
