@@ -62,15 +62,34 @@ Example
 
 This is an example of message sequence that the matching engine has to deal with: 
 
-| 101,N,A001,S,3000,6.8  101,N,A002,S,1000,6.9  101,N,A003,B,2000,6.7  101,N,A004,B,1000,6.8 // crosses with order A001 with price 6.8  101,A,A003,B,2000,6.9 // after amending A003 crosses with A001 and both fully  filled  102,N,A005,S,2000,10.2  102,N,A006,B,2000,10.1  102,N,A007,B,2000,10.1  102,C,A006,B,2000,10.1 // A006 will be removed from order book |
-| :---- |
+```
+101,N,A001,S,3000,6.8
+101,N,A002,S,1000,6.9
+101,N,A003,B,2000,6.7
+101,N,A004,B,1000,6.8 // crosses with order A001 with price 6.8
+101,A,A003,B,2000,6.9 // after amending A003 crosses with A001 and both fully  filled
+102,N,A005,S,2000,10.2
+102,N,A006,B,2000,10.1
+102,N,A007,B,2000,10.1
+102,C,A006,B,2000,10.1 // A006 will be removed from order book
+```
 
 Expected Output 
 
 (Your format can differ from below) 
 
-| Trade: 101 A004 1000 6.8, AggrSide=B  Trade: 101 A001 1000 6.8, AggrSide=B  Trade: 101 A003 2000 6.8, AggrSide=B  Trade: 101 A001 2000 6.8, AggrSide=B  \<on exit\>  Ticker: 101  OrderId: A002 Side: Sell Quantity: 1000 Price: 6.9  Ticker: 102  OrderId: A005 Side: Sell Quantity: 2000 Price: 10.2  OrderId: A007 Side: Buy Quantity: 2000 Price: 10.1 |
-| :---- |
+```
+Trade: 101 A004 1000 6.8, AggrSide=B 
+Trade: 101 A001 1000 6.8, AggrSide=B 
+Trade: 101 A003 2000 6.8, AggrSide=B 
+Trade: 101 A001 2000 6.8, AggrSide=B 
+<on exit> 
+Ticker: 101 
+OrderId: A002 Side: Sell Quantity: 1000 Price: 6.9 
+Ticker: 102 
+OrderId: A005 Side: Sell Quantity: 2000 Price: 10.2 
+OrderId: A007 Side: Buy Quantity: 2000 Price: 10.1
+```
 
 **Note:** AggrSide indicates which side was the aggressor (B=buyer lifted offer, S=seller hit bid). The  aggressor's order determines the trade price. 
 
