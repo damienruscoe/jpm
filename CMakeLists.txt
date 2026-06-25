@@ -41,9 +41,9 @@ if(ENABLE_COVERAGE)
     target_link_options(matching_engine_tests PRIVATE -fprofile-instr-generate -fcoverage-mapping)
 
     add_custom_target(coverage
-        COMMAND LLVM_PROFILE_FILE=coverage.profraw ./matching_engine_tests
+        COMMAND LLVM_PROFILE_FILE=coverage.profraw ./matching_engine_tests --gtest_color=yes
         COMMAND llvm-profdata-14 merge -sparse coverage.profraw -o coverage.profdata
-        COMMAND llvm-cov-14 report -instr-profile=coverage.profdata ./matching_engine_tests ../src/ ../test/
+        COMMAND llvm-cov-14 report -use-color -instr-profile=coverage.profdata ./matching_engine_tests ../src/ ../test/
         COMMAND llvm-cov-14 show ./matching_engine_tests -instr-profile=coverage.profdata -format=html ../src/ ../test/ > coverage_report.html
         COMMAND llvm-cov-14 show ./matching_engine_tests -instr-profile=coverage.profdata -format=text ../src/ ../test/ > coverage_report.txt
         DEPENDS matching_engine_tests
