@@ -47,6 +47,8 @@ bool processOrder(OrderBook &book, const auto &msg_str) {
     return book.cancel(msg->order_id, side);
   case RequestType::Amend:
     return book.amend(msg->order_id, side, msg->price, msg->quantity);
+  default:
+    return false;
   }
 }
 
