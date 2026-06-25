@@ -37,15 +37,6 @@ public:
       book.erase(it);
   }
 
-  void amendOrder(Order &order, Price price, Quantity qty) {
-    removeOrder(order);
-    if (qty > 0) {
-      order.price = price;
-      order.quantity = qty;
-      insertOrder(order);
-    }
-  }
-
   template <typename Level> std::optional<Level> getBest() const {
     auto it = book.begin();
     return it == book.end()

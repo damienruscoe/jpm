@@ -97,7 +97,15 @@ private:
           std::bind_front(&OrderBook::on_filled, &order_book, order->side);
       const auto remaining =
           aggressor.matchPrice(price, qty, std::move(on_filled));
-      resting.amendOrder(*order, price, remaining);
+
+      resting.removeOrder(*order);
+      if (remaining > 0) {
+        order->price = price;
+        order->quantity = remaining;
+        resting.insertOrder(*order);
+        return false;
+      }
+
       return true;
     }
   };
@@ -159,6 +167,9 @@ bool OrderBook<OrderID, Price, Quantity>::amend(OrderID_Param &&order_id,
                                                 side_t side, const Price &price,
                                                 const Quantity &qty) {
   if (auto *order = orders.find(std::forward<OrderID_Param>(order_id))) {
+    if (order->side != side)
+      return false;
+
     if (qty < order->quantity && price == order->price) {
       // Reducing quantity only. Maintain PriceTime priority.
       // This action cannot create any trades against resting.
@@ -167,11 +178,16 @@ bool OrderBook<OrderID, Price, Quantity>::amend(OrderID_Param &&order_id,
       return true;
     }
 
-    return order->side == side &&
-           (side == side_t::BID ? CrossingTradeDispatcher::amend(
-                                      *this, asks, bids, order, price, qty)
-                                : CrossingTradeDispatcher::amend(
-                                      *this, bids, asks, order, price, qty));
+    const auto filled = side == side_t::BID
+                            ? CrossingTradeDispatcher::amend(*this, asks, bids,
+                                                             order, price, qty)
+                            : CrossingTradeDispatcher::amend(*this, bids, asks,
+                                                             order, price, qty);
+
+    if (filled)
+      orders.erase(order->id);
+
+    return true;
   }
   return false;
 }
