@@ -63,14 +63,6 @@ void render_vertical_orderbook(const OrderBook &book, int depth = 99) {
 
 template <RenderableOrderBook OrderBook>
 void render_horizontal_orderbook(const OrderBook &book, int depth = 99) {
-  const auto top_asks = book.getTopAsks(depth);
-  const auto top_bids = book.getTopBids(depth);
-
-  std::stringstream ss;
-
-  auto ask = std::make_pair(top_asks.cbegin(), top_asks.cend());
-  auto bid = std::make_pair(top_bids.cbegin(), top_bids.cend());
-
   constexpr std::string_view FIELD_SEP = " | ";
   constexpr std::string_view SIDE_SEP = " || ";
   constexpr int WIDTH_TOTAL = 10;
@@ -83,37 +75,58 @@ void render_horizontal_orderbook(const OrderBook &book, int depth = 99) {
   constexpr int EMPTY_LEN =
       1 + WIDTH_TOTAL + WIDTH_QUANTITY + WIDTH_PRICE + FIELD_SEP.size() * 2;
 
+  auto left_row_cols = [&](auto &ss, const auto &total, const auto &price,
+                           const auto &quantity, char fill = ' ') {
+    ss << std::setfill(fill) << std::setw(WIDTH_TOTAL) << total << FIELD_SEP
+       << std::setfill(fill) << std::setw(WIDTH_QUANTITY) << quantity
+       << FIELD_SEP << GREEN << std::setfill(fill) << std::setw(WIDTH_PRICE)
+       << price << NO_COLOUR;
+  };
+
+  auto right_row_cols = [&](auto &ss, const auto &total, const auto &price,
+                            const auto &quantity, char fill = ' ') {
+    ss << SIDE_SEP << std::left << RED << std::setfill(fill)
+       << std::setw(WIDTH_PRICE) << price << NO_COLOUR << FIELD_SEP
+       << std::setfill(fill) << std::setw(WIDTH_QUANTITY) << quantity
+       << FIELD_SEP << std::setfill(fill) << std::setw(WIDTH_TOTAL) << total
+       << std::right << nl;
+  };
+
+  const auto top_asks = book.getTopAsks(depth);
+  const auto top_bids = book.getTopBids(depth);
+
+  auto ask = std::make_pair(top_asks.cbegin(), top_asks.cend());
+  auto bid = std::make_pair(top_bids.cbegin(), top_bids.cend());
+
   typename OrderBook::Quantity bid_total{};
   typename OrderBook::Quantity ask_total{};
+
+  std::stringstream ss;
+
+  left_row_cols(ss, "Total", "Quantity", "Price");
+  right_row_cols(ss, "Total", "Quantity", "Price");
+  left_row_cols(ss, "", "", "", '-');
+  right_row_cols(ss, "", "", "", '-');
 
   while (ask.first != ask.second || bid.first != bid.second) {
     if (bid.first != bid.second) {
       std::stringstream price_ss;
       price_ss << bid.first->price;
-      auto price = price_ss.str();
 
       bid_total += bid.first->quantity;
+      left_row_cols(ss, bid_total, bid.first->quantity, price_ss.str());
 
-      ss << std::setfill(' ') << std::setw(WIDTH_TOTAL) << bid_total
-         << FIELD_SEP << std::setfill(' ') << std::setw(WIDTH_QUANTITY)
-         << bid.first->quantity << FIELD_SEP << GREEN << std::setfill(' ')
-         << std::setw(WIDTH_PRICE) << price << NO_COLOUR;
       ++bid.first;
     } else
       ss << std::setfill(' ') << std::setw(EMPTY_LEN) << ' ';
 
-    ss << SIDE_SEP << std::left;
     if (ask.first != ask.second) {
       std::stringstream price_ss;
       price_ss << ask.first->price;
-      auto price = price_ss.str();
 
       ask_total += ask.first->quantity;
+      right_row_cols(ss, ask_total, ask.first->quantity, price_ss.str());
 
-      ss << RED << std::setfill(' ') << std::setw(WIDTH_PRICE) << price
-         << NO_COLOUR << FIELD_SEP << std::setfill(' ')
-         << std::setw(WIDTH_QUANTITY) << ask.first->quantity << FIELD_SEP
-         << std::setfill(' ') << std::setw(WIDTH_TOTAL) << ask_total;
       ++ask.first;
     } else
       ss << std::setfill(' ') << std::setw(EMPTY_LEN) << ' ';
