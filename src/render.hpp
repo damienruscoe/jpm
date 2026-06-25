@@ -51,11 +51,8 @@ void render_vertical_orderbook(const OrderBook &book, int depth = 99) {
     ss << it->price << ' ' << it->quantity << nl;
 
   ss << "---------------------------" << nl;
-#if 0
   if (auto spread = book.getSpread())
-    ss << "Spread: " << *spread << nl
-       << "---------------------------" << nl;
-#endif
+    ss << "Spread: " << *spread << nl << "---------------------------" << nl;
 
   for (auto it = top_bids.cbegin(); it != top_bids.cend(); ++it)
     ss << it->price << ' ' << it->quantity << nl;
