@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <array>
 #include <iomanip>
+#include <sstream>
 
 // clang-format off
 static constexpr std::array<std::string_view, 3> REQUEST_TYPE_STRINGS = {"N", "C", "A"};
@@ -20,15 +21,15 @@ std::ostream &operator<<(std::ostream &os, const Message &msg) {
 }
 // clang-format on
 
-auto error([[maybe_unused]] std::string_view message,
-           [[maybe_unused]] std::string_view details) {
-#if 0
-std::cerr << "[\033[31mERROR\033[0m] " << message << ": \033[36m" << '"' << details << "\"\033[0m" << std::endl;
-#endif
-  return Expected<Message, std::string_view>(message);
+auto error(std::string_view line,
+           std::string_view error_msg,
+           std::string_view details) {
+  std::ostringstream ss;
+  ss << error_msg << '(' << details << ')' << " " << line;
+  return Expected<Message, std::string>(ss.str());
 };
 
-Expected<Message, std::string_view> parse_line(std::string_view line) {
+Expected<Message, std::string> parse_line(std::string_view line) {
   line = trim_inline_comments(line);
   line = trim_whitespace_suffix(line);
 
@@ -42,7 +43,7 @@ Expected<Message, std::string_view> parse_line(std::string_view line) {
 
   // Ticker
   if (!parse_integer(ticker_str, msg.exchange_ticker))
-    return error("Invalid ticker", ticker_str);
+    return error(line, "Invalid ticker", ticker_str);
 
   // Type
   if (type_str == "N")
@@ -52,7 +53,7 @@ Expected<Message, std::string_view> parse_line(std::string_view line) {
   else if (type_str == "A")
     msg.type = RequestType::Amend;
   else
-    return error("Invalid request type", type_str);
+    return error(line, "Invalid request type", type_str);
 
   // Order ID
   msg.order_id = id_str;
@@ -63,37 +64,37 @@ Expected<Message, std::string_view> parse_line(std::string_view line) {
   else if (side_str == "S")
     msg.side = Side::Sell;
   else
-    return error("Invalid side", side_str);
+    return error(line, "Invalid side", side_str);
 
   // Quantity
   if (!parse_integer(qty_str, msg.quantity))
-    return error("Invalid quantity", qty_str);
+    return error(line, "Invalid quantity", qty_str);
 
   // Price
   if (auto parsed = FixedPoint<4>::Parse(price_str))
     msg.price = *parsed;
   else
-    return error("Invalid price", price_str);
+    return error(line, "Invalid price", price_str);
 
   const auto valid_id_char = [](char c) {
     return std::isalnum(static_cast<unsigned char>(c)) || c == '-';
   };
 
   if (msg.exchange_ticker <= 0)
-    return error("Ticker must be positive", ticker_str);
+    return error(line, "Ticker must be positive", ticker_str);
 
   if (msg.order_id.empty())
-    return error("Missing ID", id_str);
+    return error(line, "Missing ID", id_str);
   if (msg.order_id.size() > 10)
-    return error("Order ID too long", id_str);
+    return error(line, "Order ID too long", id_str);
   if (!std::ranges::all_of(msg.order_id, valid_id_char))
-    return error("Invalid character in order ID", id_str);
+    return error(line, "Invalid character in order ID", id_str);
 
   if (msg.quantity <= 0)
-    return error("Quantity must be positive", qty_str);
+    return error(line, "Quantity must be positive", qty_str);
 
   if (msg.price <= FixedPoint<4>{0})
-    return error("Price must be positive", price_str);
+    return error(line, "Price must be positive", price_str);
 
   return msg;
 }

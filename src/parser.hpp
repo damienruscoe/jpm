@@ -20,4 +20,4 @@ struct Message {
 
 std::ostream &operator<<(std::ostream &os, const Message &msg);
 
-Expected<Message, std::string_view> parse_line(std::string_view line);
+Expected<Message, std::string> parse_line(std::string_view line);
