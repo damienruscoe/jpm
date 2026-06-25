@@ -1,5 +1,4 @@
 afl/
 build/
-deps/
 fuzz_harness
 
