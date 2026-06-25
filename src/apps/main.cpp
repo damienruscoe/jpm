@@ -17,7 +17,7 @@
 using Book = OrderBook<FixedSizeOrderID, FixedPoint<4>, uint32_t>;
 
 int main(int argc, char *argv[]) {
-  std::string filename = argc > 1 ? argv[1] : "docs/given_example.csv";
+  std::string filename = argc > 1 ? argv[1] : "../docs/given_example.csv";
 
   MappedFile file(filename);
   if (!file.data()) {

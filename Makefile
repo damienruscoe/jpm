@@ -2,7 +2,7 @@
 .PHONY: image run build test fuzz
 
 # Default CSV file if none provided
-CSV ?= ./sample_inputs/example.csv
+CSV ?= ./docs/given_example.csv
 
 test: image
 	docker run --rm -v "$(shell pwd):/workspace" jpmorgan-submission bash -c "\
@@ -27,5 +27,5 @@ run: build
 fuzz: image
 	docker run --rm -v "$(shell pwd):/workspace" jpmorgan-submission bash -c "\
 		mkdir -p /workspace/build_fuzz && cd /workspace/build_fuzz && \
-		cmake -DENABLE_FUZZING=ON .. && make && \
-		./matching_engine_fuzzer /workspace/fuzz_in/given_example.csv"
+		cmake -DENABLE_FUZZING=ON .. && make -j8 && \
+		./matching_engine /workspace/docs/given_example.csv"
