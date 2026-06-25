@@ -7,20 +7,18 @@ CXXFLAGS = -std=c++20 -O0 -Wall -Wextra -Wpedantic -Werror -fprofile-instr-gener
 GTEST_FLAGS = -lgtest -lgtest_main -pthread
 
 # Target executable
-COVERAGE_TARGET = matching_engine_tests_cov
-TEST_TARGET = matching_engine_tests_debug
+BUILD_DIR = build
+COVERAGE_TARGET = $(BUILD_DIR)/matching_engine_cov
 
 # Source and Headers
 INC = -Isrc/ -Ideps/cnl/include
 TEST_SRCS = test/*.cpp src/*.cpp
 
 $(COVERAGE_TARGET): $(TEST_SRCS)
+	mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXX_SANITIZE_FLAGS) $(CXXFLAGS) $(INC) $(TEST_SRCS) -o $(COVERAGE_TARGET) $(GTEST_FLAGS)
 
-$(TEST_TARGET): $(TEST_SRCS)
-	$(CXX) $(CXXFLAGS) $(CXX_DEBUG_FLAGS) $(INC) $(TEST_SRCS) -o $(TEST_TARGET) $(GTEST_FLAGS)
-
-run_coverage: $(COVERAGE_TARGET)
+test_coverage: $(COVERAGE_TARGET)
 	LLVM_PROFILE_FILE="coverage.profraw" ./$(COVERAGE_TARGET)
 	llvm-profdata-14 merge -sparse coverage.profraw -o coverage.profdata
 	llvm-cov-14 report -instr-profile=coverage.profdata ./$(COVERAGE_TARGET) src/ test/
@@ -28,6 +26,6 @@ run_coverage: $(COVERAGE_TARGET)
 	@echo "Coverage report generated: coverage_report.html"
 
 clean:
-	rm -f $(TEST_TARGET) $(COVERAGE_TARGET) *.profraw *.profdata coverage_*
+	rm -f $(COVERAGE_TARGET) *.profraw *.profdata coverage_*
 
 .PHONY: run_coverage clean

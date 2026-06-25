@@ -1,6 +1,6 @@
 # Compiler and Flags
 CXX = clang++
-CXXFLAGS = -std=c++20 -ggdb -O3 -Wall -Wextra -Wpedantic -Werror
+CXXFLAGS = -std=c++20 -ggdb -O3 -Wall -Wextra -Wpedantic -Werror -fsanitize=address,undefined
 GTEST_FLAGS = -lgtest -lgtest_main
 
 # Target executables
