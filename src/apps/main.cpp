@@ -10,6 +10,7 @@
 
 constexpr std::string_view VALID = "[\033[32mVALID\033[0m] ";
 constexpr std::string_view ERROR = "[\033[31mERROR\033[0m] ";
+constexpr std::string_view TRADE = "[\033[94mTRADE\033[0m] ";
 
 int main(int argc, char *argv[]) {
   std::string filename = argc > 1 ? argv[1] : "docs/given_example.csv";
@@ -23,6 +24,21 @@ int main(int argc, char *argv[]) {
   LineView lines(file.data(), file.size());
 
   OrderBook<FixedSizeOrderID, FixedPoint<4>, uint32_t> book;
+  book.setOnTradeCallback([](side_t side, const auto &id, const auto &price,
+                             const auto &qty, auto fill) {
+    const int ticker = 101;
+    const char aggressor_side = side == side_t::ASK ? 'S' : 'B';
+
+    std::cout
+        << TRADE << "Trade: " << ticker << " " << id << " " << qty << " "
+        << price << ", AggrSide=" << aggressor_side
+        << (fill == PriceLevel<OrderBook<FixedSizeOrderID, FixedPoint<4>,
+                                         uint32_t>::Order>::FillStatus::Partial
+                ? " (Partial)"
+                : "")
+        << std::endl;
+  });
+
   TopOfBookRenderer top_of_book{book};
 
   std::cout << "--- Starting Parser Test ---" << std::endl;

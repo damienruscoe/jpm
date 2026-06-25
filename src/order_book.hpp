@@ -4,6 +4,7 @@
 #include "order_id.hpp"
 #include "price_level.hpp"
 
+#include <functional>
 #include <memory_resource>
 #include <optional>
 #include <vector>
@@ -20,11 +21,18 @@ public:
   using Price = Price_t;
   using Quantity = Quantity_t;
   using StoredOrderID = OrderID_t;
+  using Order = ::Order<StoredOrderID, Price, Quantity>;
 
   struct L2PriceLevel {
     Price price;
     Quantity quantity;
   };
+
+  using TradeCallback = std::function<void(
+      side_t, const StoredOrderID &, const Price &, const Quantity &,
+      typename PriceLevel<Order>::FillStatus)>;
+
+  void setOnTradeCallback(TradeCallback cb) { on_trade_callback = cb; }
 
   template <typename OrderID>
   [[nodiscard]] bool newOrder(OrderID &&order_id, side_t side,
@@ -60,7 +68,6 @@ public:
   }
 
 private:
-  using Order = ::Order<StoredOrderID, Price, Quantity>;
   using BidsBook = OrderBookSide<Order, std::greater<Price>>;
   using AsksBook = OrderBookSide<Order, std::less<Price>>;
   using Orders = ObjectResource<Order, GetIdField<Order, StoredOrderID>>;
@@ -96,22 +103,15 @@ private:
   void on_filled(side_t side, const OrderID_t &filled_order_id,
                  const Price &price, const Quantity &qty,
                  typename PriceLevel<Order>::FillStatus fill) {
-    constexpr std::string_view TRADE = "[\033[94mTRADE\033[0m] ";
-
-    const int ticker = 101;
-    const char aggressor_side = side == side_t::ASK ? 'S' : 'B';
-
-    std::cout << TRADE << "Trade: " << ticker << " " << filled_order_id << " "
-              << qty << " " << price << ", AggrSide=" << aggressor_side
-              << (fill == PriceLevel<Order>::FillStatus::Partial ? " (Partial)"
-                                                                 : "")
-              << std::endl;
+    if (on_trade_callback)
+      on_trade_callback(side, filled_order_id, price, qty, fill);
 
     if (fill == PriceLevel<Order>::FillStatus::Full)
       orders.erase(filled_order_id);
   };
 
   Orders orders;
+  TradeCallback on_trade_callback;
 
   std::pmr::unsynchronized_pool_resource pool;
   BidsBook bids{pool};
