@@ -43,8 +43,9 @@ if(ENABLE_COVERAGE)
     add_custom_target(coverage
         COMMAND LLVM_PROFILE_FILE=coverage.profraw ./matching_engine_tests
         COMMAND llvm-profdata-14 merge -sparse coverage.profraw -o coverage.profdata
-        COMMAND llvm-cov-14 report -instr-profile=coverage.profdata ./matching_engine_tests src/ test/
-        COMMAND llvm-cov-14 show ./matching_engine_tests -instr-profile=coverage.profdata -format=html src/ test/ > coverage_report.html
+        COMMAND llvm-cov-14 report -instr-profile=coverage.profdata ./matching_engine_tests ../src/ ../test/
+        COMMAND llvm-cov-14 show ./matching_engine_tests -instr-profile=coverage.profdata -format=html ../src/ ../test/ > coverage_report.html
+        COMMAND llvm-cov-14 show ./matching_engine_tests -instr-profile=coverage.profdata -format=text ../src/ ../test/ > coverage_report.txt
         DEPENDS matching_engine_tests
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
         COMMENT "Generating coverage report..."
