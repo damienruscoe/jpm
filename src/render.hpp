@@ -74,16 +74,16 @@ void render_horizontal_orderbook(const OrderBook &book, int depth = 99) {
   constexpr int EMPTY_LEN =
       1 + WIDTH_TOTAL + WIDTH_QUANTITY + WIDTH_PRICE + FIELD_SEP.size() * 2;
 
-  auto left_row_cols = [&](auto &ss, const auto &total, const auto &price,
-                           const auto &quantity, char fill = ' ') {
+  auto left_row_cols = [&](auto &ss, const auto &total, const auto &quantity,
+                           const auto &price, char fill = ' ') {
     ss << std::setfill(fill) << std::setw(WIDTH_TOTAL) << total << FIELD_SEP
        << std::setfill(fill) << std::setw(WIDTH_QUANTITY) << quantity
        << FIELD_SEP << GREEN << std::setfill(fill) << std::setw(WIDTH_PRICE)
        << price << NO_COLOUR;
   };
 
-  auto right_row_cols = [&](auto &ss, const auto &total, const auto &price,
-                            const auto &quantity, char fill = ' ') {
+  auto right_row_cols = [&](auto &ss, const auto &total, const auto &quantity,
+                            const auto &price, char fill = ' ') {
     ss << SIDE_SEP << std::left << RED << std::setfill(fill)
        << std::setw(WIDTH_PRICE) << price << NO_COLOUR << FIELD_SEP
        << std::setfill(fill) << std::setw(WIDTH_QUANTITY) << quantity
@@ -129,8 +129,6 @@ void render_horizontal_orderbook(const OrderBook &book, int depth = 99) {
       ++ask.first;
     } else
       ss << std::setfill(' ') << std::setw(EMPTY_LEN) << ' ';
-
-    ss << std::right << nl;
   }
 
   std::cout << ss.str() << std::flush;
