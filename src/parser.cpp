@@ -21,8 +21,7 @@ std::ostream &operator<<(std::ostream &os, const Message &msg) {
 }
 // clang-format on
 
-auto error(std::string_view line,
-           std::string_view error_msg,
+auto error(std::string_view line, std::string_view error_msg,
            std::string_view details) {
   std::ostringstream ss;
   ss << error_msg << '(' << details << ')' << " " << line;

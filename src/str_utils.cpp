@@ -4,6 +4,8 @@
 
 static constexpr std::string_view WHITESPACE = " \t\r\n\v\f";
 
+std::ostream &nl(std::ostream &os) { return os << '\n'; }
+
 std::pair<std::string_view, std::string_view> split(std::string_view s,
                                                     char delim) {
   size_t pos = s.find(delim);

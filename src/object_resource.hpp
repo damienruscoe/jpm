@@ -35,6 +35,10 @@ public:
     return it != m_id_set.end() ? *it : nullptr;
   }
 
+  auto begin() const { return m_id_set.begin(); }
+
+  auto end() const { return m_id_set.end(); }
+
 private:
   ObjectPool<T> m_storage;
 

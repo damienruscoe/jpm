@@ -1,8 +1,11 @@
 #pragma once
 
 #include <charconv>
+#include <iostream>
 #include <string_view>
 #include <utility>
+
+std::ostream &nl(std::ostream &os);
 
 std::pair<std::string_view, std::string_view> split(std::string_view s,
                                                     char delim);

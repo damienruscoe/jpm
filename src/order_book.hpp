@@ -22,6 +22,7 @@ public:
   using Quantity = Quantity_t;
   using StoredOrderID = OrderID_t;
   using Order = ::Order<StoredOrderID, Price, Quantity>;
+  using Orders = ObjectResource<Order, GetIdField<Order, StoredOrderID>>;
 
   struct L2PriceLevel {
     Price price;
@@ -59,6 +60,8 @@ public:
     return bids.template getTop<L2PriceLevel>(depth);
   }
 
+  const Orders &getOrders() const { return orders; }
+
   std::optional<Price> getSpread() const {
     auto best_bid = getBestBid();
     auto best_ask = getBestAsk();
@@ -70,7 +73,6 @@ public:
 private:
   using BidsBook = OrderBookSide<Order, std::greater<Price>>;
   using AsksBook = OrderBookSide<Order, std::less<Price>>;
-  using Orders = ObjectResource<Order, GetIdField<Order, StoredOrderID>>;
 
   struct CrossingTradeDispatcher {
 

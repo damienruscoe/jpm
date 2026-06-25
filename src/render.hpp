@@ -6,8 +6,7 @@
 #include <utility>
 
 #include "order_book.hpp"
-
-std::ostream &nl(std::ostream &os);
+#include "str_utils.hpp"
 
 template <typename OrderBook>
 concept RenderableOrderBook = requires(const OrderBook &book) {
