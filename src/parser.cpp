@@ -3,10 +3,11 @@
 #include "str_utils.hpp"
 #include <algorithm>
 #include <array>
+#include <iomanip>
 
 // clang-format off
-static constexpr std::array<std::string_view, 4> REQUEST_TYPE_STRINGS = { "N", "C", "A"};
-static constexpr std::array<std::string_view, 3> SIDE_STRINGS = {"B", "S"};
+static constexpr std::array<std::string_view, 3> REQUEST_TYPE_STRINGS = {"N", "C", "A"};
+static constexpr std::array<char, 2> SIDE_STRINGS = {'B', 'S'};
 
 std::ostream &operator<<(std::ostream &os, const Message &msg) {
   os << "Ticker: " << msg.exchange_ticker
@@ -24,10 +25,10 @@ auto error([[maybe_unused]] std::string_view message,
 #if 0
 std::cerr << "[\033[31mERROR\033[0m] " << message << ": \033[36m" << '"' << details << "\"\033[0m" << std::endl;
 #endif
-  return std::nullopt;
+  return Expected<Message, std::string_view>(message);
 };
 
-std::optional<Message> parse_line(std::string_view line) {
+Expected<Message, std::string_view> parse_line(std::string_view line) {
   line = trim_inline_comments(line);
   line = trim_whitespace_suffix(line);
 

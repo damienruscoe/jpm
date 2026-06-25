@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
       render_horizontal_orderbook(book);
       // render_vertical_orderbook(book);
     } else
-      std::cout << ERROR << *msg << std::endl;
+      std::cout << ERROR << msg.error() << std::endl;
   }
   std::cout << "--- Parser Test Finished. Successfully parsed " << count
             << " messages. ---" << std::endl;

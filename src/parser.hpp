@@ -1,9 +1,9 @@
 #pragma once
 
+#include "expected.hpp"
 #include "fixed_point.hpp"
 
 #include <iostream>
-#include <optional>
 #include <string_view>
 
 enum class RequestType { New, Cancel, Amend };
@@ -20,4 +20,4 @@ struct Message {
 
 std::ostream &operator<<(std::ostream &os, const Message &msg);
 
-std::optional<Message> parse_line(std::string_view line);
+Expected<Message, std::string_view> parse_line(std::string_view line);
