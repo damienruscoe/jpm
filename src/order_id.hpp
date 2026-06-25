@@ -1,20 +1,20 @@
 #pragma once
 #include <algorithm>
+#include <array>
 #include <cstring>
 #include <iostream>
 #include <string_view>
 
 struct FixedSizeOrderID {
-  char data[10];
+  std::array<char, 10> data{};
 
-  FixedSizeOrderID() { std::memset(data, 0, sizeof(data)); }
+  FixedSizeOrderID() = default;
   FixedSizeOrderID(std::string_view sv) {
-    std::memset(data, 0, sizeof(data));
-    std::memcpy(data, sv.data(), std::min(sv.size(), sizeof(data)));
+    std::memcpy(data.data(), sv.data(), std::min(sv.size(), data.size()));
   }
 
   bool operator==(const FixedSizeOrderID &other) const {
-    return std::memcmp(data, other.data, sizeof(data)) == 0;
+    return data == other.data;
   }
 
   bool operator==(std::string_view sv) const {
@@ -22,7 +22,7 @@ struct FixedSizeOrderID {
   }
 
   operator std::string_view() const {
-    return {data, strnlen(data, sizeof(data))};
+    return {data.data(), strnlen(data.data(), data.size())};
   }
 };
 
