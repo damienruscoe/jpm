@@ -12,7 +12,7 @@ constexpr std::string_view VALID = "[\033[32mVALID\033[0m] ";
 constexpr std::string_view ERROR = "[\033[31mERROR\033[0m] ";
 
 int main(int argc, char *argv[]) {
-  std::string filename = argc > 1 ? argv[1] : "test/test_data.csv";
+  std::string filename = argc > 1 ? argv[1] : "docs/given_example.csv";
 
   MappedFile file(filename);
   if (!file.data()) {
