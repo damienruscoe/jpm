@@ -71,9 +71,6 @@ void render_horizontal_orderbook(const OrderBook &book, int depth = 99) {
   constexpr std::string_view RED = "\033[91m";
   constexpr std::string_view NO_COLOUR = "\033[0m ";
 
-  constexpr int EMPTY_LEN =
-      1 + WIDTH_TOTAL + WIDTH_QUANTITY + WIDTH_PRICE + FIELD_SEP.size() * 2;
-
   auto left_row_cols = [&](auto &ss, const auto &total, const auto &quantity,
                            const auto &price, char fill = ' ') {
     ss << std::setfill(fill) << std::setw(WIDTH_TOTAL) << total << FIELD_SEP
@@ -117,7 +114,7 @@ void render_horizontal_orderbook(const OrderBook &book, int depth = 99) {
 
       ++bid.first;
     } else
-      ss << std::setfill(' ') << std::setw(EMPTY_LEN) << ' ';
+      left_row_cols(ss, "", "", "");
 
     if (ask.first != ask.second) {
       std::stringstream price_ss;
@@ -128,7 +125,7 @@ void render_horizontal_orderbook(const OrderBook &book, int depth = 99) {
 
       ++ask.first;
     } else
-      ss << std::setfill(' ') << std::setw(EMPTY_LEN) << ' ';
+      right_row_cols(ss, "", "", "");
   }
 
   std::cout << ss.str() << std::flush;
