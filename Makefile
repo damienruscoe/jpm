@@ -14,6 +14,8 @@ INC = -Isrc/ -Ideps/cnl/include
 SRCS = src/apps/main.cpp src/*.cpp
 TEST_SRCS = test/*.cpp src/*.cpp
 
+CSV ?= docs/given_example.csv
+
 all: test $(TARGET) sample
 
 $(TARGET): $(SRCS)
@@ -31,6 +33,9 @@ $(TEST_TARGET): $(TEST_SRCS)
 
 test: $(TEST_TARGET)
 	./$(TEST_TARGET)
+
+run: $(TARGET)
+	./$(TARGET) $(CSV)
 
 sample: $(TARGET)
 	./$(TARGET) docs/given_example.csv
