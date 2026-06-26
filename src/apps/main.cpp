@@ -111,6 +111,15 @@ int main(int argc, char *argv[]) {
       std::cout << "MID: " << FmtValueOr{book.getMidPrice(), "Unknown"} << nl;
       std::cout << "MICRO: "
                 << FmtValueOr{book.getWeightedMidPrice(), "Unknown"} << nl;
+      std::cout << "EMA: " << FmtValueOr{book.getEmaPrice(), "Unknown"} << nl;
+      std::cout << "EMA VWAP: " << FmtValueOr{book.getEmaVwap(), "Unknown"}
+                << nl;
+      std::cout << "Cumulative VWAP: "
+                << FmtValueOr{book.getCumulativeVwap(), "Unknown"} << nl;
+      std::cout << "Cumulative Volume: "
+                << FmtValueOr{book.getCumulativeVolume(), "Unknown"} << nl;
+      std::cout << "Cumulative Value: "
+                << FmtValueOr{book.getCumulativeValue(), "Unknown"} << nl;
 
       render_horizontal_orderbook(book);
       // render_vertical_orderbook(book);
