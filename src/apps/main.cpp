@@ -6,6 +6,11 @@
 #include "parser.hpp"
 #include "render.hpp"
 
+#include "../src/signals/cumulative_vwap.hpp"
+#include "../src/signals/ema_signal.hpp"
+#include "../src/signals/last_trade_price.hpp"
+#include "../src/signals/static_composite.hpp"
+
 #include <iostream>
 #include <memory>
 
@@ -41,7 +46,12 @@ FmtValueOr(std::optional<T> &&, std::string_view) -> FmtValueOr<T, true>;
 [[maybe_unused]] constexpr std::string_view ORDER = "[\033[95mORDER\033[0m] ";
 
 using Traits = OrderBookTraits<FixedSizeOrderID, FixedPoint<4>, uint32_t>;
-using Book = OrderBook<Traits>;
+using SignalAgregator =
+    signals::StaticComposite<Traits, signals::EmaSignal<Traits>,
+                             signals::LastTradePrice<Traits>,
+                             signals::CumulativeVWAP<Traits>>;
+
+using Book = OrderBook<Traits, SignalAgregator>;
 
 int main(int argc, char *argv[]) {
   std::string filename = argc > 1 ? argv[1] : "docs/given_example.csv";
@@ -106,20 +116,26 @@ int main(int argc, char *argv[]) {
       }
       }
 
-      std::cout << "LTP: " << FmtValueOr{book.getLastTradedPrice(), "Unknown"}
+      std::cout << "LTP: "
+                << FmtValueOr{book.getSignals().getLastTradedPrice(), "Unknown"}
                 << nl;
       std::cout << "MID: " << FmtValueOr{book.getMidPrice(), "Unknown"} << nl;
       std::cout << "MICRO: "
                 << FmtValueOr{book.getWeightedMidPrice(), "Unknown"} << nl;
-      std::cout << "EMA: " << FmtValueOr{book.getEmaPrice(), "Unknown"} << nl;
-      std::cout << "EMA VWAP: " << FmtValueOr{book.getEmaVwap(), "Unknown"}
-                << nl;
+      std::cout << "EMA: "
+                << FmtValueOr{book.getSignals().getEmaPrice(), "Unknown"} << nl;
+      std::cout << "EMA VWAP: "
+                << FmtValueOr{book.getSignals().getEmaVwap(), "Unknown"} << nl;
       std::cout << "Cumulative VWAP: "
-                << FmtValueOr{book.getCumulativeVwap(), "Unknown"} << nl;
+                << FmtValueOr{book.getSignals().getCumulativeVwap(), "Unknown"}
+                << nl;
       std::cout << "Cumulative Volume: "
-                << FmtValueOr{book.getCumulativeVolume(), "Unknown"} << nl;
+                << FmtValueOr{book.getSignals().getCumulativeVolume(),
+                              "Unknown"}
+                << nl;
       std::cout << "Cumulative Value: "
-                << FmtValueOr{book.getCumulativeValue(), "Unknown"} << nl;
+                << FmtValueOr{book.getSignals().getCumulativeValue(), "Unknown"}
+                << nl;
 
       render_horizontal_orderbook(book);
       // render_vertical_orderbook(book);

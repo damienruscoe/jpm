@@ -10,7 +10,7 @@ TARGET = $(BUILD_DIR)/matching_engine
 TEST_TARGET = $(BUILD_DIR)/matching_engine_tests
 
 # Source and Headers
-INC = -Isrc/ -Ideps/cnl/include
+INC = -Isrc/ -Isrc/core/ -Ideps/cnl/include
 SRCS = src/apps/main.cpp src/*.cpp
 TEST_SRCS = test/*.cpp src/*.cpp
 
@@ -41,7 +41,7 @@ sample: $(TARGET)
 	./$(TARGET) docs/given_example.csv
 
 format:
-	clang-format -i test/*.cpp src/*.hpp src/*.cpp src/apps/*.cpp
+	clang-format -i test/*.cpp src/*.hpp src/*.cpp src/signals/*.hpp src/apps/*.cpp
 
 clean:
 	rm -fr $(BUILD_DIR)
