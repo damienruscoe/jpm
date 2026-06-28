@@ -15,12 +15,18 @@ template <typename T, typename ReturnType = decltype(T::id)> struct GetIdField {
   static ReturnType get(const T *t) { return t->id; };
 };
 
-template <typename OrderID_t, typename Price_t, typename Quantity_t>
-class OrderBook {
+template <typename OrderID_T, typename Price_T, typename Quantity_T>
+struct OrderBookTraits {
+  using OrderID = OrderID_T;
+  using Price = Price_T;
+  using Quantity = Quantity_T;
+};
+
+template <typename Traits> class OrderBook {
 public:
-  using Price = Price_t;
-  using Quantity = Quantity_t;
-  using StoredOrderID = OrderID_t;
+  using Price = typename Traits::Price;
+  using Quantity = typename Traits::Quantity;
+  using StoredOrderID = typename Traits::OrderID;
   using Order = ::Order<StoredOrderID, Price, Quantity>;
   using Orders = ObjectResource<Order, GetIdField<Order, StoredOrderID>>;
 
@@ -110,7 +116,7 @@ private:
     }
   };
 
-  void on_filled(side_t side, const OrderID_t &filled_order_id,
+  void on_filled(side_t side, const StoredOrderID &filled_order_id,
                  const Price &price, const Quantity &qty,
                  typename PriceLevel<Order>::FillStatus fill) {
     if (on_trade_callback)
@@ -128,12 +134,10 @@ private:
   AsksBook asks{pool};
 };
 
-template <typename OrderID, typename Price, typename Quantity>
+template <typename Traits>
 template <typename OrderID_Param>
-bool OrderBook<OrderID, Price, Quantity>::newOrder(OrderID_Param &&order_id,
-                                                   side_t side,
-                                                   const Price &price,
-                                                   const Quantity &qty) {
+bool OrderBook<Traits>::newOrder(OrderID_Param &&order_id, side_t side,
+                                 const Price &price, const Quantity &qty) {
 
   if (orders.contains(order_id))
     return false;
@@ -149,10 +153,9 @@ bool OrderBook<OrderID, Price, Quantity>::newOrder(OrderID_Param &&order_id,
   return true;
 }
 
-template <typename OrderID, typename Price, typename Quantity>
+template <typename Traits>
 template <typename OrderID_Param>
-bool OrderBook<OrderID, Price, Quantity>::cancel(OrderID_Param &&order_id,
-                                                 side_t side) {
+bool OrderBook<Traits>::cancel(OrderID_Param &&order_id, side_t side) {
   if (auto *order = orders.find(std::forward<OrderID_Param>(order_id))) {
     side == side_t::BID ? bids.removeOrder(*order) : asks.removeOrder(*order);
     orders.erase(order->id);
@@ -161,11 +164,10 @@ bool OrderBook<OrderID, Price, Quantity>::cancel(OrderID_Param &&order_id,
   return false;
 }
 
-template <typename OrderID, typename Price, typename Quantity>
+template <typename Traits>
 template <typename OrderID_Param>
-bool OrderBook<OrderID, Price, Quantity>::amend(OrderID_Param &&order_id,
-                                                side_t side, const Price &price,
-                                                const Quantity &qty) {
+bool OrderBook<Traits>::amend(OrderID_Param &&order_id, side_t side,
+                              const Price &price, const Quantity &qty) {
   if (auto *order = orders.find(std::forward<OrderID_Param>(order_id))) {
     if (order->side != side)
       return false;

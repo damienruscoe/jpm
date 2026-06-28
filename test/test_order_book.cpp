@@ -11,7 +11,8 @@ protected:
 
   using Price = FixedPoint<4>;
   using Quantity = uint32_t;
-  using Book = OrderBook<FixedSizeOrderID, Price, Quantity>;
+  using Traits = OrderBookTraits<FixedSizeOrderID, Price, Quantity>;
+  using Book = OrderBook<Traits>;
   Book book;
 };
 

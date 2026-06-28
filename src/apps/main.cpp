@@ -14,7 +14,8 @@
 [[maybe_unused]] constexpr std::string_view TRADE = "[\033[94mTRADE\033[0m] ";
 [[maybe_unused]] constexpr std::string_view ORDER = "[\033[95mORDER\033[0m] ";
 
-using Book = OrderBook<FixedSizeOrderID, FixedPoint<4>, uint32_t>;
+using Traits = OrderBookTraits<FixedSizeOrderID, FixedPoint<4>, uint32_t>;
+using Book = OrderBook<Traits>;
 
 int main(int argc, char *argv[]) {
   std::string filename = argc > 1 ? argv[1] : "docs/given_example.csv";
@@ -47,8 +48,7 @@ int main(int argc, char *argv[]) {
               << TRADE << "Trade: " << ticker << " " << id << " " << qty << " "
               << price << ", AggrSide=" << aggressor_side
               << (fill == PriceLevel<
-                              OrderBook<FixedSizeOrderID, FixedPoint<4>,
-                                        uint32_t>::Order>::FillStatus::Partial
+                              OrderBook<Traits>::Order>::FillStatus::Partial
                       ? " (Partial)"
                       : "")
               << nl;
