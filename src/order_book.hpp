@@ -23,7 +23,8 @@ static auto topOfBookInvocation(Callable &&fn, const auto &book) {
   auto best_bid = book.getBestBid();
   auto best_ask = book.getBestAsk();
   return (best_bid && best_ask)
-             ? std::make_optional(std::invoke(fn, *best_bid, *best_ask))
+             ? std::make_optional(std::invoke(std::forward<Callable>(fn),
+                                              *best_bid, *best_ask))
              : std::nullopt;
 }
 
@@ -32,6 +33,13 @@ struct OrderBookTraits {
   using OrderID = OrderID_T;
   using Price = Price_T;
   using Quantity = Quantity_T;
+};
+
+template <typename OrderBook, typename SignalAggregator>
+struct BaseSignalsDecorator : public signals::BaseSignals<OrderBook>,
+                              public SignalAggregator {
+  BaseSignalsDecorator(const OrderBook &book)
+      : signals::BaseSignals<OrderBook>{book} {}
 };
 
 template <typename Traits,
@@ -43,7 +51,7 @@ public:
   using StoredOrderID = typename Traits::OrderID;
   using Order = ::Order<StoredOrderID, Price, Quantity>;
   using Orders = ObjectResource<Order, GetIdField<Order, StoredOrderID>>;
-  using Aggregator = SignalAggregator;
+  using Aggregator = BaseSignalsDecorator<OrderBook, SignalAggregator>;
 
   struct L2PriceLevel {
     Price price;
@@ -54,6 +62,8 @@ public:
   using TradeCallback = std::function<void(
       side_t, const StoredOrderID &, const Price &, const Quantity &,
       typename PriceLevel<Order>::FillStatus)>;
+
+  OrderBook() : signals(*this) {}
 
   void setOnTradeCallback(TradeCallback cb) { on_trade_callback = cb; }
 
@@ -84,105 +94,8 @@ public:
 
   const Orders &getOrders() const { return orders; }
 
-  /**
-   * @brief Returns the spread of the best bid and best ask price.
-   */
-  std::optional<Price> getSpread() const {
-    return topOfBookInvocation(&Formulas<L2PriceLevel>::spread, *this);
-  }
-
-  /**
-   * @brief Returns the mid-price based on top-of-book (best bid/offer).
-   *
-   * Intuitively, this represents the "fair" value if you were to
-   * instantly exit the position by trading at the market prices.
-   */
-  std::optional<Price> getMidPrice() const {
-    return topOfBookInvocation(&Formulas<L2PriceLevel>::midPrice, *this);
-  }
-
-  /**
-   * @brief Returns the volume-weighted mid-price.
-   *
-   * Intuitively, this gives more weight to the side of the book with more
-   * depth (volume), acting as a more robust signal of price direction
-   * than a simple mid-price.
-   */
-  std::optional<Price> getWeightedMidPrice() const {
-    return topOfBookInvocation(&Formulas<L2PriceLevel>::weightedMidPrice,
-                               *this);
-  }
-
-  /**
-   * @brief Returns the micro-price derived from the inside bid/ask imbalance.
-   *
-   * The micro-price weights the best bid and best ask by the opposing side's
-   * quantity, pulling the result toward the thinner side of the book. When
-   * bid depth significantly exceeds ask depth the micro-price migrates toward
-   * the ask — reflecting the higher probability that the next aggressive trade
-   * will lift the offer. It is consistently a better predictor of the next
-   * trade price than the simple mid-price.
-   *
-   * @note Algebraically equivalent to getWeightedMidPrice() but derived from
-   * a distinct conceptual route (quantity imbalance ratio rather than
-   * opposing-side weighting). Both are retained as separate signals because
-   * they are catalogued and used independently in institutional signal
-   * libraries.
-   */
-  std::optional<Price> getMicroPrice() const {
-    return topOfBookInvocation(&Formulas<L2PriceLevel>::microPrice, *this);
-  }
-
-  /**
-   * @brief Returns the normalised quantity imbalance at the inside touch.
-   *
-   *  ── #36 — Inside Level Volumetric Imbalance ──────────────────────────────
-   *
-   * Computed as (bid_qty - ask_qty) / (bid_qty + ask_qty), ranging from
-   * -1 to +1. A strongly positive reading indicates that passive buy-side
-   * resting depth dwarfs the offer — a bullish queue structure. A strongly
-   * negative reading indicates offer-side dominance. The signal is a fast,
-   * stateless proxy for short-term directional pressure and is frequently
-   * used as a feature in short-horizon price prediction models alongside the
-   * micro-price and spread.
-   *
-   * @note Unlike the micro-price (which outputs a price level), this signal
-   * outputs a dimensionless ratio and should not be used as a price anchor.
-   */
-  std::optional<Price> getInsideVolumetricImbalance() const {
-    return topOfBookInvocation(
-        &Formulas<L2PriceLevel>::insideVolumetricImbalance, *this);
-  }
-
-  /**
-   * @brief Returns a single-snapshot directional-pressure proxy for CVD.
-   *
-   * ── #49 — Cumulative Volume Delta (snapshot proxy) ───────────────────────
-   *
-   * @note This is NOT a true Cumulative Volume Delta. CVD is canonically a
-   * running sum of signed *trade* volume over time (see
-   * CumulativeVolumeDelta in trade_signals.hpp, which implements the actual
-   * cumulative metric from TradeEvent prints). BaseSignals is stateless and
-   * has no access to the trade stream — only to the current book snapshot —
-   * so a true cumulative figure cannot be produced here.
-   *
-   * What this method returns instead is the signed inside-touch quantity
-   * differential, (bid_qty - ask_qty), expressed in raw quantity units
-   * rather than the normalised ratio used by getInsideVolumetricImbalance().
-   * It is the instantaneous, non-cumulative analogue: a positive value
-   * indicates more resting bid quantity than ask quantity at this instant,
-   * which is directionally consistent with (but not equivalent to) a
-   * positive CVD reading. Use this only as a same-tick proxy; for genuine
-   * session-level buy/sell pressure tracking, use the trade-based
-   * CumulativeVolumeDelta signal instead.
-   */
-  std::optional<Quantity> getVolumeDeltaSnapshot() const {
-    return topOfBookInvocation(&Formulas<L2PriceLevel>::volumeDeltaSnapshot,
-                               *this);
-  }
-
-  SignalAggregator &getSignals() { return signals; }
-  const SignalAggregator &getSignals() const { return signals; }
+  Aggregator &getSignals() { return signals; }
+  const Aggregator &getSignals() const { return signals; }
 
 private:
   using BidsBook = OrderBookSide<Order, std::greater<Price>>;
@@ -237,7 +150,7 @@ private:
   };
 
   Orders orders;
-  SignalAggregator signals;
+  Aggregator signals;
   TradeCallback on_trade_callback;
 
   std::pmr::unsynchronized_pool_resource pool;

@@ -151,17 +151,18 @@ int main(int argc, char *argv[]) {
       std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH) << "LTP:\t"
                 << FmtValueOr{signals.getLastTradedPrice(), "Unknown"} << nl;
       std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH) << "MID:\t"
-                << FmtValueOr{book.getMidPrice(), "Unknown"} << nl;
+                << FmtValueOr{signals.getMidPrice(), "Unknown"} << nl;
       std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH) << "MICRO:\t"
-                << FmtValueOr{book.getWeightedMidPrice(), "Unknown"} << nl;
+                << FmtValueOr{signals.getWeightedMidPrice(), "Unknown"} << nl;
       std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH) << "MICRO:\t"
-                << FmtValueOr{book.getMicroPrice(), "Unknown"} << nl;
+                << FmtValueOr{signals.getMicroPrice(), "Unknown"} << nl;
       std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH) << "IVI:\t"
-                << FmtValueOr{book.getInsideVolumetricImbalance(), "Unknown"}
+                << FmtValueOr{signals.getInsideVolumetricImbalance(), "Unknown"}
                 << nl;
       std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH)
                 << "CVD (Proxy):\t"
-                << FmtValueOr{book.getVolumeDeltaSnapshot(), "Unknown"} << nl;
+                << FmtValueOr{signals.getVolumeDeltaSnapshot(), "Unknown"}
+                << nl;
       std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH) << "EMA:\t"
                 << FmtValueOr{signals.getEmaPrice(), "Unknown"} << nl;
       std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH) << "EMA VWAP:\t"
