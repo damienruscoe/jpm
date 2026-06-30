@@ -4,6 +4,13 @@
 #include <optional>
 
 namespace signals {
+// =============================================================================
+// #70 — Tick Run Length (Directional Persistence)
+// L1 | P | Core
+// =============================================================================
+//
+// Description
+//
 template <typename Traits> struct TickRunLength {
   using Price = typename Traits::Price;
 

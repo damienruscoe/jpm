@@ -4,6 +4,13 @@
 #include <optional>
 
 namespace signals {
+// =============================================================================
+// #65.1 or 66.1 — Cumulative Volume WAP
+// L1 | P, Q | Core
+// =============================================================================
+//
+// Description
+//
 template <typename Traits> struct CumulativeVWAP {
   using Price = typename Traits::Price;
   using Quantity = typename Traits::Quantity;

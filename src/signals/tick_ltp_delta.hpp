@@ -4,6 +4,13 @@
 #include <optional>
 
 namespace signals {
+// =============================================================================
+// #62 — Tick-Based Last Trade Price (LTP) Delta
+// L1 | P | Core
+// =============================================================================
+//
+// Description
+//
 template <typename Traits> struct TickLtpDelta {
   using Price = typename Traits::Price;
 

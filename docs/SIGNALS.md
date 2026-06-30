@@ -42,11 +42,11 @@ The catalog below outlines **201 distinct signals** used across the institutiona
 |-------------|---|---|---|---|---|---|
 | [ ] | 26 | **L2 Order Flow Imbalance (OFI)** | L2 | P, Q | Core | Measures net changes in aggregated bid/ask sizes across the top N levels between ticks. |
 | [ ] | 27 | **Volume Imbalance (VOI)** | L2 | Q | Core | Tracks the net change in volume at the inside bid and ask, isolating active depth shifts. |
-| [X] | 28 | **Micro-Price** | L2 | P, Q | Core | Mid-price weighted by the ratio of bid/ask liquidity to capture short-term directional pressure. |
+| [x] | 28 | **Micro-Price** | L2 | P, Q | Core | Mid-price weighted by the ratio of bid/ask liquidity to capture short-term directional pressure. |
 | [ ] | 29 | **Book Depth Skewness (Top 5)** | L2 | Q | Core | Ratio of aggregate buy depth to aggregate sell depth across the front five price levels. |
 | [ ] | 30 | **Tail Liquidity Decay Exponent (\alpha)** | L2 | P, Q | Advanced | Power-law distribution coefficient tracking how quickly depth thins out as price moves away from mid. |
 | [ ] | 31 | **Multi-Level Coherence Index** | L2 | Q | Exotic | Primary eigenvalue of the rolling correlation matrix of depth changes across different price levels. |
-| [X] | 32 | **Spread Compression Elasticity** | L2 | T, P | Core | High-precision time metric recording how long the bid-ask gap stays widened after a deep sweep. |
+| [x] | 32 | **Spread Compression Elasticity** | L2 | T, P | Core | High-precision time metric recording how long the bid-ask gap stays widened after a deep sweep. |
 | [ ] | 33 | **Inventory-Induced Asymmetry** | L2 | P, Q | Advanced | Distance divergence between the raw mid-price and the center of volume mass of the book. |
 | [ ] | 34 | **Slippage Cost Curve Gradient** | L2 | P, Q | Core | Real-time slope derivative representing cost-per-lot as a simulated market order walks the L2 book. |
 | [ ] | 35 | **Depth Convexity Index** | L2 | P, Q | Advanced | Measures the second derivative of cumulative depth to locate structural liquidity walls. |
@@ -55,7 +55,7 @@ The catalog below outlines **201 distinct signals** used across the institutiona
 | [ ] | 38 | **Bid-Ask Spread Variance** | L2 | P | Core | Moving standard deviation of the difference between the inside ask and inside bid. |
 | [ ] | 39 | **Deep Book Cushion Ratio** | L2 | Q | Advanced | The volume ratio of levels 6–20 compared to levels 1–5, capturing macro-structural backstops. |
 | [ ] | 40 | **Level-to-Level Liquidity Gaps** | L2 | P | Core | Tracks empty price ticks inside the active order book structure (holes in the market matrix). |
-| [X] | 41 | **Weighted Mid-Price Curvature** | L2 | P, Q | Advanced | Polynomial curve fitting across multiple levels to identify non-linear pricing pressure. |
+| [x] | 41 | **Weighted Mid-Price Curvature** | L2 | P, Q | Advanced | Polynomial curve fitting across multiple levels to identify non-linear pricing pressure. |
 | [ ] | 42 | **Bid/Ask Level Cross-Correlation** | L2 | T, Q | Advanced | Rolling synchronization index measuring whether asks fill or vanish when bids expand. |
 | [ ] | 43 | **Total Book Capitalization (Notional Value)** | L2 | P, Q | Core | Summation of P \times Q across the entire visible multi-level depth table. |
 | [ ] | 44 | **Order Book Entropy** | L2 | Q | Exotic | Shannon entropy metric calculating the randomness or structural dispersion of volume across tiers. |
@@ -63,7 +63,7 @@ The catalog below outlines **201 distinct signals** used across the institutiona
 | [ ] | 46 | **Level-Step Liquidity Resistance** | L2 | P, Q | Core | Total volume required to move the current mid-price by exactly X basis points. |
 | [ ] | 47 | **Bid/Ask Distance Asymmetry** | L2 | P | Core | Measures if the distance from the mid-price to level 5 ask matches the distance to level 5 bid. |
 | [ ] | 48 | **Inside Spread Jump Probability** | L2 | P, Q | Exotic | Markov-chain state indicator evaluating the likelihood of a multi-tick price gap on the next execution. |
-| [ ] | 49 | **Cumulative Volume Delta (CVD)** | L2 | Q | Core | Running summation of aggressive volume buys minus aggressive volume sells. |
+| [x] | 49 | **Cumulative Volume Delta (CVD)** | L2 | Q | Core | Running summation of aggressive volume buys minus aggressive volume sells. |
 | [ ] | 50 | **Book Horizon Saturation Index** | L2 | Q | Advanced | Evaluates whether volume additions are expanding at the inside market or at the deep boundary. |
 | [ ] | 51 | **Top-of-Book Size Momentum** | L2 | T, Q | Core | The rate of change of volume sitting at the inside bid and ask quotes over a rolling window. |
 | [ ] | 52 | **Spread Hull Moving Average** | L2 | T, P | Advanced | Low-lag moving average of the bid-ask spread to smooth micro-oscillations without signal delay. |
@@ -78,23 +78,23 @@ The catalog below outlines **201 distinct signals** used across the institutiona
 ## 3. High-Frequency Tick-Level Trade Execution Signals (61–95)
 | Implemented | # | Signal Name | Data Level | Primary Inputs | Institutional Status | Description |
 |-------------|---|---|---|---|---|---|
-| [ ] | 61 | **Volume-Synchronized Probability of Toxicity (VPIN)** | L1 | P, Q | Core | Measures order flow toxicity by checking volume imbalances within standardized volume buckets. |
-| [ ] | 62 | **Tick-Based Last Trade Price (LTP) Delta** | L1 | P | Core | Direct tick-to-tick directional difference of consecutive trade executions. |
+| [x] | 61 | **Volume-Synchronized Probability of Toxicity (VPIN)** | L1 | P, Q | Core | Measures order flow toxicity by checking volume imbalances within standardized volume buckets. |
+| [x] | 62 | **Tick-Based Last Trade Price (LTP) Delta** | L1 | P | Core | Direct tick-to-tick directional difference of consecutive trade executions. |
 | [ ] | 63 | **Aggressor Side (Lee-Ready Algorithm)** | L1 | P | Core | Classifies trades as buy- or sell-initiated based on relation to the mid-price and prior price ticks. |
 | [ ] | 64 | **Trade Size Acceleration** | L1 | T, Q | Core | Rate of change of executed contract volumes per unit of time or tick bucket. |
-| [X] | 65.1 | **Rolling Volume-Weighted Average Price (VWAP)** | L1 | P, Q | Core | Provides a session-wide volume-weighted average price, acting as an objective execution performance anchor and historical benchmark rather than a localized momentum signal. |
+| [x] | 65.1 | **Rolling Volume-Weighted Average Price (VWAP)** | L1 | P, Q | Core | Provides a session-wide volume-weighted average price, acting as an objective execution performance anchor and historical benchmark rather than a localized momentum signal. |
 | [ ] | 65.2 | **Rolling Volume-Weighted Average Price (VWAP)** | L1 | P, Q | Core | Cumulative notional value divided by cumulative volume over a rolling window. |
-| [X] | 66.1 | **Exponentially Weighted VWAP (EMA VWAP)** | L1 | P, Q | Core | A highly responsive, volume-weighted rolling average price utilizing exponential decay; serves as a real-time proxy for short-term aggressive liquidity flow pressure. |
+| [x] | 66.1 | **Exponentially Weighted VWAP (EMA VWAP)** | L1 | P, Q | Core | A highly responsive, volume-weighted rolling average price utilizing exponential decay; serves as a real-time proxy for short-term aggressive liquidity flow pressure. |
 | [ ] | 66.2 | **Exponentially Weighted VWAP (EMA VWAP)** | L1 | P, Q | Core | Applies an exponential smoothing factor to the VWAP tracking calculation. |
 | [ ] | 67 | **Time-Weighted Average Price (TWAP) Dev** | L1 | T, P | Core | The current spot price distance from the linear time-weighted average benchmark. |
 | [ ] | 68 | **Trade-to-Quote Frequency Ratio** | L1 | T | Advanced | Ratio of trade prints to order book quote changes, capturing matching engine trade efficiency. |
-| [ ] | 69 | **Aggressive Block Trade Detector** | L1 | Q | Core | Flags individual executions that exceed a high statistical threshold of standard lot sizes. |
-| [ ] | 70 | **Tick Run Length (Directional Persistence)** | L1 | P | Core | Counts consecutive trades executing with positive or negative price momentum. |
+| [x] | 69 | **Aggressive Block Trade Detector** | L1 | Q | Core | Flags individual executions that exceed a high statistical threshold of standard lot sizes. |
+| [x] | 70 | **Tick Run Length (Directional Persistence)** | L1 | P | Core | Counts consecutive trades executing with positive or negative price momentum. |
 | [ ] | 71 | **Trade Volume Concentration Index** | L1 | Q | Advanced | Measures if daily volume is driven by a few large prints or many small, distributed fills. |
 | [ ] | 72 | **Sub-Second Realized Volatility** | L1 | T, P | Core | Standard deviation of log returns calculated over millisecond or tick intervals. |
-| [ ] | 73 | **Aggressive Buy/Sell Lot Ratio** | L1 | Q | Core | Ratio of buy-initiated trade sizes to sell-initiated trade sizes over a rolling window. |
+| [x] | 73 | **Aggressive Buy/Sell Lot Ratio** | L1 | Q | Core | Ratio of buy-initiated trade sizes to sell-initiated trade sizes over a rolling window. |
 | [ ] | 74 | **Trade Density Per Second** | L1 | T | Core | The count of discrete trade prints executing within a rolling 1000ms window. |
-| [ ] | 75 | **Flash Sweep Volumetric Footprint** | L1 | P, Q | Advanced | Measures total volume consumed when a single trade sequence wipes out multiple price tiers. |
+| [x] | 75 | **Flash Sweep Volumetric Footprint** | L1 | P, Q | Advanced | Measures total volume consumed when a single trade sequence wipes out multiple price tiers. |
 | [ ] | 76 | **Inter-Trade Arrival Time Variance** | L1 | T | Advanced | Tracking variance in trade timing; clustering shifts indicate institutional execution activity. |
 | [ ] | 77 | **Price Impact Per Lot (Kyle's Lambda)** | L1 | P, Q | Advanced | Regression slope of price change relative to executed trade volume, gauging market thinness. |
 | [ ] | 78 | **Trade-Mid Divergence Delta** | L1 | P | Core | The instantaneous delta between a trade's execution price and the prevailing mid-price. |
@@ -102,16 +102,16 @@ The catalog below outlines **201 distinct signals** used across the institutiona
 | [ ] | 80 | **Passive Trade Fill Velocity** | L1 | T, Q | Advanced | Speed at which passive orders are filled by market orders at the inside touch. |
 | [ ] | 81 | **Aggressive Sweep Decay Time** | L1 | T, P | Exotic | Time required for price to recover to pre-sweep levels after a multi-level execution event. |
 | [ ] | 82 | **Notional Volume Throughput Acceleration** | L1 | T, P, Q | Core | Derivative of the cumulative dollar volume flowing through the matching engine. |
-| [ ] | 83 | **Trade-Sized Z-Score** | L1 | Q | Core | Standard score of the current trade volume relative to its rolling historical mean and variance. |
+| [x] | 83 | **Trade-Sized Z-Score** | L1 | Q | Core | Standard score of the current trade volume relative to its rolling historical mean and variance. |
 | [ ] | 84 | **Inside Touch Trade Exhaustion** | L1 | Q | Advanced | Flags when aggressive trades slow down while approaching a major resting depth wall. |
 | [ ] | 85 | **Tick-Level Autocorrelation Index** | L1 | P | Advanced | Measures statistical correlation between the directions of consecutive trade updates. |
-| [ ] | 86 | **Trade Size vs Depth Cushion Ratio** | L1 | Q | Core | Compares incoming trade size to total volume at the target tier to evaluate consumption depth. |
+| [x] | 86 | **Trade Size vs Depth Cushion Ratio** | L1 | Q | Core | Compares incoming trade size to total volume at the target tier to evaluate consumption depth. |
 | [ ] | 87 | **Aggressive Order Slicing Signature** | L1 | T, Q | Advanced | Detects uniform volume signatures spaced at fixed time intervals, identifying algorithmic execution. |
 | [ ] | 88 | **Realized Micro-Skewness** | L1 | P | Advanced | Third statistical moment of tick returns, identifying directional asymmetry over ultra-short frames. |
 | [ ] | 89 | **Trade Volume Clustering Index** | L1 | T, Q | Exotic | Applies point-process models (like Hawkes processes) to measure self-exciting trade clusters. |
 | [ ] | 90 | **Effective-to-Realized Spread Ratio** | L1 | P | Advanced | Compares immediate transaction execution costs against price changes over short horizons. |
 | [ ] | 91 | **Post-Trade Bid-Ask Spread Drift** | L1 | P | Core | Measures whether the spread expands or contracts in the ticks following a large trade block. |
-| [ ] | 92 | **Aggressive Volume Weighted Drift** | L1 | P, Q | Core | Measures price directional drift, weighting each price change by the trade's active size. |
+| [x] | 92 | **Aggressive Volume Weighted Drift** | L1 | P, Q | Core | Measures price directional drift, weighting each price change by the trade's active size. |
 | [ ] | 93 | **Tick Drawdown Velocity** | L1 | T, P | Core | Speed and depth of consecutive down-ticks before a positive tick occurs. |
 | [ ] | 94 | **Inside Market Trade Penetration** | L1 | Q | Advanced | Measures how deeply into the inside tier volume an aggressive trade prints before halting. |
 | [ ] | 95 | **High-Frequency Return Realized Kurtosis** | L1 | P | Advanced | Measures the fourth moment of tick returns to evaluate high-frequency gap or jump risk. |
@@ -119,10 +119,10 @@ The catalog below outlines **201 distinct signals** used across the institutiona
 | Implemented | # | Signal Name | Data Level | Primary Inputs | Institutional Status | Description |
 |-------------|---|---|---|---|---|---|
 | [ ] | 96 | **Simple Moving Average (SMA) Crossover** | L1 | P | Core | Standard crossover of short-horizon price averages versus long-horizon price averages. |
-| [X] | 97.1 | **Exponential Moving Average (EMA)** | L1 | P | Core | A trade-count-based exponential moving average of execution prices; functions as a low-latency price trend baseline for calculating divergence and mean-reversion signals. |
+| [x] | 97.1 | **Exponential Moving Average (EMA)** | L1 | P | Core | A trade-count-based exponential moving average of execution prices; functions as a low-latency price trend baseline for calculating divergence and mean-reversion signals. |
 | [ ] | 97.2 | **Exponential Moving Average (EMA) Divergence** | L1 | P | Core | Measures the gap between spot price and its exponentially smoothed historical average. |
-| [ ] | 98 | **Moving Average Convergence Divergence (MACD)** | L1 | P | Core | Difference between two distinct EMAs, typically smoothed by a secondary signal line. |
-| [ ] | 99 | **Relative Strength Index (RSI)** | L1 | P | Core | Momentum oscillator measuring the speed and change of price movements over defined lookbacks. |
+| [x] | 98 | **Moving Average Convergence Divergence (MACD)** | L1 | P | Core | Difference between two distinct EMAs, typically smoothed by a secondary signal line. |
+| [x] | 99 | **Relative Strength Index (RSI)** | L1 | P | Core | Momentum oscillator measuring the speed and change of price movements over defined lookbacks. |
 | [ ] | 100 | **Bollinger Band Width & Z-Score** | L1 | P | Core | Measures price distance from moving averages normalized by rolling standard deviations. |
 | [ ] | 101 | **Average True Range (ATR) Volatility** | L1 | P | Core | Measures asset volatility by looking at the decomposition of high, low, and closing ranges. |
 | [ ] | 102 | **Stochastic Oscillator (\%K / \%D)** | L1 | P | Core | Compares a closing price to its price range over a specified historical period. |
@@ -140,12 +140,12 @@ The catalog below outlines **201 distinct signals** used across the institutiona
 | [ ] | 114 | **Vortex Indicator (VI+/VI-) Crossing** | L1 | P | Advanced | Captures trend intersection points by comparing the distance between consecutive highs/lows. |
 | [ ] | 115 | **Linear Regression Slope Feature** | L1 | T, P | Core | Calculates the mathematical slope of the best-fit line across historical close data. |
 | [ ] | 116 | **Detrended Price Oscillator (DPO)** | L1 | P | Advanced | Strips out long-term cycles from price data to isolate short-term overbought/oversold states. |
-| [ ] | 117 | **Money Flow Index (MFI)** | L1 | P, Q | Core | Volume-weighted relative strength index measuring buying and selling pressure. |
-| [ ] | 118 | **Accumulation/Distribution Line Slope** | L1 | P, Q | Core | Tracks cumulative volume flows relative to where a bar closes within its range. |
-| [ ] | 119 | **Chaikin Oscillator** | L1 | P, Q | Core | Applies MACD principles directly to the Accumulation/Distribution line state. |
-| [ ] | 120 | **Volume Price Trend (VPT) Indicator** | L1 | P, Q | Core | Adds or subtracts volume from a running total based on daily percentage price updates. |
-| [ ] | 121 | **On-Balance Volume (OBV) Momentum** | L1 | P, Q | Core | Running total of trading volume that increments on up-days and decrements on down-days. |
-| [ ] | 122 | **Ease of Movement (EOM) Vector** | L1 | P, Q | Core | Evaluates how easily a price can move up or down based on volume efficiency configurations. |
+| [x] | 117 | **Money Flow Index (MFI)** | L1 | P, Q | Core | Volume-weighted relative strength index measuring buying and selling pressure. |
+| [x] | 118 | **Accumulation/Distribution Line Slope** | L1 | P, Q | Core | Tracks cumulative volume flows relative to where a bar closes within its range. |
+| [x] | 119 | **Chaikin Oscillator** | L1 | P, Q | Core | Applies MACD principles directly to the Accumulation/Distribution line state. |
+| [x] | 120 | **Volume Price Trend (VPT) Indicator** | L1 | P, Q | Core | Adds or subtracts volume from a running total based on daily percentage price updates. |
+| [x] | 121 | **On-Balance Volume (OBV) Momentum** | L1 | P, Q | Core | Running total of trading volume that increments on up-days and decrements on down-days. |
+| [x] | 122 | **Ease of Movement (EOM) Vector** | L1 | P, Q | Core | Evaluates how easily a price can move up or down based on volume efficiency configurations. |
 | [ ] | 123 | **Coppock Curve Momentum Matrix** | L1 | P | Advanced | Smoothed momentum indicator tracking long-term cyclical shifts. |
 | [ ] | 124 | **True Strength Index (TSI)** | L1 | P | Advanced | Double-smoothed momentum indicator that limits erratic price ripples. |
 | [ ] | 125 | **Fisher Transform Market Polarizer** | L1 | P | Advanced | Converts price data into a Gaussian normal distribution to clearly isolate turning points. |
@@ -158,7 +158,7 @@ The catalog below outlines **201 distinct signals** used across the institutiona
 | [ ] | 132 | **Zero-Lag Exponential Moving Average** | L1 | P | Advanced | Strips lag out of an EMA by tracking and adding prior data offsets back into the calculation. |
 | [ ] | 133 | **Mass Index Trend Reversal** | L1 | P | Advanced | Examines high-low ranges over time to detect trend reversals based on range expansion. |
 | [ ] | 134 | **Schaff Trend Cycle (STC)** | L1 | P | Advanced | Combines MACD with a secondary stochastic calculation to speed up cycle trend detection. |
-| [ ] | 135 | **Volumetric Price Target Distance** | L1 | P, Q | Core | Distance between the spot price and the volume-node center of a daily distribution profile. |
+| [x] | 135 | **Volumetric Price Target Distance** | L1 | P, Q | Core | Distance between the spot price and the volume-node center of a daily distribution profile. |
 ## 5. Statistical Arbitrage, Cointegration & Cross-Asset Signals (136–165)
 | Implemented | # | Signal Name | Data Level | Primary Inputs | Institutional Status | Description |
 |-------------|---|---|---|---|---|---|

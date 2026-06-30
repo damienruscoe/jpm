@@ -4,6 +4,13 @@
 #include <optional>
 
 namespace signals {
+// =============================================================================
+// #99 — Relative Strength Index (RSI)
+// L1 | P | Core
+// =============================================================================
+//
+// Description
+//
 template <typename Traits> struct RsiSignal {
   using Price = typename Traits::Price;
 

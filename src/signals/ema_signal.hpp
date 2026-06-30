@@ -4,6 +4,13 @@
 #include <optional>
 
 namespace signals {
+// =============================================================================
+// #65.1 or 66.1 — EMA Signal
+// L1 | P, Q | Core
+// =============================================================================
+//
+// Description
+//
 template <typename Traits> struct EmaSignal {
   using Price = typename Traits::Price;
   using Quantity = typename Traits::Quantity;

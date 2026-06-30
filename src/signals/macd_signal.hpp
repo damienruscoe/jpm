@@ -4,6 +4,13 @@
 #include <optional>
 
 namespace signals {
+// =============================================================================
+// #98 — Moving Average Convergence Divergence (MACD)
+// L1 | P | Core
+// =============================================================================
+//
+// Description
+//
 template <typename Traits> struct MacdSignal {
   using Price = typename Traits::Price;
 
