@@ -6,10 +6,30 @@
 #include "parser.hpp"
 #include "render.hpp"
 
+#include "../src/signals/accumulation_distribution_line.hpp"
+#include "../src/signals/aggressive_volume_drift.hpp"
+#include "../src/signals/aggressive_volume_weight_drift.hpp"
+#include "../src/signals/block_trade_detector.hpp"
+#include "../src/signals/buy_sell_lot_ratio.hpp"
+#include "../src/signals/chaikin_oscillator.hpp"
+#include "../src/signals/cumulative_volume_delta.hpp"
 #include "../src/signals/cumulative_vwap.hpp"
+#include "../src/signals/ease_of_movement.hpp"
 #include "../src/signals/ema_signal.hpp"
+#include "../src/signals/flash_sweep_footprint.hpp"
 #include "../src/signals/last_trade_price.hpp"
+#include "../src/signals/macd_signal.hpp"
+#include "../src/signals/money_flow_index.hpp"
+#include "../src/signals/on_balance_volume.hpp"
+#include "../src/signals/rsi_signal.hpp"
 #include "../src/signals/static_composite.hpp"
+#include "../src/signals/tick_ltp_delta.hpp"
+#include "../src/signals/tick_run_length.hpp"
+#include "../src/signals/trade_size_depth_ratio.hpp"
+#include "../src/signals/trade_size_zscore.hpp"
+#include "../src/signals/volume_price_trend.hpp"
+#include "../src/signals/volumetric_price_target_distance.hpp"
+#include "../src/signals/vpin_signal.hpp"
 
 #include <iostream>
 #include <memory>
@@ -46,10 +66,20 @@ FmtValueOr(std::optional<T> &&, std::string_view) -> FmtValueOr<T, true>;
 [[maybe_unused]] constexpr std::string_view ORDER = "[\033[95mORDER\033[0m] ";
 
 using Traits = OrderBookTraits<FixedSizeOrderID, FixedPoint<4>, uint32_t>;
-using SignalAgregator =
-    signals::StaticComposite<Traits, signals::EmaSignal<Traits>,
-                             signals::LastTradePrice<Traits>,
-                             signals::CumulativeVWAP<Traits>>;
+using SignalAgregator = signals::StaticComposite<
+    Traits, signals::EmaSignal<Traits>, signals::LastTradePrice<Traits>,
+    signals::CumulativeVWAP<Traits>, signals::TickLtpDelta<Traits>,
+    signals::TickRunLength<Traits>,
+    signals::AggressiveVolumeWeightedDrift<Traits>, signals::MacdSignal<Traits>,
+    signals::RsiSignal<Traits>, signals::VolumePriceTrend<Traits>,
+    signals::OnBalanceVolume<Traits>, signals::CumulativeVolumeDelta<Traits>,
+    signals::VpinSignal<Traits>, signals::BlockTradeDetector<Traits>,
+    signals::BuySellLotRatio<Traits>, signals::FlashSweepFootprint<Traits>,
+    signals::TradeSizeZScore<Traits>, signals::TradeSizeDepthRatio<Traits>,
+    signals::AggressiveVolumeDrift<Traits>, signals::MoneyFlowIndex<Traits>,
+    signals::AccumulationDistributionLine<Traits>,
+    signals::ChaikinOscillator<Traits>, signals::EaseOfMovement<Traits>,
+    signals::VolumetricPriceTargetDistance<Traits>>;
 
 using Book = OrderBook<Traits, SignalAgregator>;
 
@@ -116,25 +146,110 @@ int main(int argc, char *argv[]) {
       }
       }
 
-      std::cout << "LTP: "
-                << FmtValueOr{book.getSignals().getLastTradedPrice(), "Unknown"}
-                << nl;
-      std::cout << "MID: " << FmtValueOr{book.getMidPrice(), "Unknown"} << nl;
-      std::cout << "MICRO: "
+      const int TITLE_WIDTH = 20;
+      const auto &signals = book.getSignals();
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH) << "LTP:\t"
+                << FmtValueOr{signals.getLastTradedPrice(), "Unknown"} << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH) << "MID:\t"
+                << FmtValueOr{book.getMidPrice(), "Unknown"} << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH) << "MICRO:\t"
                 << FmtValueOr{book.getWeightedMidPrice(), "Unknown"} << nl;
-      std::cout << "EMA: "
-                << FmtValueOr{book.getSignals().getEmaPrice(), "Unknown"} << nl;
-      std::cout << "EMA VWAP: "
-                << FmtValueOr{book.getSignals().getEmaVwap(), "Unknown"} << nl;
-      std::cout << "Cumulative VWAP: "
-                << FmtValueOr{book.getSignals().getCumulativeVwap(), "Unknown"}
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH) << "MICRO:\t"
+                << FmtValueOr{book.getMicroPrice(), "Unknown"} << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH) << "IVI:\t"
+                << FmtValueOr{book.getInsideVolumetricImbalance(), "Unknown"}
                 << nl;
-      std::cout << "Cumulative Volume: "
-                << FmtValueOr{book.getSignals().getCumulativeVolume(),
-                              "Unknown"}
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH)
+                << "CVD (Proxy):\t"
+                << FmtValueOr{book.getVolumeDeltaSnapshot(), "Unknown"} << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH) << "EMA:\t"
+                << FmtValueOr{signals.getEmaPrice(), "Unknown"} << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH) << "EMA VWAP:\t"
+                << FmtValueOr{signals.getEmaVwap(), "Unknown"} << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH)
+                << "Cumulative VWAP:\t"
+                << FmtValueOr{signals.getCumulativeVwap(), "Unknown"} << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH)
+                << "Cumulative Volume:\t"
+                << FmtValueOr{signals.getCumulativeVolume(), "Unknown"} << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH)
+                << "Cumulative Value:\t"
+                << FmtValueOr{signals.getCumulativeValue(), "Unknown"} << nl;
+
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH) << "LTP:\t"
+                << FmtValueOr{signals.getLtpDelta(), "Unknown"} << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH)
+                << "Run Length:\t" << signals.getRunLength() << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH)
+                << "Volume Weight Drift:\t"
+                << FmtValueOr{signals.getVolumeWeightedDrift(), "Unknown"}
                 << nl;
-      std::cout << "Cumulative Value: "
-                << FmtValueOr{book.getSignals().getCumulativeValue(), "Unknown"}
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH) << "MACD:\t"
+                << FmtValueOr{signals.getMacd(), "Unknown"} << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH)
+                << "Signal Line:\t"
+                << FmtValueOr{signals.getSignalLine(), "Unknown"} << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH) << "RSI:\t"
+                << FmtValueOr{signals.getRsi(), "Unknown"} << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH) << "VPT:\t"
+                << FmtValueOr{signals.getVpt(), "Unknown"} << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH) << "OBV:\t"
+                << FmtValueOr{signals.getObv(), "Unknown"} << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH) << "CVD:\t"
+                << FmtValueOr{signals.getCvd(), "Unknown"} << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH) << "VPIN:\t"
+                << FmtValueOr{signals.getVpin(), "Unknown"} << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH)
+                << "Blocked Trade:\t"
+                << FmtValueOr{signals.isBlockTrade(), "Unknown"} << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH) << "RMQ:\t"
+                << FmtValueOr{signals.getRollingMeanQuantity(), "Unknown"}
+                << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH) << "BSR:\t"
+                << FmtValueOr{signals.getBuySellRatio(), "Unknown"} << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH)
+                << "EMA Buy Volume:\t"
+                << FmtValueOr{signals.getEmaBuyVolume(), "Unknown"} << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH)
+                << "EMA Sell Volume:\t"
+                << FmtValueOr{signals.getEmaSellVolume(), "Unknown"} << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH)
+                << "Last Sweep Volume:\t"
+                << FmtValueOr{signals.getLastSweepVolume(), "Unknown"} << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH)
+                << "Last Sweep Notional:\t"
+                << FmtValueOr{signals.getLastSweepNotional(), "Unknown"} << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH) << "Z-Score:\t"
+                << FmtValueOr{signals.getZScore(), "Unknown"} << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH)
+                << "Rolling Mean:\t"
+                << FmtValueOr{signals.getRollingMean(), "Unknown"} << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH) << "DCR:\t"
+                << FmtValueOr{signals.getDepthConsumptionRatio(), "Unknown"}
+                << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH)
+                << "Depth Proxy:\t"
+                << FmtValueOr{signals.getDepthProxy(), "Unknown"} << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH)
+                << "Volume Drift:\t"
+                << FmtValueOr{signals.getVolumeDrift(), "Unknown"} << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH) << "MFI:\t"
+                << FmtValueOr{signals.getMfi(), "Unknown"} << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH) << "Ad Line:\t"
+                << FmtValueOr{signals.getAdLine(), "Unknown"} << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH) << "Ad Slope:\t"
+                << FmtValueOr{signals.getAdSlope(), "Unknown"} << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH)
+                << "Oscillator:\t"
+                << FmtValueOr{signals.getOscillator(), "Unknown"} << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH) << "EOM:\t"
+                << FmtValueOr{signals.getEom(), "Unknown"} << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH)
+                << "VolumeNode:\t"
+                << FmtValueOr{signals.getVolumeNode(), "Unknown"} << nl;
+      std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH)
+                << "Price Target Distance:\t"
+                << FmtValueOr{signals.getPriceTargetDistance(), "Unknown"}
                 << nl;
 
       render_horizontal_orderbook(book);

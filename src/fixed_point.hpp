@@ -22,6 +22,13 @@ template <int DecimalPlaces, typename BaseTypeT = int64_t> class FixedPoint {
 private:
   using cnl_fp = cnl::scaled_integer<BaseTypeT, cnl::power<-DecimalPlaces, 10>>;
 
+  static constexpr int64_t Scale = []() {
+    int64_t val = 1;
+    for (int i = 0; i < DecimalPlaces; ++i)
+      val *= 10;
+    return val;
+  }();
+
 public:
   using BaseType = BaseTypeT;
   static constexpr int decimals = DecimalPlaces;
@@ -46,6 +53,18 @@ public:
     return os;
   }
 
+  friend bool operator==(const FixedPoint &lhs, const FixedPoint &rhs) {
+    return lhs.get_raw_value() == rhs.get_raw_value();
+  }
+
+  friend auto operator<=>(const FixedPoint &lhs, const FixedPoint &rhs) {
+    return lhs.get_raw_value() <=> rhs.get_raw_value();
+  }
+
+  friend FixedPoint operator-(const FixedPoint &negate) {
+    return FixedPoint{-negate.get_raw_value()};
+  }
+
   friend FixedPoint operator-(const FixedPoint &lhs, const FixedPoint &rhs) {
     return FixedPoint{lhs.get_raw_value() - rhs.get_raw_value(), true};
   }
@@ -55,7 +74,7 @@ public:
   }
 
   friend FixedPoint operator*(const FixedPoint &lhs, const FixedPoint &rhs) {
-    const auto Scale = std::pow(10, DecimalPlaces);
+    // const auto Scale = std::pow(10, DecimalPlaces);
     __int128_t intermediate =
         static_cast<__int128_t>(lhs.get_raw_value()) * rhs.get_raw_value();
     __int128_t raw_product = intermediate / Scale;
@@ -63,18 +82,34 @@ public:
   }
 
   friend FixedPoint operator/(const FixedPoint &lhs, const FixedPoint &rhs) {
-    const auto Scale = std::pow(10, DecimalPlaces);
+    // const auto Scale = std::pow(10, DecimalPlaces);
     __int128_t numerator = static_cast<__int128_t>(lhs.get_raw_value()) * Scale;
     __int128_t raw_quotient = numerator / rhs.get_raw_value();
     return FixedPoint{static_cast<int64_t>(raw_quotient), true};
   }
 
-  friend bool operator==(const FixedPoint &lhs, const FixedPoint &rhs) {
-    return lhs.get_raw_value() == rhs.get_raw_value();
+  FixedPoint &operator-=(const FixedPoint &rhs) {
+    *this = *this - rhs;
+    return *this;
   }
 
-  friend auto operator<=>(const FixedPoint &lhs, const FixedPoint &rhs) {
-    return lhs.get_raw_value() <=> rhs.get_raw_value();
+  FixedPoint &operator+=(const FixedPoint &rhs) {
+    *this = *this + rhs;
+    return *this;
+  }
+
+  FixedPoint &operator*=(const FixedPoint &rhs) {
+    *this = *this * rhs;
+    return *this;
+  }
+
+  FixedPoint &operator/=(const FixedPoint &rhs) {
+    *this = *this / rhs;
+    return *this;
+  }
+
+  explicit operator double() const {
+    return static_cast<double>(get_raw_value()) / Scale;
   }
 
   static std::optional<FixedPoint> Parse(std::string_view str) {
