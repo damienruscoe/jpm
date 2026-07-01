@@ -41,7 +41,7 @@ sample: $(TARGET)
 	./$(TARGET) docs/given_example.csv
 
 format:
-	clang-format -i test/*.cpp src/*.hpp src/*.cpp src/signals/*.hpp src/apps/*.cpp
+	clang-format -i test/*.cpp src/*.hpp src/*.cpp src/*/*.hpp src/*/*.cpp
 
 clean:
 	rm -fr $(BUILD_DIR)

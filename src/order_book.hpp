@@ -18,16 +18,6 @@ template <typename T, typename ReturnType = decltype(T::id)> struct GetIdField {
   static ReturnType get(const T *t) { return t->id; };
 };
 
-template <typename Callable>
-static auto topOfBookInvocation(Callable &&fn, const auto &book) {
-  auto best_bid = book.getBestBid();
-  auto best_ask = book.getBestAsk();
-  return (best_bid && best_ask)
-             ? std::make_optional(std::invoke(std::forward<Callable>(fn),
-                                              *best_bid, *best_ask))
-             : std::nullopt;
-}
-
 template <typename OrderID_T, typename Price_T, typename Quantity_T>
 struct OrderBookTraits {
   using OrderID = OrderID_T;
@@ -59,13 +49,7 @@ public:
     Quantity total;
   };
 
-  using TradeCallback = std::function<void(
-      side_t, const StoredOrderID &, const Price &, const Quantity &,
-      typename PriceLevel<Order>::FillStatus)>;
-
   OrderBook() : signals(*this) {}
-
-  void setOnTradeCallback(TradeCallback cb) { on_trade_callback = cb; }
 
   template <typename OrderID>
   [[nodiscard]] bool newOrder(OrderID &&order_id, side_t side,
@@ -137,21 +121,16 @@ private:
     }
   };
 
-  void on_filled(side_t side, const StoredOrderID &filled_order_id,
-                 const Price &price, const Quantity &qty,
-                 typename PriceLevel<Order>::FillStatus fill) {
-    signals.update({price, qty});
+  void on_filled(side_t aggressor_side, const StoredOrderID &filled_order_id,
+                 const Price &price, const Quantity &qty, FillStatus fill) {
+    signals.update({filled_order_id, price, qty, aggressor_side, fill});
 
-    if (fill == PriceLevel<Order>::FillStatus::Full)
+    if (fill == FillStatus::Full)
       orders.erase(filled_order_id);
-
-    if (on_trade_callback)
-      on_trade_callback(side, filled_order_id, price, qty, fill);
   };
 
   Orders orders;
   Aggregator signals;
-  TradeCallback on_trade_callback;
 
   std::pmr::unsynchronized_pool_resource pool;
   BidsBook bids{pool};

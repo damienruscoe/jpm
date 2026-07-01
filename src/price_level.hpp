@@ -3,7 +3,7 @@
 #include <boost/intrusive/list.hpp>
 #include <functional>
 
-enum class side_t { BID, ASK };
+#include "core/enums.hpp"
 
 template <typename OrderID, typename PriceT, typename QuantityT> struct Order {
   using Price = PriceT;
@@ -31,11 +31,6 @@ private:
                                     &Order::intrusive_list_hook>>;
 
 public:
-  enum class FillStatus {
-    Partial,
-    Full,
-  };
-
   void addOrder(Order &order) {
     orders.push_back(order);
     total_quantity += order.quantity;

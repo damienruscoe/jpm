@@ -65,11 +65,23 @@ FmtValueOr(std::optional<T> &&, std::string_view) -> FmtValueOr<T, true>;
 [[maybe_unused]] constexpr std::string_view TRADE = "[\033[94mTRADE\033[0m] ";
 [[maybe_unused]] constexpr std::string_view ORDER = "[\033[95mORDER\033[0m] ";
 
+template <typename Traits> struct TradePrinter {
+  void update(const TradeEvent<Traits> &event) {
+    const int ticker = 101;
+    const char aggressor_side = event.aggressor_side == side_t::ASK ? 'S' : 'B';
+
+    std::cout << TRADE << "Trade: " << ticker << " " << event.order_id << " "
+              << event.quantity << " " << event.price
+              << ", AggrSide=" << aggressor_side
+              << (event.fill == FillStatus::Partial ? " (Partial)" : "") << nl;
+  }
+};
+
 using Traits = OrderBookTraits<FixedSizeOrderID, FixedPoint<4>, uint32_t>;
 using SignalAgregator = signals::StaticComposite<
-    Traits, signals::EmaSignal<Traits>, signals::LastTradePrice<Traits>,
-    signals::CumulativeVWAP<Traits>, signals::TickLtpDelta<Traits>,
-    signals::TickRunLength<Traits>,
+    Traits, TradePrinter<Traits>, signals::EmaSignal<Traits>,
+    signals::LastTradePrice<Traits>, signals::CumulativeVWAP<Traits>,
+    signals::TickLtpDelta<Traits>, signals::TickRunLength<Traits>,
     signals::AggressiveVolumeWeightedDrift<Traits>, signals::MacdSignal<Traits>,
     signals::RsiSignal<Traits>, signals::VolumePriceTrend<Traits>,
     signals::OnBalanceVolume<Traits>, signals::CumulativeVolumeDelta<Traits>,
@@ -102,24 +114,6 @@ int main(int argc, char *argv[]) {
 
       auto [it, added] = ticker_books.try_emplace(msg->exchange_ticker);
       auto &book = it->second;
-
-      if (added) {
-        book.setOnTradeCallback([](side_t side, const auto &id,
-                                   const auto &price, const auto &qty,
-                                   auto fill) {
-          const int ticker = 101;
-          const char aggressor_side = side == side_t::ASK ? 'S' : 'B';
-
-          std::cout
-              << TRADE << "Trade: " << ticker << " " << id << " " << qty << " "
-              << price << ", AggrSide=" << aggressor_side
-              << (fill == PriceLevel<
-                              OrderBook<Traits>::Order>::FillStatus::Partial
-                      ? " (Partial)"
-                      : "")
-              << nl;
-        });
-      }
 
       const auto side = msg->side == Side::Buy ? side_t::BID : side_t::ASK;
 
