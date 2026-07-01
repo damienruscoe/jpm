@@ -6,7 +6,7 @@
 namespace signals {
 
 template <typename Traits> struct EmptySignals {
-  void update(const TradeEvent<Traits> &) {}
+  template <typename Event> void update(const Event &) {}
 };
 
 template <typename OrderBook> struct BaseSignals {

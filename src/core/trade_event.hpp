@@ -2,6 +2,14 @@
 
 #include "enums.hpp"
 
+template <typename Traits> struct OrderMatchedEvent {
+  typename Traits::OrderID order_id;
+  typename Traits::Price price;
+  typename Traits::Quantity quantity;
+  typename Traits::Quantity remaining;
+  side_t side;
+};
+
 template <typename Traits> struct TradeEvent {
   typename Traits::OrderID order_id;
   typename Traits::Price price;

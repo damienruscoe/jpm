@@ -88,10 +88,10 @@ private:
   struct CrossingTradeDispatcher {
 
     template <typename OrderID>
-    static void emplaceOrder(OrderBook &order_book, auto &aggressor,
-                             auto &resting, OrderID &&order_id,
-                             const Price &price, const Quantity &qty,
-                             side_t side) {
+    static Quantity emplaceOrder(OrderBook &order_book, auto &aggressor,
+                                 auto &resting, OrderID &&order_id,
+                                 const Price &price, const Quantity &qty,
+                                 side_t side) {
       auto on_filled =
           std::bind_front(&OrderBook::on_filled, &order_book, side);
       if (const auto remaining =
@@ -99,7 +99,9 @@ private:
         auto *order = order_book.orders.create(std::forward<OrderID>(order_id),
                                                price, remaining, side);
         resting.insertOrder(*order);
+        return remaining;
       }
+      return {};
     }
 
     static bool amend(OrderBook &order_book, auto &aggressor, auto &resting,
@@ -123,7 +125,8 @@ private:
 
   void on_filled(side_t aggressor_side, const StoredOrderID &filled_order_id,
                  const Price &price, const Quantity &qty, FillStatus fill) {
-    signals.update({filled_order_id, price, qty, aggressor_side, fill});
+    signals.update(
+        TradeEvent<Traits>{filled_order_id, price, qty, aggressor_side, fill});
 
     if (fill == FillStatus::Full)
       orders.erase(filled_order_id);
@@ -146,13 +149,16 @@ bool OrderBook<Traits, SignalAggregator>::newOrder(OrderID &&order_id,
   if (orders.contains(order_id))
     return false;
 
-  side == side_t::BID
-      ? CrossingTradeDispatcher::emplaceOrder(*this, asks, bids,
-                                              std::forward<OrderID>(order_id),
-                                              price, qty, side)
-      : CrossingTradeDispatcher::emplaceOrder(*this, bids, asks,
-                                              std::forward<OrderID>(order_id),
-                                              price, qty, side);
+  auto remaining = side == side_t::BID
+                       ? CrossingTradeDispatcher::emplaceOrder(
+                             *this, asks, bids, std::forward<OrderID>(order_id),
+                             price, qty, side)
+                       : CrossingTradeDispatcher::emplaceOrder(
+                             *this, bids, asks, std::forward<OrderID>(order_id),
+                             price, qty, side);
+
+  signals.update(OrderMatchedEvent<Traits>{typename Traits::OrderID{order_id},
+                                           price, qty, remaining, side});
 
   return true;
 }
