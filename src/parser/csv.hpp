@@ -6,7 +6,14 @@
 #include <iostream>
 #include <string_view>
 
-enum class RequestType { New, Cancel, Amend };
+enum class RequestType {
+  New,
+  Cancel,
+  Amend,
+  AmendPriceQuantity,
+  AmendQuantity,
+  Ignored
+};
 enum class Side { Buy, Sell };
 
 struct Message {

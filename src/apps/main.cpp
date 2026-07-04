@@ -155,12 +155,14 @@ void process_csv_message(Book &book, const auto &msg) {
       std::cout << ERROR << "Cancelling existing order failed" << nl;
     break;
   }
-  case RequestType::Amend: {
+  case RequestType::AmendPriceQuantity: {
     auto amended = book.amend(msg.order_id, msg.price, msg.quantity);
     if (!amended)
       std::cout << ERROR << "Amending order failed" << nl;
     break;
   }
+  default:
+    break;
   }
 }
 

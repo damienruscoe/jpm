@@ -7,7 +7,7 @@
 #include <sstream>
 
 // clang-format off
-static constexpr std::array<std::string_view, 3> REQUEST_TYPE_STRINGS = {"N", "C", "A"};
+static constexpr std::array<std::string_view, 6> REQUEST_TYPE_STRINGS = {"N", "C", "a", "Apq", "Aq", "I"};
 static constexpr std::array<char, 2> SIDE_STRINGS = {'B', 'S'};
 
 std::ostream &operator<<(std::ostream &os, const Message &msg) {
@@ -50,7 +50,7 @@ Expected<Message, std::string> parse_line(std::string_view line) {
   else if (type_str == "C")
     msg.type = RequestType::Cancel;
   else if (type_str == "A")
-    msg.type = RequestType::Amend;
+    msg.type = RequestType::AmendPriceQuantity;
   else
     return error(line, "Invalid request type", type_str);
 
