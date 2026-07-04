@@ -10,7 +10,8 @@ TARGET = $(BUILD_DIR)/matching_engine
 TEST_TARGET = $(BUILD_DIR)/matching_engine_tests
 
 # Source and Headers
-INC = -Isrc/ -Isrc/core/ -Ideps/cnl/include
+CHRONOVIS=/home/druscoe/dev/finance/chronovis
+INC = -Isrc/ -Isrc/core/ -Ideps/cnl/include -I${CHRONOVIS}/include -I${CHRONOVIS}/build.native/_deps/asio-src/asio/include
 SRCS = src/apps/main.cpp src/*.cpp src/parser/*.cpp
 TEST_SRCS = test/*.cpp src/*.cpp src/parser/*.cpp
 
@@ -33,6 +34,9 @@ $(TEST_TARGET): $(TEST_SRCS)
 
 test: $(TEST_TARGET)
 	./$(TEST_TARGET)
+
+gui: $(TARGET)
+	${CHRONOVIS}/build.native/ChronoViz &
 
 run: $(TARGET)
 	./$(TARGET) $(CSV)

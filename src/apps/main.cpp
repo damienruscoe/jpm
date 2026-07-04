@@ -1,3 +1,4 @@
+#include "chronovis/chronovis.hpp"
 #include "fixed_point.hpp"
 #include "line_view.hpp"
 #include "mmfile.hpp"
@@ -191,13 +192,26 @@ int main(int argc, char *argv[]) {
 
   std::unordered_map<Venue::symbol_t, Book> ticker_books;
 
+  int msg_count = 0;
   Venue::process_file(file, [&](const auto &msg) {
     std::cout << VALID << *msg << nl;
 
     auto [it, added] = ticker_books.try_emplace(msg->symbol);
     auto &book = it->second;
 
+    TelemetryClient::Marker process_marker("MarketData::ProcessMessage");
+
     process_csv_message(book, *msg);
+
+    process_marker.Submit();
+
+    const auto midprice = book.getSignals().getMidPrice();
+    if (midprice) {
+      uint64_t ts_ms = msg_count * 1000 * 60 / 16;
+      TelemetryClient::SendCurrentPrice(
+          msg->symbol, {ts_ms, static_cast<double>(*midprice)});
+    }
+    ++msg_count;
 
     // print_all_signals(book.getSignals());
 
