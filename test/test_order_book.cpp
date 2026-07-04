@@ -1,7 +1,7 @@
-#include "../src/fixed_point.hpp"
-#include "../src/order_book.hpp"
-#include "../src/order_id.hpp"
-#include "../src/parser.hpp"
+#include "fixed_point.hpp"
+#include "order_book.hpp"
+#include "order_id.hpp"
+#include "parser/csv.hpp"
 #include <gtest/gtest.h>
 #include <ranges>
 
@@ -45,7 +45,7 @@ bool processOrder(OrderBook &book, const auto &msg_str) {
   case RequestType::New:
     return book.newOrder(msg->order_id, side, msg->price, msg->quantity);
   case RequestType::Cancel:
-    return book.cancel(msg->order_id, side);
+    return book.cancel(msg->order_id);
   case RequestType::Amend:
     return book.amend(msg->order_id, side, msg->price, msg->quantity);
   }
@@ -422,6 +422,11 @@ TEST_F(OrderBookTest, TestCancelAfterFullyFilled) {
   processOrderFailure(book, "102,C,A002,B,2000,10.2");
 
   assertBookTopPriceLevels(book, {}, {});
+}
+
+TEST_F(OrderBookTest, TestCancelWrongSide_SideIsIgnored) {
+  processOrderSuccess(book, "102,N,A002,B,2000,10.2");
+  processOrderSuccess(book, "102,C,A002,S,2000,10.2");
 }
 
 TEST_F(OrderBookTest, TestDuplicateOrderID) {

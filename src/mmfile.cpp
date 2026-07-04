@@ -18,7 +18,7 @@ MappedFile::MappedFile(const std::string &filename) {
   }
 
   m_size = st.st_size;
-  m_data = static_cast<const char *>(
+  m_data = static_cast<const byte_t *>(
       mmap(nullptr, m_size, PROT_READ, MAP_PRIVATE, m_fd, 0));
   if (m_data == MAP_FAILED) {
     m_data = nullptr;
@@ -29,11 +29,11 @@ MappedFile::MappedFile(const std::string &filename) {
 
 MappedFile::~MappedFile() {
   if (m_data)
-    munmap(const_cast<char *>(m_data), m_size);
+    munmap(const_cast<byte_t *>(m_data), m_size);
   if (m_fd != -1)
     close(m_fd);
 }
 
-const char *MappedFile::data() const { return m_data; }
+const MappedFile::byte_t *MappedFile::data() const { return m_data; }
 
 size_t MappedFile::size() const { return m_size; }

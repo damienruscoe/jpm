@@ -10,7 +10,7 @@ enum class RequestType { New, Cancel, Amend };
 enum class Side { Buy, Sell };
 
 struct Message {
-  uint32_t exchange_ticker;
+  uint32_t symbol;
   RequestType type;
   std::string_view order_id;
   Side side;

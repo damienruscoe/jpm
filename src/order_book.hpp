@@ -54,8 +54,10 @@ public:
   template <typename OrderID>
   [[nodiscard]] bool newOrder(OrderID &&order_id, side_t side,
                               const Price &price, const Quantity &qty);
+  template <typename OrderID> [[nodiscard]] bool cancel(OrderID &&order_id);
   template <typename OrderID>
-  [[nodiscard]] bool cancel(OrderID &&order_id, side_t side);
+  [[nodiscard]] bool amend(OrderID &&order_id, const Price &price,
+                           const Quantity &qty);
   template <typename OrderID>
   [[nodiscard]] bool amend(OrderID &&order_id, side_t side, const Price &price,
                            const Quantity &qty);
@@ -165,12 +167,23 @@ bool OrderBook<Traits, SignalAggregator>::newOrder(OrderID &&order_id,
 
 template <typename Traits, typename SignalAggregator>
 template <typename OrderID>
-bool OrderBook<Traits, SignalAggregator>::cancel(OrderID &&order_id,
-                                                 side_t side) {
+bool OrderBook<Traits, SignalAggregator>::cancel(OrderID &&order_id) {
   if (auto *order = orders.find(std::forward<OrderID>(order_id))) {
-    side == side_t::BID ? bids.removeOrder(*order) : asks.removeOrder(*order);
+    order->side == side_t::BID ? bids.removeOrder(*order)
+                               : asks.removeOrder(*order);
     orders.erase(order->id);
     return true;
+  }
+  return false;
+}
+
+template <typename Traits, typename SignalAggregator>
+template <typename OrderID>
+bool OrderBook<Traits, SignalAggregator>::amend(OrderID &&order_id,
+                                                const Price &price,
+                                                const Quantity &qty) {
+  if (auto *order = orders.find(std::forward<OrderID>(order_id))) {
+    return amend(std::forward<OrderID>(order_id), order->side, price, qty);
   }
   return false;
 }

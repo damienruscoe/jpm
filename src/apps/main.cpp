@@ -48,22 +48,22 @@ FmtValueOr(std::optional<T> &&, std::string_view) -> FmtValueOr<T, true>;
 template <typename Traits> struct TradePrinter {
   void printTrade(const TradeEvent<Traits> &event) {
     const char aggressor_side = event.aggressor_side == side_t::ASK ? 'S' : 'B';
-    std::cout << TRADE << "Trade: "
-              << " " << event.order_id << ", " << event.quantity << " "
-              << event.price << ", AggrSide=" << aggressor_side
+    std::cout << TRADE << "Trade: " << " " << event.order_id << ", "
+              << event.quantity << " " << event.price
+              << ", AggrSide=" << aggressor_side
               << (event.fill == FillStatus::Partial ? " (Partial)" : "") << nl;
   }
   void printFilled(const OrderMatchedEvent<Traits> &event) {
     const char side = event.side == side_t::ASK ? 'S' : 'B';
-    std::cout << FILLED << "Order ID: "
-              << " " << event.order_id << ", " << event.quantity << " "
-              << event.price << ", Side=" << side << nl;
+    std::cout << FILLED << "Order ID: " << " " << event.order_id << ", "
+              << event.quantity << " " << event.price << ", Side=" << side
+              << nl;
   }
   void printResting(const OrderMatchedEvent<Traits> &event) {
     const char side = event.side == side_t::ASK ? 'S' : 'B';
-    std::cout << RESTING << "Order ID: "
-              << " " << event.order_id << ", " << event.quantity << " "
-              << event.price << ", Side=" << side << nl;
+    std::cout << RESTING << "Order ID: " << " " << event.order_id << ", "
+              << event.quantity << " " << event.price << ", Side=" << side
+              << nl;
   }
   void update(const TradeEvent<Traits> &event) { printTrade(event); }
   void print(const OrderMatchedEvent<Traits> &event) {
@@ -140,6 +140,44 @@ using SignalAgregator = signals::StaticComposite<
 
 using Book = OrderBook<Traits, SignalAgregator>;
 
+void process_csv_message(Book &book, const auto &msg) {
+  switch (msg.type) {
+  case RequestType::New: {
+    const auto side = msg.side == Side::Buy ? side_t::BID : side_t::ASK;
+    auto added = book.newOrder(msg.order_id, side, msg.price, msg.quantity);
+    if (!added)
+      std::cout << ERROR << "Adding new order failed" << nl;
+    break;
+  }
+  case RequestType::Cancel: {
+    auto cancelled = book.cancel(msg.order_id);
+    if (!cancelled)
+      std::cout << ERROR << "Cancelling existing order failed" << nl;
+    break;
+  }
+  case RequestType::Amend: {
+    auto amended = book.amend(msg.order_id, msg.price, msg.quantity);
+    if (!amended)
+      std::cout << ERROR << "Amending order failed" << nl;
+    break;
+  }
+  }
+}
+
+struct Venue {
+  using symbol_t = decltype(parse_line("")->symbol);
+
+  static void process_file(MappedFile &file, const auto &on_parsed) {
+    LineView lines(reinterpret_cast<const char *>(file.data()), file.size());
+    for (const auto &line : lines) {
+      if (auto msg = parse_line(line))
+        on_parsed(msg);
+      else
+        std::cout << ERROR << msg.error() << nl;
+    }
+  }
+};
+
 int main(int argc, char *argv[]) {
   std::string filename = argc > 1 ? argv[1] : "docs/given_example.csv";
 
@@ -149,55 +187,27 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  LineView lines(file.data(), file.size());
+  std::unordered_map<Venue::symbol_t, Book> ticker_books;
 
-  std::unordered_map<uint32_t, Book> ticker_books;
+  Venue::process_file(file, [&](const auto &msg) {
+    std::cout << VALID << *msg << nl;
 
-  for (const auto &line : lines) {
-    if (auto msg = parse_line(line)) {
-      std::cout << VALID << *msg << nl;
+    auto [it, added] = ticker_books.try_emplace(msg->symbol);
+    auto &book = it->second;
 
-      auto [it, added] = ticker_books.try_emplace(msg->exchange_ticker);
-      auto &book = it->second;
+    process_csv_message(book, *msg);
 
-      const auto side = msg->side == Side::Buy ? side_t::BID : side_t::ASK;
+    // print_all_signals(book.getSignals());
 
-      switch (msg->type) {
-      case RequestType::New: {
-        auto added =
-            book.newOrder(msg->order_id, side, msg->price, msg->quantity);
-        if (!added)
-          std::cout << ERROR << "Adding new order failed" << nl;
-        break;
-      }
-      case RequestType::Cancel: {
-        auto cancelled = book.cancel(msg->order_id, side);
-        if (!cancelled)
-          std::cout << ERROR << "Cancelling existing order failed" << nl;
-        break;
-      }
-      case RequestType::Amend: {
-        auto amended =
-            book.amend(msg->order_id, side, msg->price, msg->quantity);
-        if (!amended)
-          std::cout << ERROR << "Amending order failed" << nl;
-        break;
-      }
-      }
-
-      // print_all_signals(book.getSignals());
-
-      render_horizontal_orderbook(book);
-      // render_vertical_orderbook(book);
-      // top_of_book.render();
-    } else
-      std::cout << ERROR << msg.error() << nl;
-  }
+    render_horizontal_orderbook(book);
+    // render_vertical_orderbook(book);
+    // top_of_book.render();
+  });
 
   std::cout << nl << "<on exit>";
 
-  for (const auto &[id, book] : ticker_books) {
-    std::cout << "\n\033[30;47m Ticker: " << id << " \033[0m" << nl << nl;
+  for (const auto &[symbol, book] : ticker_books) {
+    std::cout << "\n\033[30;47m Symbol: " << symbol << " \033[0m" << nl << nl;
     for (const auto &order : book.getOrders()) {
       const auto &order_id = order->id;
       const auto &side = order->side;

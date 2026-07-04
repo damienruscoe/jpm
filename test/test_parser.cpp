@@ -1,4 +1,4 @@
-#include "../src/parser.hpp"
+#include "parser/csv.hpp"
 #include <gtest/gtest.h>
 #include <sstream>
 #include <string_view>
@@ -61,7 +61,7 @@ TEST_P(ParserValidTest, ValidInput) {
   ASSERT_TRUE(msg.has_value()) << "Failed to parse valid input ("
                                << param.description << "): " << param.input;
 
-  EXPECT_EQ(msg->exchange_ticker, param.expected.exchange_ticker);
+  EXPECT_EQ(msg->symbol, param.expected.symbol);
   EXPECT_EQ(msg->type, param.expected.type);
   EXPECT_EQ(msg->order_id, param.expected.order_id);
   EXPECT_EQ(msg->side, param.expected.side);
@@ -76,7 +76,7 @@ TEST(ParserTest, MessageStreamOperator) {
   std::stringstream ss;
   ss << msg;
 
-  EXPECT_EQ(ss.str(), "Ticker: 101 | Type: N | ID:       A001 | Side: B | Qty: "
+  EXPECT_EQ(ss.str(), "Symbol: 101 | Type: N | ID:       A001 | Side: B | Qty: "
                       "1000 | Price: 3.2000");
 }
 

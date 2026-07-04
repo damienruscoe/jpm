@@ -11,8 +11,8 @@ TEST_TARGET = $(BUILD_DIR)/matching_engine_tests
 
 # Source and Headers
 INC = -Isrc/ -Isrc/core/ -Ideps/cnl/include
-SRCS = src/apps/main.cpp src/*.cpp
-TEST_SRCS = test/*.cpp src/*.cpp
+SRCS = src/apps/main.cpp src/*.cpp src/parser/*.cpp
+TEST_SRCS = test/*.cpp src/*.cpp src/parser/*.cpp
 
 CSV ?= docs/given_example.csv
 

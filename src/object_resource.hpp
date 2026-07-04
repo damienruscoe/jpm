@@ -7,7 +7,8 @@
 #include <unordered_set>
 
 template <typename K>
-concept StringViewNormalizable = std::convertible_to<K, std::string_view> &&
+concept StringViewNormalizable =
+    std::convertible_to<K, std::string_view> &&
     !std::same_as<std::decay_t<K>, std::string_view>;
 
 template <typename T, typename KeyGetter> class ObjectResource {

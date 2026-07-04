@@ -1,4 +1,4 @@
-#include "parser.hpp"
+#include "parser/csv.hpp"
 
 #include "str_utils.hpp"
 #include <algorithm>
@@ -11,7 +11,7 @@ static constexpr std::array<std::string_view, 3> REQUEST_TYPE_STRINGS = {"N", "C
 static constexpr std::array<char, 2> SIDE_STRINGS = {'B', 'S'};
 
 std::ostream &operator<<(std::ostream &os, const Message &msg) {
-  os << "Ticker: " << msg.exchange_ticker
+  os << "Symbol: " << msg.symbol
      << " | Type: " << REQUEST_TYPE_STRINGS[static_cast<size_t>(msg.type)]
      << " | ID: " << std::setw(10) << msg.order_id
      << " | Side: " << SIDE_STRINGS[static_cast<size_t>(msg.side)]
@@ -41,7 +41,7 @@ Expected<Message, std::string> parse_line(std::string_view line) {
   Message msg;
 
   // Ticker
-  if (!parse_integer(ticker_str, msg.exchange_ticker))
+  if (!parse_integer(ticker_str, msg.symbol))
     return error(line, "Invalid ticker", ticker_str);
 
   // Type
@@ -79,8 +79,8 @@ Expected<Message, std::string> parse_line(std::string_view line) {
     return std::isalnum(static_cast<unsigned char>(c)) || c == '-';
   };
 
-  if (msg.exchange_ticker <= 0)
-    return error(line, "Ticker must be positive", ticker_str);
+  if (msg.symbol <= 0)
+    return error(line, "Symbol must be positive", ticker_str);
 
   if (msg.order_id.empty())
     return error(line, "Missing ID", id_str);

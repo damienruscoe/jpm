@@ -19,7 +19,8 @@ TEST(MappedFileTest, MapFile) {
   MappedFile mf(filename);
 
   EXPECT_EQ(mf.size(), content.size());
-  EXPECT_EQ(std::string(mf.data(), mf.size()), content);
+  EXPECT_EQ(std::string(reinterpret_cast<const char *>(mf.data()), mf.size()),
+            content);
 
   // Clean up
   std::remove(filename.c_str());

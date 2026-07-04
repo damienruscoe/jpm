@@ -1,4 +1,4 @@
-#include "../src/parser.hpp"
+#include "parser/csv.hpp"
 #include <gtest/gtest.h>
 
 struct InvalidParserTestData {
