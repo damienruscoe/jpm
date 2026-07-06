@@ -39,18 +39,16 @@ public:
             raw * std::pow(10, DecimalPlaces))) {}
 
   friend std::ostream &operator<<(std::ostream &os, const FixedPoint &fp) {
+    std::stringstream ss;
     auto v = fp.get_raw_value();
     if (v < 0) {
-      os << '-';
+      ss << '-';
       v = -v;
     }
 
-    const char old_fill = os.fill();
-    const uint64_t foo = std::pow(10, DecimalPlaces);
-    return os << (v / foo) << '.' << std::setfill('0')
-              << std::setw(DecimalPlaces) << (v % foo);
-    os.fill(old_fill);
-    return os;
+    ss << (v / Scale) << '.' << std::setfill('0') << std::setw(DecimalPlaces)
+       << (v % Scale);
+    return os << ss.str();
   }
 
   friend bool operator==(const FixedPoint &lhs, const FixedPoint &rhs) {
@@ -108,6 +106,8 @@ public:
     return *this;
   }
 
+  explicit operator bool() const { return get_raw_value() != 0; }
+
   explicit operator double() const {
     return static_cast<double>(get_raw_value()) / Scale;
   }
@@ -118,6 +118,8 @@ public:
     return std::nullopt;
   }
 
+  friend std::hash<FixedPoint<DecimalPlaces, BaseTypeT>>;
+
 private:
   FixedPoint(cnl_fp val) : m_value(val) {}
   FixedPoint(BaseType raw, bool)
@@ -127,6 +129,14 @@ private:
 
   cnl_fp m_value;
 };
+
+namespace std {
+template <int N, typename BaseTypeT> struct hash<FixedPoint<N, BaseTypeT>> {
+  std::size_t operator()(const FixedPoint<N, BaseTypeT> &fp) const noexcept {
+    return std::hash<uint64_t>{}(fp.get_raw_value());
+  }
+};
+} // namespace std
 
 namespace {
 

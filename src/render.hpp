@@ -106,22 +106,16 @@ void render_horizontal_orderbook(const OrderBook &book, int depth = 99) {
 
   while (ask.first != ask.second || bid.first != bid.second) {
     if (bid.first != bid.second) {
-      std::stringstream price_ss;
-      price_ss << bid.first->price;
-
       bid_total += bid.first->quantity;
-      left_row_cols(ss, bid_total, bid.first->quantity, price_ss.str());
+      left_row_cols(ss, bid_total, bid.first->quantity, bid.first->price);
 
       ++bid.first;
     } else
       left_row_cols(ss, "", "", "");
 
     if (ask.first != ask.second) {
-      std::stringstream price_ss;
-      price_ss << ask.first->price;
-
       ask_total += ask.first->quantity;
-      right_row_cols(ss, ask_total, ask.first->quantity, price_ss.str());
+      right_row_cols(ss, ask_total, ask.first->quantity, ask.first->price);
 
       ++ask.first;
     } else

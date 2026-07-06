@@ -22,7 +22,7 @@ option(ENABLE_SANITIZERS "Build non-Debug configs with ASan/UBSan (matches old d
 add_library(project_warnings INTERFACE)
 target_compile_options(project_warnings INTERFACE
     -Wall -Wextra -Wpedantic -Werror -Wno-error=pedantic
-    $<$<CONFIG:Debug>:-ggdb -O2>
+    $<$<CONFIG:Debug>:-ggdb -O0>
     $<$<NOT:$<CONFIG:Debug>>:-O3>
 )
 
@@ -52,7 +52,7 @@ add_library(core STATIC ${CORE_SRCS})
 target_include_directories(core PUBLIC
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/src/core
-    ${CMAKE_SOURCE_DIR}/deps/cnl/include
+    SYSTEM ${CMAKE_SOURCE_DIR}/deps/cnl/include
 )
 target_link_libraries(core PUBLIC project_warnings project_sanitizers)
 
@@ -61,6 +61,21 @@ target_link_libraries(core PUBLIC project_warnings project_sanitizers)
 # ---------------------------------------------------------------------------
 add_executable(matching_engine src/apps/main.cpp)
 target_link_libraries(matching_engine PRIVATE core)
+
+
+
+find_package(OpenSSL REQUIRED)
+find_package(nlohmann_json REQUIRED)
+
+add_executable(gemini src/apps/gemini.cpp)
+target_include_directories(gemini PUBLIC
+    ../queueco/deps/websocketpp
+)
+target_link_libraries(gemini PRIVATE
+    core
+    OpenSSL::SSL
+    OpenSSL::Crypto
+    nlohmann_json::nlohmann_json)
 
 # ---------------------------------------------------------------------------
 # matching_engine_tests
@@ -161,4 +176,15 @@ if(BUILD_GUI)
 
     add_executable(fake_dashboard src/apps/sample_dashboard.cpp ${UI_SRCS})
     target_link_libraries(fake_dashboard PRIVATE core imgui_lib implot_lib)
+
+    add_executable(gemini_dashboard src/apps/gemini_gui.cpp ${UI_SRCS})
+		target_include_directories(gemini_dashboard PUBLIC
+			../queueco/deps/websocketpp
+		)
+		target_link_libraries(gemini_dashboard PRIVATE
+				core
+				OpenSSL::SSL
+				OpenSSL::Crypto
+				nlohmann_json::nlohmann_json)
+    target_link_libraries(gemini_dashboard PRIVATE core imgui_lib implot_lib readerwriterqueue)
 endif()

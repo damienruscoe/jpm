@@ -1,7 +1,8 @@
 # Compiler and Flags
 CXX = clang++
-CXXFLAGS = -std=c++20 -O3 -Wall -Wextra -Wpedantic -Werror -fsanitize=address,undefined
-DEBUG_CXXFLAGS = -std=c++20 -ggdb -O2 -Wall -Wextra -Wpedantic -Werror
+CXXFLAGS = -std=c++20 -O3 -Wall -Wextra -Wpedantic -Werror -fsanitize=address,undefined -Wno-null-pointer-subtraction
+DEBUG_CXXFLAGS = -std=c++20 -ggdb -O2 -Wall -Wextra -Wpedantic -Werror -Wno-null-pointer-subtraction
+LINKER_FLAGS = -ltls -lcrypto -lssl
 GTEST_FLAGS = -lgtest -lgtest_main
 
 # Target executables
@@ -11,8 +12,9 @@ UI_SAMPLE = $(BUILD_DIR)/ui_sample
 TEST_TARGET = $(BUILD_DIR)/matching_engine_tests
 
 # Source and Headers
-INC = -Isrc/ -Isrc/core/ -Ideps/cnl/include
-SRCS = src/apps/main.cpp src/*.cpp src/parser/*.cpp
+DEP_INC = -I../queueco/deps/nlohmann/include -I../queueco/deps/websocketpp
+INC = ${DEP_INC} -Isrc/ -Isrc/core/ -Ideps/cnl/include
+SRCS = src/apps/gemini.cpp src/*.cpp src/parser/*.cpp
 TEST_SRCS = test/*.cpp src/*.cpp src/parser/*.cpp
 UI_SRCS = src/apps/sample_dashboard.cpp src/ui/*.cpp \
 	/home/druscoe/dev/finance/chronovis/build.native/_deps/imgui-src/*.cpp \
@@ -38,7 +40,7 @@ all: test sample build/ui_sample
 
 $(TARGET): $(SRCS)
 	mkdir -p $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) $(INC) $(SRCS) -o $(TARGET)
+	$(CXX) $(CXXFLAGS) $(INC) $(SRCS) -o $(TARGET) $(LINKER_FLAGS)
 
 $(UI_SAMPLE): $(UI_SRCS)
 	mkdir -p $(BUILD_DIR)
@@ -46,12 +48,12 @@ $(UI_SAMPLE): $(UI_SRCS)
 
 debug: $(SRCS)
 	mkdir -p $(BUILD_DIR)
-	$(CXX) $(DEBUG_CXXFLAGS) $(INC) $(SRCS) -o $(TARGET)_debug
+	$(CXX) $(DEBUG_CXXFLAGS) $(INC) $(SRCS) -o $(TARGET)_debug $(LINKER_FLAGS)
 	gdb --args ./$(TARGET)_debug docs/given_example.csv
 
 $(TEST_TARGET): $(TEST_SRCS)
 	mkdir -p $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) $(INC) $(TEST_SRCS) -o $(TEST_TARGET) $(GTEST_FLAGS)
+	$(CXX) $(CXXFLAGS) $(INC) $(TEST_SRCS) -o $(TEST_TARGET) $(GTEST_FLAGS) $(LINKER_FLAGS)
 
 test: $(TEST_TARGET)
 	./$(TEST_TARGET)

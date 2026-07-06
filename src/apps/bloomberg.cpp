@@ -179,8 +179,10 @@ template <typename Traits> struct EventHandler {
   void update(const OrderMatchedEvent<Traits> &event) { (void)event; }
   void update(const LevelQuantityEvent<Traits> &event) {
     bool added = ui_controller.m_ui_queue.enqueue(event);
-    (void)added;
     assert(added);
+
+    using namespace std::chrono_literals;
+    std::this_thread::sleep_for(10ms);
   }
 };
 
@@ -210,11 +212,9 @@ int main(int argc, char *argv[]) {
   std::this_thread::sleep_for(4s);
 
   FileSource::process_file(file, [&](const auto &msg) {
-    std::cout << fmt::LineTag::Message("VALID") << msg << nl;
+    // std::cout << fmt::LineTag::Message("VALID") << msg << nl;
     FileSource::update_book(book, msg);
     // render_horizontal_orderbook(book);
-    using namespace std::chrono_literals;
-    std::this_thread::sleep_for(10ms);
     // std::cin.get();
   });
 

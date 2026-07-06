@@ -1,4 +1,5 @@
 #pragma once
+#include "formulas.hpp"
 #include "trade_event.hpp"
 
 #include <functional>

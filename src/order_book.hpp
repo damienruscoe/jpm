@@ -9,7 +9,6 @@
 #include <optional>
 #include <vector>
 
-#include "core/trade_event.hpp"
 #include "formulas.hpp"
 #include "object_resource.hpp"
 #include "signals/signals_base.hpp"
