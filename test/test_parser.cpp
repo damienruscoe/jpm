@@ -5,6 +5,8 @@
 
 #include "str_utils.hpp"
 
+using namespace parser::csv;
+
 namespace {
 using FixedPointGeneric = FixedPoint<4>;
 }

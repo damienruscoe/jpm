@@ -5,80 +5,57 @@
 #include "order_id.hpp"
 #include "parser/csv.hpp"
 #include "render.hpp"
+#include "str_utils.hpp"
 
-#include "../src/signals/signals.hpp"
+#include "signals/signals.hpp"
 
 #include <iostream>
 #include <memory>
 
-template <typename T, bool Owned> struct FmtValueOr {
-  using OptBindingRef =
-      std::conditional_t<Owned, std::optional<T>, const std::optional<T> &>;
-
-  FmtValueOr(OptBindingRef opt, std::string_view alt) : opt{opt}, alt{alt} {}
-
-  FmtValueOr(const FmtValueOr &) = delete;
-  FmtValueOr(FmtValueOr &&) noexcept = delete;
-  FmtValueOr &operator=(const FmtValueOr &) = delete;
-  FmtValueOr &operator=(FmtValueOr &&) = delete;
-
-  friend std::ostream &operator<<(std::ostream &os, const FmtValueOr &&o) {
-    return o.opt ? (os << *o.opt) : (os << o.alt);
-  }
-
-private:
-  OptBindingRef opt;
-  std::string_view alt;
-};
-
-template <typename T>
-FmtValueOr(const std::optional<T> &, std::string_view) -> FmtValueOr<T, false>;
-
-template <typename T>
-FmtValueOr(std::optional<T> &&, std::string_view) -> FmtValueOr<T, true>;
-
-[[maybe_unused]] constexpr std::string_view VALID = "[\033[32mVALID\033[0m] ";
-[[maybe_unused]] constexpr std::string_view ERROR = "[\033[31mERROR\033[0m] ";
-[[maybe_unused]] constexpr std::string_view TRADE = "[\033[94mTRADE\033[0m] ";
-[[maybe_unused]] constexpr std::string_view ORDER = "[\033[95mORDER\033[0m] ";
-[[maybe_unused]] constexpr std::string_view RESTING =
-    "[\033[96mRESTING\033[0m] ";
-[[maybe_unused]] constexpr std::string_view FILLED = "[\033[93mFILLED\033[0m] ";
-
 template <typename Traits> struct TradePrinter {
   void printTrade(const TradeEvent<Traits> &event) {
-    const char aggressor_side = event.aggressor_side == side_t::ASK ? 'S' : 'B';
-    std::cout << TRADE << "Trade: " << " " << event.order_id << ", "
-              << event.quantity << " " << event.price
-              << ", AggrSide=" << aggressor_side
-              << (event.fill == FillStatus::Partial ? " (Partial)" : "") << nl;
+    std::cout << fmt::LineTag::Note("TRADED")
+              << fmt::KeyValue("Order ID", event.order_id)
+              << fmt::KeyValue("Quantity", event.quantity)
+              << fmt::KeyValue("Price", event.price)
+              << fmt::KeyValue("Aggressive Side",
+                               event.aggressor_side == side_t::ASK ? 'S' : 'B');
+    if (event.fill == FillStatus::Partial)
+      std::cout << fmt::LineTag::Note("Partial");
+    std::cout << nl;
   }
   void printFilled(const OrderMatchedEvent<Traits> &event) {
-    const char side = event.side == side_t::ASK ? 'S' : 'B';
-    std::cout << FILLED << "Order ID: " << " " << event.order_id << ", "
-              << event.quantity << " " << event.price << ", Side=" << side
+    std::cout << fmt::LineTag::Warning("FILLED")
+              << fmt::KeyValue("Order ID", event.order_id)
+              << fmt::KeyValue("Quantity", event.quantity)
+              << fmt::KeyValue("Price", event.price)
+              << fmt::KeyValue("Side", event.side == side_t::ASK ? 'S' : 'B')
               << nl;
   }
   void printResting(const OrderMatchedEvent<Traits> &event) {
-    const char side = event.side == side_t::ASK ? 'S' : 'B';
-    std::cout << RESTING << "Order ID: " << " " << event.order_id << ", "
-              << event.quantity << " " << event.price << ", Side=" << side
+    std::cout << fmt::LineTag::Debug("RESTED")
+              << fmt::KeyValue("Order ID", event.order_id)
+              << fmt::KeyValue("Quantity", event.quantity)
+              << fmt::KeyValue("Price", event.price)
+              << fmt::KeyValue("Side", event.side == side_t::ASK ? 'S' : 'B')
               << nl;
   }
   void update(const TradeEvent<Traits> &event) { printTrade(event); }
-  void print(const OrderMatchedEvent<Traits> &event) {
+  void update(const OrderMatchedEvent<Traits> &event) {
     event.remaining == 0 ? printFilled(event) : printResting(event);
   }
 };
 
+template <typename T> void print_signal(std::string_view name, const T &value) {
+  std::cout << fmt::KeyValue(name, value) << nl;
+};
+
+template <typename T>
+void print_signal(std::string_view name, const std::optional<T> &value) {
+  std::cout << fmt::KeyValue(name, fmt::ValueOr{value, "Unknown"}) << nl;
+};
+
 void print_all_signals(const auto &signals) {
-  const int TITLE_WIDTH = 20;
-
-  const auto print_signal = [](std::string_view name, const auto &value) {
-    std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH) << name << ":\t"
-              << FmtValueOr{value, "Unknown"} << nl;
-  };
-
   print_signal("LTP", signals.getLastTradedPrice());
   print_signal("MID", signals.getMidPrice());
   print_signal("MICRO", signals.getWeightedMidPrice());
@@ -91,8 +68,7 @@ void print_all_signals(const auto &signals) {
   print_signal("Cumulative Volume", signals.getCumulativeVolume());
   print_signal("Cumulative Value", signals.getCumulativeValue());
   print_signal("LTP", signals.getLtpDelta());
-  std::cout << std::setfill(' ') << std::setw(TITLE_WIDTH) << "Run Length:\t"
-            << signals.getRunLength() << nl;
+  print_signal("Run Length", signals.getRunLength());
   print_signal("Volume Weight Drift", signals.getVolumeWeightedDrift());
   print_signal("MACD", signals.getMacd());
   print_signal("Signal Line", signals.getSignalLine());
@@ -140,48 +116,22 @@ using SignalAgregator = signals::StaticComposite<
 
 using Book = OrderBook<Traits, SignalAgregator>;
 
-void process_csv_message(Book &book, const auto &msg) {
-  switch (msg.type) {
-  case RequestType::New: {
-    const auto side = msg.side == Side::Buy ? side_t::BID : side_t::ASK;
-    auto added = book.newOrder(msg.order_id, side, msg.price, msg.quantity);
-    if (!added)
-      std::cout << ERROR << "Adding new order failed" << nl;
-    break;
-  }
-  case RequestType::Cancel: {
-    auto cancelled = book.cancel(msg.order_id);
-    if (!cancelled)
-      std::cout << ERROR << "Cancelling existing order failed" << nl;
-    break;
-  }
-  case RequestType::AmendPriceQuantity: {
-    auto amended = book.amend(msg.order_id, msg.price, msg.quantity);
-    if (!amended)
-      std::cout << ERROR << "Amending order failed" << nl;
-    break;
-  }
-  default:
-    break;
-  }
-}
-
 struct Venue {
-  using symbol_t = decltype(parse_line("")->symbol);
+  using symbol_t = decltype(parser::csv::parse_line("")->symbol);
 
   static void process_file(MappedFile &file, const auto &on_parsed) {
     LineView lines(reinterpret_cast<const char *>(file.data()), file.size());
     for (const auto &line : lines) {
-      if (auto msg = parse_line(line))
-        on_parsed(msg);
+      if (auto msg = parser::csv::parse_line(line))
+        on_parsed(*msg);
       else
-        std::cout << ERROR << msg.error() << nl;
+        std::cout << fmt::LineTag::Error("ERROR") << msg.error() << nl;
     }
   }
 };
 
 int main(int argc, char *argv[]) {
-  std::string filename = argc > 1 ? argv[1] : "docs/given_example.csv";
+  std::string filename = argc > 1 ? argv[1] : "../docs/given_example.csv";
 
   MappedFile file(filename);
   if (!file.data()) {
@@ -192,12 +142,12 @@ int main(int argc, char *argv[]) {
   std::unordered_map<Venue::symbol_t, Book> ticker_books;
 
   Venue::process_file(file, [&](const auto &msg) {
-    std::cout << VALID << *msg << nl;
+    std::cout << fmt::LineTag::Message("VALID") << msg << nl;
 
-    auto [it, added] = ticker_books.try_emplace(msg->symbol);
+    auto [it, added] = ticker_books.try_emplace(msg.symbol);
     auto &book = it->second;
 
-    process_csv_message(book, *msg);
+    parser::csv::process_csv_message(book, msg);
 
     // print_all_signals(book.getSignals());
 
@@ -216,9 +166,11 @@ int main(int argc, char *argv[]) {
       const auto &quantity = order->quantity;
       const auto &price = order->price;
 
-      std::cout << ORDER << "OrderId: " << order_id
-                << " Side: " << (side == side_t::BID ? "Buy" : "Sell")
-                << " Quantity: " << quantity << " Price: " << price << nl;
+      std::cout << fmt::LineTag::Warning("ORDER")
+                << fmt::KeyValue("OrderId", order_id)
+                << fmt::KeyValue("Side", side == side_t::BID ? "Buy" : "Sell")
+                << fmt::KeyValue("Quantity", quantity)
+                << fmt::KeyValue("Price", price) << nl;
     }
     std::cout << nl;
     render_horizontal_orderbook(book);

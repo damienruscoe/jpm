@@ -5,9 +5,13 @@
 
 #include "core/enums.hpp"
 
-template <typename OrderID, typename PriceT, typename QuantityT> struct Order {
-  using Price = PriceT;
-  using Quantity = QuantityT;
+// template <typename OrderID, typename PriceT, typename QuantityT> struct Order
+// {
+template <typename TraitsT> struct Order {
+  using Traits = TraitsT;
+  using OrderID = typename Traits::OrderID;
+  using Price = typename Traits::Price;
+  using Quantity = typename Traits::Quantity;
 
   OrderID id;
   Price price;

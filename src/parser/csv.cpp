@@ -6,17 +6,19 @@
 #include <iomanip>
 #include <sstream>
 
+using namespace parser::csv;
+
 // clang-format off
 static constexpr std::array<std::string_view, 6> REQUEST_TYPE_STRINGS = {"N", "C", "a", "Apq", "Aq", "I"};
 static constexpr std::array<char, 2> SIDE_STRINGS = {'B', 'S'};
 
-std::ostream &operator<<(std::ostream &os, const Message &msg) {
-  os << "Symbol: " << msg.symbol
-     << " | Type: " << REQUEST_TYPE_STRINGS[static_cast<size_t>(msg.type)]
-     << " | ID: " << std::setw(10) << msg.order_id
-     << " | Side: " << SIDE_STRINGS[static_cast<size_t>(msg.side)]
-     << " | Qty: " << msg.quantity
-     << " | Price: " << msg.price;
+std::ostream &parser::csv::operator<<(std::ostream &os, const Message &msg) {
+  os << fmt::KeyValue{"Symbol", msg.symbol}
+     << fmt::KeyValue{"Type", REQUEST_TYPE_STRINGS[static_cast<size_t>(msg.type)]}
+     << fmt::KeyValue{"ID", msg.order_id}
+     << fmt::KeyValue{"Side", SIDE_STRINGS[static_cast<size_t>(msg.side)]}
+     << fmt::KeyValue{"Qty", msg.quantity}
+     << fmt::KeyValue{"Price", msg.price};
   return os;
 }
 // clang-format on
@@ -28,7 +30,7 @@ auto error(std::string_view line, std::string_view error_msg,
   return Expected<Message, std::string>(ss.str());
 };
 
-Expected<Message, std::string> parse_line(std::string_view line) {
+Expected<Message, std::string> parser::csv::parse_line(std::string_view line) {
   line = trim_inline_comments(line);
   line = trim_whitespace_suffix(line);
 

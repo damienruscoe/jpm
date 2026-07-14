@@ -5,6 +5,8 @@
 #include <gtest/gtest.h>
 #include <ranges>
 
+using namespace parser::csv;
+
 class OrderBookTest : public testing::Test {
 protected:
   OrderBookTest() {}

@@ -11,6 +11,7 @@ template <typename Traits> class DynamicComposite {
 
     virtual void update(const TradeEvent<Traits> &event) = 0;
     virtual void update(const OrderMatchedEvent<Traits> &event) = 0;
+    virtual void update(const LevelQuantityEvent<Traits> &event) = 0;
   };
 
   template <typename Signal> struct Model : Concept {
@@ -21,6 +22,9 @@ template <typename Traits> class DynamicComposite {
       handle_event(event);
     }
     void update(const OrderMatchedEvent<Traits> &event) override {
+      handle_event(event);
+    }
+    void update(const LevelQuantityEvent<Traits> &event) override {
       handle_event(event);
     }
 

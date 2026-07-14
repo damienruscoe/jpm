@@ -1,0 +1,164 @@
+cmake_minimum_required(VERSION 3.16)
+project(matching_engine CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release)
+endif()
+
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+
+option(BUILD_GUI "Build the ImGui/ImPlot dashboard sample (Bloomberg terminal clone)" OFF)
+option(ENABLE_SANITIZERS "Build non-Debug configs with ASan/UBSan (matches old default)" ON)
+
+# ---------------------------------------------------------------------------
+# Common warning / sanitizer flags
+# Debug config: -ggdb -O2, no sanitizers (matches old DEBUG_CXXFLAGS)
+# Everything else: -O3, sanitizers optional (matches old CXXFLAGS default)
+# ---------------------------------------------------------------------------
+add_library(project_warnings INTERFACE)
+target_compile_options(project_warnings INTERFACE
+    -Wall -Wextra -Wpedantic -Werror -Wno-error=pedantic
+    $<$<CONFIG:Debug>:-ggdb -O2>
+    $<$<NOT:$<CONFIG:Debug>>:-O3>
+)
+
+add_library(project_sanitizers INTERFACE)
+if(ENABLE_SANITIZERS)
+    target_compile_options(project_sanitizers INTERFACE
+        $<$<NOT:$<CONFIG:Debug>>:-fsanitize=address,undefined>
+    )
+    target_link_options(project_sanitizers INTERFACE
+        $<$<NOT:$<CONFIG:Debug>>:-fsanitize=address,undefined>
+    )
+endif()
+
+# ---------------------------------------------------------------------------
+# Core library — everything under src/ and src/parser/, excluding the two
+# app entry points (src/apps/main.cpp, src/apps/sample_dashboard.cpp) and
+# the UI-only sources under src/ui/. CONFIGURE_DEPENDS re-globs on rebuild
+# so new files are picked up without a manual reconfigure (same convenience
+# the old wildcard-based Makefile gave you, without its full-rebuild cost).
+# ---------------------------------------------------------------------------
+file(GLOB CORE_SRCS CONFIGURE_DEPENDS
+    "${CMAKE_SOURCE_DIR}/src/*.cpp"
+    "${CMAKE_SOURCE_DIR}/src/parser/*.cpp"
+)
+
+add_library(core STATIC ${CORE_SRCS})
+target_include_directories(core PUBLIC
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/core
+    ${CMAKE_SOURCE_DIR}/deps/cnl/include
+)
+target_link_libraries(core PUBLIC project_warnings project_sanitizers)
+
+# ---------------------------------------------------------------------------
+# matching_engine — CLI app
+# ---------------------------------------------------------------------------
+add_executable(matching_engine src/apps/main.cpp)
+target_link_libraries(matching_engine PRIVATE core)
+
+# ---------------------------------------------------------------------------
+# matching_engine_tests
+# find_package first (system/vendored gtest); FetchContent fallback so a
+# machine without libgtest-dev installed still builds.
+# ---------------------------------------------------------------------------
+find_package(GTest QUIET)
+if(NOT GTest_FOUND)
+    include(FetchContent)
+    FetchContent_Declare(
+        googletest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG v1.15.2
+    )
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
+    add_library(GTest::gtest ALIAS gtest)
+    add_library(GTest::gtest_main ALIAS gtest_main)
+endif()
+
+file(GLOB TEST_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/test/*.cpp")
+add_executable(matching_engine_tests ${TEST_SRCS})
+target_link_libraries(matching_engine_tests PRIVATE core GTest::gtest GTest::gtest_main)
+
+# ---------------------------------------------------------------------------
+# bloomberg — optional, off by default (-DBUILD_GUI=ON to enable).
+# ImGui and ImPlot ship without a top-level CMakeLists, so — same as the
+# old Makefile did by hand — we compile their sources directly into a
+# library target ourselves. GLFW *does* ship a full CMake project, so
+# FetchContent gives us a ready-made `glfw` target for free, which is
+# what removes the old hardcoded chronovis build-tree paths and -lglfw.
+# ---------------------------------------------------------------------------
+if(BUILD_GUI)
+    include(FetchContent)
+
+    FetchContent_Declare(imgui  GIT_REPOSITORY https://github.com/ocornut/imgui.git  GIT_TAG v1.91.5)
+    FetchContent_Declare(implot GIT_REPOSITORY https://github.com/epezent/implot.git GIT_TAG v0.16)
+    FetchContent_MakeAvailable(imgui implot)
+		FetchContent_Declare(readerwriterqueue GIT_REPOSITORY https://github.com/cameron314/readerwriterqueue.git GIT_TAG v1.0.7)
+		FetchContent_MakeAvailable(readerwriterqueue)
+
+    # GLFW: prefer whatever's already on the machine (a CMake config
+    # package, or failing that pkg-config) before building it from
+    # source — building GLFW itself pulls in X11/Wayland dev headers
+    # that a from-source fetch shouldn't force on someone who already
+    # has libglfw3-dev installed.
+    find_package(glfw3 3.3 QUIET)
+    if(NOT TARGET glfw)
+        find_package(PkgConfig QUIET)
+        if(PkgConfig_FOUND)
+            pkg_check_modules(GLFW3_PC QUIET glfw3)
+        endif()
+        if(GLFW3_PC_FOUND)
+            add_library(glfw INTERFACE)
+            target_include_directories(glfw INTERFACE ${GLFW3_PC_INCLUDE_DIRS})
+            target_link_directories(glfw INTERFACE ${GLFW3_PC_LIBRARY_DIRS})
+            target_link_libraries(glfw INTERFACE ${GLFW3_PC_LIBRARIES})
+        else()
+            message(STATUS "System GLFW not found — fetching and building from source "
+                            "(needs X11 or Wayland dev headers, e.g. xorg-dev)")
+            FetchContent_Declare(glfw GIT_REPOSITORY https://github.com/glfw/glfw.git GIT_TAG 3.4)
+            FetchContent_MakeAvailable(glfw)
+        endif()
+    endif()
+
+    find_package(OpenGL REQUIRED)
+
+    set(IMGUI_CORE_SRCS
+        ${imgui_SOURCE_DIR}/imgui.cpp
+        ${imgui_SOURCE_DIR}/imgui_draw.cpp
+        ${imgui_SOURCE_DIR}/imgui_tables.cpp
+        ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+        ${imgui_SOURCE_DIR}/imgui_demo.cpp
+        ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
+        ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl2.cpp
+        ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
+    )
+
+    add_library(imgui_lib STATIC ${IMGUI_CORE_SRCS})
+    target_include_directories(imgui_lib PUBLIC
+        ${imgui_SOURCE_DIR}
+        ${imgui_SOURCE_DIR}/backends
+    )
+    target_link_libraries(imgui_lib PUBLIC glfw OpenGL::GL)
+
+    add_library(implot_lib STATIC
+        ${implot_SOURCE_DIR}/implot.cpp
+        ${implot_SOURCE_DIR}/implot_items.cpp
+        ${implot_SOURCE_DIR}/implot_demo.cpp
+    )
+    target_include_directories(implot_lib PUBLIC ${implot_SOURCE_DIR})
+    target_link_libraries(implot_lib PUBLIC imgui_lib)
+
+    file(GLOB UI_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/ui/*.cpp")
+
+    add_executable(bloomberg src/apps/bloomberg.cpp ${UI_SRCS})
+    target_link_libraries(bloomberg PRIVATE core imgui_lib implot_lib readerwriterqueue)
+
+    add_executable(fake_dashboard src/apps/sample_dashboard.cpp ${UI_SRCS})
+    target_link_libraries(fake_dashboard PRIVATE core imgui_lib implot_lib)
+endif()

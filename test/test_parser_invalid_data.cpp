@@ -1,6 +1,8 @@
 #include "parser/csv.hpp"
 #include <gtest/gtest.h>
 
+using namespace parser::csv;
+
 struct InvalidParserTestData {
   std::string input;
   std::string description;

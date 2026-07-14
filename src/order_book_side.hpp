@@ -4,6 +4,7 @@
 #include <memory_resource>
 #include <optional>
 
+#include "core/trade_event.hpp"
 #include "price_level.hpp"
 
 template <typename Order, typename Comparitor> class OrderBookSide {
@@ -15,7 +16,7 @@ public:
 
   template <typename OrderCallback>
   Quantity matchPrice(const Price &price, Quantity qty,
-                      OrderCallback &&on_filled) {
+                      OrderCallback &&on_filled, auto &signals) {
     const auto comp = typename Book::key_compare{};
     const auto level_end = book.end();
 
@@ -23,18 +24,41 @@ public:
     while (qty > 0 && level != level_end && !comp(price, level->first)) {
       const bool cleared = level->second.matchAgainst(
           qty, std::forward<OrderCallback>(on_filled));
+
+      signals.update(LevelQuantityEvent<typename Order::Traits>{
+          level->first,                // level price
+          level->second.getQuantity(), // New quantity at level
+          std::is_same_v<Comparitor, std::greater<Price>> ? side_t::BID
+                                                          : side_t::ASK});
+
       level = cleared ? book.erase(level) : std::next(level);
     }
 
     return qty;
   }
 
-  void insertOrder(Order &order) { book[order.price].addOrder(order); }
+  void insertOrder(Order &order, auto &signals) {
+    book[order.price].addOrder(order);
 
-  void removeOrder(Order &order) {
-    if (const auto it = book.find(order.price);
-        it != book.end() && it->second.removeOrder(order))
-      book.erase(it);
+    signals.update(LevelQuantityEvent<typename Order::Traits>{
+        order.price,                     // level price
+        book[order.price].getQuantity(), // New quantity at level
+        std::is_same_v<Comparitor, std::greater<Price>> ? side_t::BID
+                                                        : side_t::ASK});
+  }
+
+  void removeOrder(Order &order, auto &signals) {
+    if (const auto it = book.find(order.price); it != book.end()) {
+      const bool cleared = it->second.removeOrder(order);
+
+      signals.update(LevelQuantityEvent<typename Order::Traits>{
+          it->first,                // level price
+          it->second.getQuantity(), // New quantity at level
+          std::is_same_v<Comparitor, std::greater<Price>> ? side_t::BID
+                                                          : side_t::ASK});
+      if (cleared)
+        book.erase(it);
+    }
   }
 
   template <typename Level> std::optional<Level> getBest() const {

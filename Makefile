@@ -7,20 +7,42 @@ GTEST_FLAGS = -lgtest -lgtest_main
 # Target executables
 BUILD_DIR = build
 TARGET = $(BUILD_DIR)/matching_engine
+UI_SAMPLE = $(BUILD_DIR)/ui_sample
 TEST_TARGET = $(BUILD_DIR)/matching_engine_tests
 
 # Source and Headers
 INC = -Isrc/ -Isrc/core/ -Ideps/cnl/include
 SRCS = src/apps/main.cpp src/*.cpp src/parser/*.cpp
 TEST_SRCS = test/*.cpp src/*.cpp src/parser/*.cpp
+UI_SRCS = src/apps/sample_dashboard.cpp src/ui/*.cpp \
+	/home/druscoe/dev/finance/chronovis/build.native/_deps/imgui-src/*.cpp \
+	/home/druscoe/dev/finance/chronovis/build.native/_deps/imgui-src/backends/imgui_impl_glfw.cpp \
+	/home/druscoe/dev/finance/chronovis/build.native/_deps/imgui-src/backends/imgui_impl_glut.cpp \
+	/home/druscoe/dev/finance/chronovis/build.native/_deps/imgui-src/backends/imgui_impl_null.cpp \
+	/home/druscoe/dev/finance/chronovis/build.native/_deps/imgui-src/backends/imgui_impl_opengl2.cpp \
+	/home/druscoe/dev/finance/chronovis/build.native/_deps/imgui-src/backends/imgui_impl_opengl3.cpp \
+	/home/druscoe/dev/finance/chronovis/build.native/_deps/implot-src/*.cpp
+UI_INC = \
+	-I/home/druscoe/dev/finance/chronovis/build.native/_deps/glfw-build/src \
+	-I/home/druscoe/dev/finance/chronovis/build.native/_deps/glfw-src \
+	-I/home/druscoe/dev/finance/chronovis/build.native/_deps/glfw-subbuild \
+	-I/home/druscoe/dev/finance/chronovis/build.native/_deps/imgui-src \
+	-I/home/druscoe/dev/finance/chronovis/build.native/_deps/imgui-src/backends \
+	-I/home/druscoe/dev/finance/chronovis/build.native/_deps/implot-src
+
+#/home/druscoe/dev/finance/chronovis/build.native/_deps/imgui-src/backends/imgui_impl_glfw.h
 
 CSV ?= docs/given_example.csv
 
-all: test $(TARGET) sample
+all: test sample build/ui_sample
 
 $(TARGET): $(SRCS)
 	mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) $(INC) $(SRCS) -o $(TARGET)
+
+$(UI_SAMPLE): $(UI_SRCS)
+	mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) $(INC) $(UI_INC) $(UI_SRCS) -o $(UI_SAMPLE) -lGL -lglut -lglfw
 
 debug: $(SRCS)
 	mkdir -p $(BUILD_DIR)

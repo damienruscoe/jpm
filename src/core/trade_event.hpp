@@ -17,3 +17,9 @@ template <typename Traits> struct TradeEvent {
   side_t aggressor_side;
   FillStatus fill;
 };
+
+template <typename Traits> struct LevelQuantityEvent {
+  typename Traits::Price price;
+  typename Traits::Quantity quantity;
+  side_t side;
+};
