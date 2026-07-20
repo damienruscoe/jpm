@@ -40,13 +40,10 @@ void UIController::Render(ui::OrderBookSnapshot &snapshot) {
   ImGui::Begin("Instrument Orders", nullptr,
                ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize);
 
-  ImGui::SameLine();
-  ImGui::TextDisabled("(?) Drag to pan, scroll to zoom when unfollowed");
-
   UpdateTheme();
 
   if (ImGui::BeginTabBar("Streams")) {
-    if (ImGui::BeginTabItem("Dashboard")) {
+    if (ImGui::BeginTabItem("Level Order Book")) {
       m_obp.Render(snapshot);
       ImGui::EndTabItem();
     }

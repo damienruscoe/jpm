@@ -118,6 +118,8 @@ public:
     return std::nullopt;
   }
 
+  static FixedPoint Parsed(BaseType value) { return FixedPoint(value, true); }
+
   friend std::hash<FixedPoint<DecimalPlaces, BaseTypeT>>;
 
 private:

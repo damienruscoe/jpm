@@ -56,16 +56,17 @@ target_include_directories(core PUBLIC
 )
 target_link_libraries(core PUBLIC project_warnings project_sanitizers)
 
-# ---------------------------------------------------------------------------
-# matching_engine — CLI app
-# ---------------------------------------------------------------------------
-add_executable(matching_engine src/apps/main.cpp)
-target_link_libraries(matching_engine PRIVATE core)
-
-
-
+find_package(databento REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(nlohmann_json REQUIRED)
+
+add_executable(matching_engine src/apps/main.cpp)
+target_link_libraries(matching_engine PRIVATE
+    core
+    OpenSSL::SSL
+    OpenSSL::Crypto
+    databento::databento
+    nlohmann_json::nlohmann_json)
 
 add_executable(gemini src/apps/gemini.cpp)
 target_include_directories(gemini PUBLIC
@@ -172,7 +173,12 @@ if(BUILD_GUI)
     file(GLOB UI_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/ui/*.cpp")
 
     add_executable(bloomberg src/apps/bloomberg.cpp ${UI_SRCS})
-    target_link_libraries(bloomberg PRIVATE core imgui_lib implot_lib readerwriterqueue)
+    target_link_libraries(bloomberg PRIVATE
+        core
+        databento::databento
+        imgui_lib
+        implot_lib
+        readerwriterqueue)
 
     add_executable(fake_dashboard src/apps/sample_dashboard.cpp ${UI_SRCS})
     target_link_libraries(fake_dashboard PRIVATE core imgui_lib implot_lib)

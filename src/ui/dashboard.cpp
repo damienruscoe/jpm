@@ -32,18 +32,29 @@ constexpr ImVec4 kColorOrderId{0.70f, 0.70f, 0.72f, 1.00f};
 // Draws a translucent depth bar filling `fraction` of the current cell,
 // anchored to the given side, then leaves the cursor for text on top.
 void DrawSizeBar(float fraction, ImVec4 color, bool anchor_right) {
-  fraction = std::clamp(fraction, 0.0f, 1.0f);
-
   ImDrawList *draw_list = ImGui::GetWindowDrawList();
-  ImVec2 cell_min = ImGui::GetCursorScreenPos();
-  ImVec2 cell_max = ImVec2(cell_min.x + ImGui::GetContentRegionAvail().x,
-                           cell_min.y + ImGui::GetTextLineHeightWithSpacing());
 
-  float bar_width = (cell_max.x - cell_min.x) * fraction;
+  const float border_size = 1.f;
+
+  ImVec2 cell_padding = ImGui::GetStyle().CellPadding;
+  cell_padding.x -= border_size;
+  cell_padding.y -= border_size + 1;
+
+  ImVec2 top_left = ImGui::GetCursorScreenPos();
+  top_left.x -= cell_padding.x;
+  top_left.y -= cell_padding.y;
+
+  ImVec2 bottom_right = ImGui::GetCursorScreenPos();
+  bottom_right.x += cell_padding.x + ImGui::GetContentRegionAvail().x;
+  bottom_right.y += cell_padding.y + ImGui::GetTextLineHeightWithSpacing() - 2;
+
+  fraction = std::clamp(fraction, 0.0f, 1.0f);
+  float bar_width = (bottom_right.x - top_left.x) * fraction;
   ImVec2 bar_min =
-      anchor_right ? ImVec2(cell_max.x - bar_width, cell_min.y) : cell_min;
-  ImVec2 bar_max =
-      anchor_right ? cell_max : ImVec2(cell_min.x + bar_width, cell_max.y);
+      anchor_right ? ImVec2(bottom_right.x - bar_width, top_left.y) : top_left;
+  ImVec2 bar_max = anchor_right
+                       ? bottom_right
+                       : ImVec2(top_left.x + bar_width, bottom_right.y);
 
   draw_list->AddRectFilled(bar_min, bar_max,
                            ImGui::ColorConvertFloat4ToU32(color));
@@ -61,8 +72,8 @@ std::string FormatGreeksCompact(const Greeks &greeks) {
 
 double OrderBookPanel::BestBid(const OrderBookSnapshot &snapshot) {
   if (snapshot.mode == BookMode::L2)
-    return snapshot.l2_bids.empty() ? 0.0 : snapshot.l2_bids.front().price;
-  return snapshot.l3_bids.empty() ? 0.0 : snapshot.l3_bids.front().price;
+    return snapshot.l2_bids.empty() ? 0.0 : snapshot.l2_bids.back().price;
+  return snapshot.l3_bids.empty() ? 0.0 : snapshot.l3_bids.back().price;
 }
 
 double OrderBookPanel::BestAsk(const OrderBookSnapshot &snapshot) {
@@ -80,7 +91,6 @@ double OrderBookPanel::Spread(const OrderBookSnapshot &snapshot) {
 }
 
 double OrderBookPanel::SpreadBps(const OrderBookSnapshot &snapshot) {
-  // double bid = BestBid(snapshot);
   double mid = (BestBid(snapshot) + BestAsk(snapshot)) * 0.5;
   if (mid <= 0.0)
     return 0.0;
@@ -164,20 +174,16 @@ void OrderBookPanel::RenderHeaderBar(const OrderBookSnapshot &snapshot) {
   ImGui::EndTable();
 }
 
-void OrderBookPanel::RenderL2Ladder(const OrderBookSnapshot &snapshot) {
-  uint64_t max_bid_size = MaxLevelSize(snapshot.l2_bids);
-  uint64_t max_ask_size = MaxLevelSize(snapshot.l2_asks);
-  uint64_t max_size = std::max(max_bid_size, max_ask_size);
-
-  int column_count = m_show_greeks ? 8 : 6;
+bool setup_table(const char *title, bool show_greeks) {
+  int column_count = show_greeks ? 8 : 6;
   ImGuiTableFlags flags = ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders |
                           ImGuiTableFlags_ScrollY |
                           ImGuiTableFlags_SizingStretchProp;
 
-  if (!ImGui::BeginTable("L2Ladder", column_count, flags, ImVec2(0, 0)))
-    return;
+  if (!ImGui::BeginTable(title, column_count, flags, ImVec2(0, 0)))
+    return false;
 
-  if (m_show_greeks)
+  if (show_greeks)
     ImGui::TableSetupColumn("Bid Greeks", ImGuiTableColumnFlags_WidthStretch,
                             1.6f);
   ImGui::TableSetupColumn("Bid Orders", ImGuiTableColumnFlags_WidthStretch,
@@ -190,21 +196,27 @@ void OrderBookPanel::RenderL2Ladder(const OrderBookSnapshot &snapshot) {
   ImGui::TableSetupColumn("Ask Size", ImGuiTableColumnFlags_WidthStretch, 1.0f);
   ImGui::TableSetupColumn("Ask Orders", ImGuiTableColumnFlags_WidthStretch,
                           0.7f);
-  if (m_show_greeks)
+  if (show_greeks)
     ImGui::TableSetupColumn("Ask Greeks", ImGuiTableColumnFlags_WidthStretch,
                             1.6f);
   ImGui::TableHeadersRow();
+  return true;
+}
 
-  int row_count = std::min<int>(
-      m_visible_depth, static_cast<int>(std::max(snapshot.l2_bids.size(),
-                                                 snapshot.l2_asks.size())));
+void OrderBookPanel::RenderL2Ladder(const OrderBookSnapshot &snapshot) {
+  uint64_t max_bid_size = MaxLevelSize(snapshot.l2_bids);
+  uint64_t max_ask_size = MaxLevelSize(snapshot.l2_asks);
+  uint64_t max_size = std::max(max_bid_size, max_ask_size);
 
-  for (int row = 0; row < row_count; ++row) {
-    ImGui::TableNextRow();
+  if (!setup_table("L2Ladder", m_show_greeks))
+    return;
+
+  for (int row = 0; row < m_visible_depth; ++row) {
+    ImGui::TableNextRow(ImGuiTableRowFlags_None,
+                        ImGui::GetTextLineHeightWithSpacing());
     bool has_bid = row < static_cast<int>(snapshot.l2_bids.size());
     bool has_ask = row < static_cast<int>(snapshot.l2_asks.size());
 
-    // const auto* bid_row = has_bid ? &snapshot.l2_bids[row] : nullptr;
     const auto *bid_row =
         has_bid ? &snapshot.l2_bids[snapshot.l2_bids.size() - row - 1]
                 : nullptr;
@@ -275,38 +287,12 @@ void OrderBookPanel::RenderL3Ladder(const OrderBookSnapshot &snapshot) {
 
   ImGui::Checkbox("Expand orders", &m_expand_l3);
 
-  int column_count = m_show_greeks ? 8 : 6;
-  ImGuiTableFlags flags = ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders |
-                          ImGuiTableFlags_ScrollY |
-                          ImGuiTableFlags_SizingStretchProp;
-
-  if (!ImGui::BeginTable("L3Ladder", column_count, flags, ImVec2(0, 0)))
+  if (!setup_table("L3Ladder", m_show_greeks))
     return;
 
-  if (m_show_greeks)
-    ImGui::TableSetupColumn("Bid Greeks", ImGuiTableColumnFlags_WidthStretch,
-                            1.6f);
-  ImGui::TableSetupColumn("Bid Orders", ImGuiTableColumnFlags_WidthStretch,
-                          0.7f);
-  ImGui::TableSetupColumn("Bid Size", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-  ImGui::TableSetupColumn("Bid Price", ImGuiTableColumnFlags_WidthStretch,
-                          1.0f);
-  ImGui::TableSetupColumn("Ask Price", ImGuiTableColumnFlags_WidthStretch,
-                          1.0f);
-  ImGui::TableSetupColumn("Ask Size", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-  ImGui::TableSetupColumn("Ask Orders", ImGuiTableColumnFlags_WidthStretch,
-                          0.7f);
-  if (m_show_greeks)
-    ImGui::TableSetupColumn("Ask Greeks", ImGuiTableColumnFlags_WidthStretch,
-                            1.6f);
-  ImGui::TableHeadersRow();
-
-  int row_count = std::min<int>(
-      m_visible_depth, static_cast<int>(std::max(snapshot.l3_bids.size(),
-                                                 snapshot.l3_asks.size())));
-
-  for (int row = 0; row < row_count; ++row) {
-    ImGui::TableNextRow();
+  for (int row = 0; row < m_visible_depth; ++row) {
+    ImGui::TableNextRow(ImGuiTableRowFlags_None,
+                        ImGui::GetTextLineHeightWithSpacing());
     bool has_bid = row < static_cast<int>(snapshot.l3_bids.size());
     bool has_ask = row < static_cast<int>(snapshot.l3_asks.size());
     bool is_best = row == 0;

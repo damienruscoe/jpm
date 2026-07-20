@@ -4,6 +4,7 @@
 #include "order_book.hpp"
 #include "order_id.hpp"
 #include "parser/csv.hpp"
+#include "parser/databento.hpp"
 #include "render.hpp"
 #include "str_utils.hpp"
 
@@ -98,8 +99,68 @@ void print_all_signals(const auto &signals) {
   print_signal("Price Target Distance", signals.getPriceTargetDistance());
 }
 
-using Traits = OrderBookTraits<FixedSizeOrderID, FixedPoint<4>, uint32_t>;
-using SignalAgregator = signals::StaticComposite<
+struct CSVFile {
+  using symbol_t = decltype(parser::csv::parse_line("")->symbol);
+  using order_id_t = FixedSizeOrderID;
+  using Price = FixedPoint<4>;
+
+  static std::unique_ptr<MappedFile> open(const std::string &filename) {
+    auto file = std::make_unique<MappedFile>(filename);
+    if (!file->data())
+      return nullptr;
+    return file;
+  }
+
+  static auto symbol(const auto msg) { return msg.symbol; }
+
+  static void process_file(auto &file, const auto &on_parsed) {
+    LineView lines(reinterpret_cast<const char *>(file->data()), file->size());
+    for (const auto &line : lines) {
+      if (auto msg = parser::csv::parse_line(line))
+        on_parsed(*msg);
+      else
+        std::cout << fmt::LineTag::Error("ERROR") << msg.error() << nl;
+    }
+  }
+
+  static void update_book(auto &book, auto &msg) {
+    parser::csv::process_csv_message(book, msg);
+  }
+};
+
+struct DatabentoFile {
+  using symbol_t = decltype(parser::csv::parse_line("")->symbol);
+  using order_id_t = uint64_t;
+  using Price = FixedPoint<9>;
+
+  static auto open(const std::string &filename) {
+    return parser::databento::open(filename);
+  }
+
+  static auto symbol(const auto msg) { return msg.channel_id; }
+
+  static void process_file(auto &decoder, const auto &on_parsed) {
+    while (true)
+      if (auto msg = parser::databento::parse_message(*decoder)) {
+        if (!*msg)
+          break;
+        on_parsed(**msg);
+      } else
+        std::cout << fmt::LineTag::Error("ERROR") << msg.error() << nl;
+  }
+
+  static void update_book(auto &book, auto &msg) {
+    parser::databento::update_order_book(book, &msg);
+  }
+};
+
+// using FileSource = DatabentoFile;
+using FileSource = CSVFile;
+// using FileSource = NasdaqFile;
+
+using Traits =
+    OrderBookTraits<FileSource::order_id_t, FileSource::Price, uint32_t>;
+/*using SignalAgregator = signals::StaticComposite<
     Traits, TradePrinter<Traits>, signals::EmaSignal<Traits>,
     signals::LastTradePrice<Traits>, signals::CumulativeVWAP<Traits>,
     signals::TickLtpDelta<Traits>, signals::TickRunLength<Traits>,
@@ -113,41 +174,29 @@ using SignalAgregator = signals::StaticComposite<
     signals::AccumulationDistributionLine<Traits>,
     signals::ChaikinOscillator<Traits>, signals::EaseOfMovement<Traits>,
     signals::VolumetricPriceTargetDistance<Traits>>;
+                */
+using SignalAgregator = signals::StaticComposite<Traits, TradePrinter<Traits>>;
 
 using Book = OrderBook<Traits, SignalAgregator>;
-
-struct Venue {
-  using symbol_t = decltype(parser::csv::parse_line("")->symbol);
-
-  static void process_file(MappedFile &file, const auto &on_parsed) {
-    LineView lines(reinterpret_cast<const char *>(file.data()), file.size());
-    for (const auto &line : lines) {
-      if (auto msg = parser::csv::parse_line(line))
-        on_parsed(*msg);
-      else
-        std::cout << fmt::LineTag::Error("ERROR") << msg.error() << nl;
-    }
-  }
-};
 
 int main(int argc, char *argv[]) {
   std::string filename = argc > 1 ? argv[1] : "../docs/given_example.csv";
 
-  MappedFile file(filename);
-  if (!file.data()) {
+  auto file = FileSource::open(filename);
+  if (!file) {
     std::cerr << "Failed to open or map file: " << filename << nl;
     return 1;
   }
 
-  std::unordered_map<Venue::symbol_t, Book> ticker_books;
+  std::unordered_map<FileSource::symbol_t, Book> ticker_books;
 
-  Venue::process_file(file, [&](const auto &msg) {
+  FileSource::process_file(file, [&](const auto &msg) {
     std::cout << fmt::LineTag::Message("VALID") << msg << nl;
 
-    auto [it, added] = ticker_books.try_emplace(msg.symbol);
+    auto [it, added] = ticker_books.try_emplace(FileSource::symbol(msg));
     auto &book = it->second;
 
-    parser::csv::process_csv_message(book, msg);
+    FileSource::update_book(book, msg);
 
     // print_all_signals(book.getSignals());
 
