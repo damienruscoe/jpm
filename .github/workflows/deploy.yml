@@ -1,0 +1,74 @@
+name: Build and Deploy WASM
+
+on:
+  push:
+    branches: [ wasm_build ]
+      
+permissions:
+  contents: write
+  pages: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0
+
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: latest
+
+      - name: Configure and Build
+        run: |
+          emcmake cmake -B build \
+            -DBUILD_GUI=ON \
+            -DWASM=ON \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release
+
+      - name: Prepare Deployment Directory
+        run: |
+          mkdir -p dist/fake_dashboard
+          cp pages/index.html dist/index.html
+          cp build/fake_dashboard.html dist/fake_dashboard/index.html
+          cp build/fake_dashboard.js dist/fake_dashboard/
+          cp build/fake_dashboard.wasm dist/fake_dashboard/
+          echo "=== Built files ===" && ls -lah dist/fake_dashboard/
+
+      - name: Deploy to gh-pages branch
+        run: |
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions"
+          
+          # Fetch gh-pages branch if it exists
+          git fetch origin gh-pages --depth=1 2>/dev/null || echo "gh-pages branch does not exist yet"
+          
+          # Create or checkout gh-pages branch
+          if git rev-parse --verify origin/gh-pages >/dev/null 2>&1; then
+            git checkout -b gh-pages origin/gh-pages
+          else
+            git checkout --orphan gh-pages
+          fi
+          
+          # Remove all files except .git
+          git rm -rf . 2>/dev/null || true
+          
+          # Copy new files
+          cp -r dist/* .
+          rm -fr dist/
+          rm -fr build/
+          
+          # Add .nojekyll to prevent Jekyll processing
+          touch .nojekyll
+          
+          # Commit and push
+          git add .
+          git commit -m "Deploy WASM build from ${{ github.sha }}" || echo "No changes to commit"
+          git push -u origin gh-pages
+
+

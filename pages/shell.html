@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WASM Application</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #020617;
+      overflow: hidden;
+    }
+    #canvas {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <!--
+  <canvas id="canvas" width="640" height="480" oncontextmenu="event.preventDefault()"></canvas>
+  -->
+  <canvas id="canvas" width="1280" height="720" style="width: 100vw; height: 100vh; display: block;"></canvas>
+  
+  <script>
+    var canvas = document.getElementById('canvas');
+
+    var Module = typeof Module !== 'undefined' ? Module : {};
+    Module.canvas = canvas;
+
+    var Module = {
+      canvas: canvas,
+      devicePixelRatio: 1
+    };
+  </script>
+
+  <script>
+    // Hide WebGL2 from Emscripten's runtime detection feature check
+    delete window.WebGL2RenderingContext;
+
+    var Module = {
+      canvas: document.getElementById('canvas')
+    };
+  </script>
+
+  {{{ SCRIPT }}}
+
+</body>
+</html>

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "enums.hpp"
+#include <cstdint>
 
 template <typename Traits> struct OrderMatchedEvent {
   typename Traits::OrderID order_id;
@@ -21,5 +22,6 @@ template <typename Traits> struct TradeEvent {
 template <typename Traits> struct LevelQuantityEvent {
   typename Traits::Price price;
   typename Traits::Quantity quantity;
+  uint32_t order_count;
   side_t side;
 };

@@ -1,9 +1,11 @@
 #include "ui/root.hpp"
 
+#include <iostream>
+
 unsigned bounded_rand(unsigned range) {
   for (unsigned x, r;;)
     if (x = rand(), r = x % range, x - r <= -range)
-      return r;
+      return r + 1;
 }
 
 double mid_price = 100.0;
@@ -59,9 +61,17 @@ void process_update_queue(ui::OrderBookSnapshot &snapshot) {
 }
 
 int main() {
-  ui::Root root;
-  root.update_queue = &process_update_queue;
-  root.run();
+  try {
+    ui::Root root;
+    root.update_queue = &process_update_queue;
+    root.run();
+  } catch (const std::exception &e) {
+    std::cerr << "Fatal startup exception: " << e.what() << std::endl;
+    return 1;
+  } catch (...) {
+    std::cerr << "Unknown exception during startup!" << std::endl;
+    return 1;
+  }
 
   return 0;
 }

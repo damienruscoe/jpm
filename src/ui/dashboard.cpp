@@ -27,7 +27,7 @@ constexpr ImVec4 kColorSpreadTight{0.30f, 0.90f, 0.90f, 1.00f};
 constexpr ImVec4 kColorSpreadWide{0.95f, 0.75f, 0.25f, 1.00f};
 constexpr ImVec4 kColorGreeksText{0.58f, 0.66f, 0.76f, 1.00f};
 constexpr ImVec4 kColorMuted{0.45f, 0.45f, 0.48f, 1.00f};
-constexpr ImVec4 kColorOrderId{0.70f, 0.70f, 0.72f, 1.00f};
+// constexpr ImVec4 kColorOrderId{0.70f, 0.70f, 0.72f, 1.00f};
 
 // Draws a translucent depth bar filling `fraction` of the current cell,
 // anchored to the given side, then leaves the cursor for text on top.
@@ -60,6 +60,14 @@ void DrawSizeBar(float fraction, ImVec4 color, bool anchor_right) {
                            ImGui::ColorConvertFloat4ToU32(color));
 }
 
+void DrawSizeBar(size_t size, size_t max_size, ImVec4 color,
+                 bool anchor_right) {
+  float fraction = max_size > 0
+                       ? static_cast<float>(size) / static_cast<float>(max_size)
+                       : 0.0f;
+  DrawSizeBar(fraction, color, anchor_right);
+}
+
 std::string FormatGreeksCompact(const Greeks &greeks) {
   char buffer[96];
   std::snprintf(buffer, sizeof(buffer), "d%.2f g%.3f t%.2f v%.2f r%.2f",
@@ -68,21 +76,15 @@ std::string FormatGreeksCompact(const Greeks &greeks) {
   return buffer;
 }
 
-} // namespace
-
-double OrderBookPanel::BestBid(const OrderBookSnapshot &snapshot) {
-  if (snapshot.mode == BookMode::L2)
-    return snapshot.l2_bids.empty() ? 0.0 : snapshot.l2_bids.back().price;
-  return snapshot.l3_bids.empty() ? 0.0 : snapshot.l3_bids.back().price;
+double BestBid(const OrderBookSnapshot &snapshot) {
+  return snapshot.l2_bids.empty() ? 0.0 : snapshot.l2_bids.back().price;
 }
 
-double OrderBookPanel::BestAsk(const OrderBookSnapshot &snapshot) {
-  if (snapshot.mode == BookMode::L2)
-    return snapshot.l2_asks.empty() ? 0.0 : snapshot.l2_asks.front().price;
-  return snapshot.l3_asks.empty() ? 0.0 : snapshot.l3_asks.front().price;
+double BestAsk(const OrderBookSnapshot &snapshot) {
+  return snapshot.l2_asks.empty() ? 0.0 : snapshot.l2_asks.front().price;
 }
 
-double OrderBookPanel::Spread(const OrderBookSnapshot &snapshot) {
+double Spread(const OrderBookSnapshot &snapshot) {
   double bid = BestBid(snapshot);
   double ask = BestAsk(snapshot);
   if (bid <= 0.0 || ask <= 0.0)
@@ -90,26 +92,24 @@ double OrderBookPanel::Spread(const OrderBookSnapshot &snapshot) {
   return ask - bid;
 }
 
-double OrderBookPanel::SpreadBps(const OrderBookSnapshot &snapshot) {
+double SpreadBps(const OrderBookSnapshot &snapshot) {
   double mid = (BestBid(snapshot) + BestAsk(snapshot)) * 0.5;
   if (mid <= 0.0)
     return 0.0;
   return (Spread(snapshot) / mid) * 10000.0;
 }
 
-uint64_t OrderBookPanel::MaxLevelSize(const std::vector<L2Level> &levels) {
+uint64_t MaxLevelSize(auto begin, auto end, int max_depth) {
   uint64_t max_size = 0;
-  for (const auto &level : levels)
-    max_size = std::max(max_size, level.size);
+  for (; begin != end; ++begin) {
+    max_size = std::max(max_size, begin->size);
+    if (--max_depth == 0)
+      return max_size;
+  }
   return max_size;
 }
 
-uint64_t OrderBookPanel::MaxLevelSize(const std::vector<L3Level> &levels) {
-  uint64_t max_size = 0;
-  for (const auto &level : levels)
-    max_size = std::max(max_size, level.TotalSize());
-  return max_size;
-}
+} // namespace
 
 void OrderBookPanel::Render(const OrderBookSnapshot &snapshot) {
   ImGui::PushStyleColor(ImGuiCol_WindowBg, kColorBackground);
@@ -122,300 +122,141 @@ void OrderBookPanel::Render(const OrderBookSnapshot &snapshot) {
   RenderHeaderBar(snapshot);
   ImGui::Separator();
 
-  if (snapshot.mode == BookMode::L2)
-    RenderL2Ladder(snapshot);
-  else
-    RenderL3Ladder(snapshot);
+  RenderLadder(snapshot);
 
   ImGui::EndChild();
   ImGui::PopStyleColor(2);
-  // ImGui::PopID();
 }
 
 void OrderBookPanel::RenderToolbar(const OrderBookSnapshot &snapshot) {
   ImGui::TextColored(kColorAmberLabel, "%s",
                      snapshot.symbol.empty() ? "-" : snapshot.symbol.c_str());
   ImGui::SameLine();
-  ImGui::TextColored(kColorMuted, "| %s | seq %llu",
-                     snapshot.mode == BookMode::L2 ? "L2" : "L3",
+  ImGui::TextColored(kColorMuted, "| seq %llu",
                      static_cast<unsigned long long>(snapshot.sequence_number));
 
   ImGui::SameLine(ImGui::GetContentRegionAvail().x - 220.0f);
   ImGui::Checkbox("Greeks", &m_show_greeks);
   ImGui::SameLine();
   ImGui::SetNextItemWidth(100.0f);
-  ImGui::SliderInt("Depth", &m_visible_depth, 1, 300);
+  ImGui::SliderInt("Depth", &m_visible_depth, 1, 200);
 }
 
 void OrderBookPanel::RenderHeaderBar(const OrderBookSnapshot &snapshot) {
-  double bid_px = BestBid(snapshot);
-  double ask_px = BestAsk(snapshot);
-  double spread_px = Spread(snapshot);
-  double spread_bps = SpreadBps(snapshot);
-
-  ImVec4 spread_color =
-      spread_bps <= 5.0 ? kColorSpreadTight : kColorSpreadWide;
-
   ImGui::BeginTable("HeaderBar", 3, ImGuiTableFlags_SizingStretchSame);
   ImGui::TableNextRow();
 
   ImGui::TableSetColumnIndex(0);
   ImGui::TextColored(kColorAmberLabel, "BID");
-  ImGui::TextColored(kColorBidText, "%.4f", bid_px);
+  ImGui::TextColored(kColorBidText, "%.4f", BestBid(snapshot));
 
+  const double spread_bps = SpreadBps(snapshot);
   ImGui::TableSetColumnIndex(1);
   ImGui::TextColored(kColorAmberLabel, "SPREAD");
-  ImGui::TextColored(spread_color, "%.4f  (%.1f bps)", spread_px, spread_bps);
+  ImGui::TextColored(spread_bps <= 5.0 ? kColorSpreadTight : kColorSpreadWide,
+                     "%.4f  (%.1f bps)", Spread(snapshot), spread_bps);
 
   ImGui::TableSetColumnIndex(2);
   ImGui::TextColored(kColorAmberLabel, "ASK");
-  ImGui::TextColored(kColorAskText, "%.4f", ask_px);
+  ImGui::TextColored(kColorAskText, "%.4f", BestAsk(snapshot));
 
   ImGui::EndTable();
 }
 
 bool setup_table(const char *title, bool show_greeks) {
-  int column_count = show_greeks ? 8 : 6;
-  ImGuiTableFlags flags = ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders |
-                          ImGuiTableFlags_ScrollY |
-                          ImGuiTableFlags_SizingStretchProp;
+  const int column_count = show_greeks ? 8 : 6;
+  const ImGuiTableFlags flags =
+      ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders |
+      ImGuiTableFlags_ScrollY | ImGuiTableFlags_SizingStretchProp;
+
+  auto setup_column = [](const char *header, float width) {
+    ImGui::TableSetupColumn(header, ImGuiTableColumnFlags_WidthStretch, width);
+  };
 
   if (!ImGui::BeginTable(title, column_count, flags, ImVec2(0, 0)))
     return false;
 
   if (show_greeks)
-    ImGui::TableSetupColumn("Bid Greeks", ImGuiTableColumnFlags_WidthStretch,
-                            1.6f);
-  ImGui::TableSetupColumn("Bid Orders", ImGuiTableColumnFlags_WidthStretch,
-                          0.7f);
-  ImGui::TableSetupColumn("Bid Size", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-  ImGui::TableSetupColumn("Bid Price", ImGuiTableColumnFlags_WidthStretch,
-                          1.0f);
-  ImGui::TableSetupColumn("Ask Price", ImGuiTableColumnFlags_WidthStretch,
-                          1.0f);
-  ImGui::TableSetupColumn("Ask Size", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-  ImGui::TableSetupColumn("Ask Orders", ImGuiTableColumnFlags_WidthStretch,
-                          0.7f);
+    setup_column("Bid Greeks", 1.6f);
+  setup_column("Bid Orders", 0.7f);
+  setup_column("Bid Size", 1.0f);
+  setup_column("Bid Price", 1.0f);
+
+  setup_column("Ask Price", 1.0f);
+  setup_column("Ask Size", 1.0f);
+  setup_column("Ask Orders", 0.7f);
   if (show_greeks)
-    ImGui::TableSetupColumn("Ask Greeks", ImGuiTableColumnFlags_WidthStretch,
-                            1.6f);
+    setup_column("Ask Greeks", 1.6f);
+
   ImGui::TableHeadersRow();
   return true;
 }
 
-void OrderBookPanel::RenderL2Ladder(const OrderBookSnapshot &snapshot) {
-  uint64_t max_bid_size = MaxLevelSize(snapshot.l2_bids);
-  uint64_t max_ask_size = MaxLevelSize(snapshot.l2_asks);
+void OrderBookPanel::RenderLadder(const OrderBookSnapshot &snapshot) {
+  uint64_t max_bid_size = MaxLevelSize(
+      snapshot.l2_bids.rbegin(), snapshot.l2_bids.rend(), m_visible_depth);
+  uint64_t max_ask_size = MaxLevelSize(snapshot.l2_asks.begin(),
+                                       snapshot.l2_asks.end(), m_visible_depth);
   uint64_t max_size = std::max(max_bid_size, max_ask_size);
 
   if (!setup_table("L2Ladder", m_show_greeks))
     return;
 
-  for (int row = 0; row < m_visible_depth; ++row) {
+  for (int row_idx = 0; row_idx < m_visible_depth; ++row_idx) {
     ImGui::TableNextRow(ImGuiTableRowFlags_None,
                         ImGui::GetTextLineHeightWithSpacing());
-    bool has_bid = row < static_cast<int>(snapshot.l2_bids.size());
-    bool has_ask = row < static_cast<int>(snapshot.l2_asks.size());
 
-    const auto *bid_row =
-        has_bid ? &snapshot.l2_bids[snapshot.l2_bids.size() - row - 1]
-                : nullptr;
-    const auto *ask_row = has_ask ? &snapshot.l2_asks[row] : nullptr;
-
-    bool is_best = row == 0;
+    bool has_bid = row_idx < static_cast<int>(snapshot.l2_bids.size());
+    bool has_ask = row_idx < static_cast<int>(snapshot.l2_asks.size());
 
     int col = 0;
 
-    if (m_show_greeks) {
-      ImGui::TableSetColumnIndex(col++);
-      if (bid_row)
-        ImGui::TextColored(kColorGreeksText, "%s",
-                           FormatGreeksCompact(bid_row->greeks).c_str());
-    }
-
-    ImGui::TableSetColumnIndex(col++);
-    if (bid_row)
-      ImGui::TextColored(kColorMuted, "%u", bid_row->order_count);
-
-    ImGui::TableSetColumnIndex(col++);
-    if (bid_row) {
-      float fraction = max_size > 0 ? static_cast<float>(bid_row->size) /
-                                          static_cast<float>(max_size)
-                                    : 0.0f;
-      DrawSizeBar(fraction, is_best ? kColorBidBarBest : kColorBidBar, true);
-      ImGui::TextColored(kColorBidText, "%llu",
-                         static_cast<unsigned long long>(bid_row->size));
-    }
-
-    ImGui::TableSetColumnIndex(col++);
-    if (bid_row)
-      ImGui::TextColored(kColorBidText, "%.4f", bid_row->price);
-
-    ImGui::TableSetColumnIndex(col++);
-    if (ask_row)
-      ImGui::TextColored(kColorAskText, "%.4f", ask_row->price);
-
-    ImGui::TableSetColumnIndex(col++);
-    if (ask_row) {
-      float fraction = max_size > 0 ? static_cast<float>(ask_row->size) /
-                                          static_cast<float>(max_size)
-                                    : 0.0f;
-      DrawSizeBar(fraction, is_best ? kColorAskBarBest : kColorAskBar, false);
-      ImGui::TextColored(kColorAskText, "%llu",
-                         static_cast<unsigned long long>(ask_row->size));
-    }
-
-    ImGui::TableSetColumnIndex(col++);
-    if (ask_row)
-      ImGui::TextColored(kColorMuted, "%u", ask_row->order_count);
-
-    if (m_show_greeks) {
-      ImGui::TableSetColumnIndex(col++);
-      if (ask_row)
-        ImGui::TextColored(kColorGreeksText, "%s",
-                           FormatGreeksCompact(ask_row->greeks).c_str());
-    }
-  }
-
-  ImGui::EndTable();
-}
-
-void OrderBookPanel::RenderL3Ladder(const OrderBookSnapshot &snapshot) {
-  uint64_t max_bid_size = MaxLevelSize(snapshot.l3_bids);
-  uint64_t max_ask_size = MaxLevelSize(snapshot.l3_asks);
-  uint64_t max_size = std::max(max_bid_size, max_ask_size);
-
-  ImGui::Checkbox("Expand orders", &m_expand_l3);
-
-  if (!setup_table("L3Ladder", m_show_greeks))
-    return;
-
-  for (int row = 0; row < m_visible_depth; ++row) {
-    ImGui::TableNextRow(ImGuiTableRowFlags_None,
-                        ImGui::GetTextLineHeightWithSpacing());
-    bool has_bid = row < static_cast<int>(snapshot.l3_bids.size());
-    bool has_ask = row < static_cast<int>(snapshot.l3_asks.size());
-    bool is_best = row == 0;
-
-    const L3Level *bid_level = has_bid ? &snapshot.l3_bids[row] : nullptr;
-    const L3Level *ask_level = has_ask ? &snapshot.l3_asks[row] : nullptr;
-
-    int col = 0;
-
-    if (m_show_greeks) {
-      ImGui::TableSetColumnIndex(col++);
-      if (bid_level)
-        ImGui::TextColored(
-            kColorGreeksText, "%s",
-            FormatGreeksCompact(bid_level->aggregate_greeks).c_str());
-    }
-
-    ImGui::TableSetColumnIndex(col++);
-    if (bid_level)
-      ImGui::TextColored(kColorMuted, "%zu", bid_level->orders.size());
-
-    ImGui::TableSetColumnIndex(col++);
-    if (bid_level) {
-      uint64_t size = bid_level->TotalSize();
-      float fraction =
-          max_size > 0 ? static_cast<float>(size) / static_cast<float>(max_size)
-                       : 0.0f;
-      DrawSizeBar(fraction, is_best ? kColorBidBarBest : kColorBidBar, true);
-      ImGui::TextColored(kColorBidText, "%llu",
-                         static_cast<unsigned long long>(size));
-    }
-
-    ImGui::TableSetColumnIndex(col++);
-    if (bid_level)
-      ImGui::TextColored(kColorBidText, "%.4f", bid_level->price);
-
-    ImGui::TableSetColumnIndex(col++);
-    if (ask_level)
-      ImGui::TextColored(kColorAskText, "%.4f", ask_level->price);
-
-    ImGui::TableSetColumnIndex(col++);
-    if (ask_level) {
-      uint64_t size = ask_level->TotalSize();
-      float fraction =
-          max_size > 0 ? static_cast<float>(size) / static_cast<float>(max_size)
-                       : 0.0f;
-      DrawSizeBar(fraction, is_best ? kColorAskBarBest : kColorAskBar, false);
-      ImGui::TextColored(kColorAskText, "%llu",
-                         static_cast<unsigned long long>(size));
-    }
-
-    ImGui::TableSetColumnIndex(col++);
-    if (ask_level)
-      ImGui::TextColored(kColorMuted, "%zu", ask_level->orders.size());
-
-    if (m_show_greeks) {
-      ImGui::TableSetColumnIndex(col++);
-      if (ask_level)
-        ImGui::TextColored(
-            kColorGreeksText, "%s",
-            FormatGreeksCompact(ask_level->aggregate_greeks).c_str());
-    }
-
-    if (!m_expand_l3)
-      continue;
-
-    // Per-order breakdown, indented, muted — individual MBO entries
-    // that make up this aggregated price level.
-    size_t max_orders = std::max(bid_level ? bid_level->orders.size() : 0,
-                                 ask_level ? ask_level->orders.size() : 0);
-    for (size_t order_idx = 0; order_idx < max_orders; ++order_idx) {
-      ImGui::TableNextRow();
-      col = 0;
-
-      const L3Order *bid_order =
-          (bid_level && order_idx < bid_level->orders.size())
-              ? &bid_level->orders[order_idx]
-              : nullptr;
-      const L3Order *ask_order =
-          (ask_level && order_idx < ask_level->orders.size())
-              ? &ask_level->orders[order_idx]
-              : nullptr;
+    if (has_bid) {
+      const auto &row = snapshot.l2_bids[snapshot.l2_bids.size() - row_idx - 1];
 
       if (m_show_greeks) {
         ImGui::TableSetColumnIndex(col++);
-        if (bid_order)
-          ImGui::TextColored(kColorGreeksText, "  %s",
-                             FormatGreeksCompact(bid_order->greeks).c_str());
+        ImGui::TextColored(kColorGreeksText, "%s",
+                           FormatGreeksCompact(row.greeks).c_str());
       }
-      ImGui::TableSetColumnIndex(col++);
-      if (bid_order)
-        ImGui::TextColored(
-            kColorOrderId, "#%llu",
-            static_cast<unsigned long long>(bid_order->order_id));
 
       ImGui::TableSetColumnIndex(col++);
-      if (bid_order)
-        ImGui::TextColored(kColorMuted, "  %llu",
-                           static_cast<unsigned long long>(bid_order->size));
+      ImGui::TextColored(kColorMuted, "%u", row.order_count);
 
       ImGui::TableSetColumnIndex(col++);
-      // price intentionally blank at order granularity — shown on the level row
-      // above
+      DrawSizeBar(row.size, max_size,
+                  row_idx == 0 ? kColorBidBarBest : kColorBidBar, true);
+      ImGui::TextColored(kColorBidText, "%llu",
+                         static_cast<unsigned long long>(row.size));
 
       ImGui::TableSetColumnIndex(col++);
+      ImGui::TextColored(kColorBidText, "%.4f", row.price);
+    } else {
+      col += m_show_greeks ? 4 : 3;
+    }
+
+    if (has_ask) {
+      const auto &row = snapshot.l2_asks[row_idx];
 
       ImGui::TableSetColumnIndex(col++);
-      if (ask_order)
-        ImGui::TextColored(kColorMuted, "  %llu",
-                           static_cast<unsigned long long>(ask_order->size));
+      ImGui::TextColored(kColorAskText, "%.4f", row.price);
 
       ImGui::TableSetColumnIndex(col++);
-      if (ask_order)
-        ImGui::TextColored(
-            kColorOrderId, "#%llu",
-            static_cast<unsigned long long>(ask_order->order_id));
+      DrawSizeBar(row.size, max_size,
+                  row_idx == 0 ? kColorAskBarBest : kColorAskBar, false);
+      ImGui::TextColored(kColorAskText, "%llu",
+                         static_cast<unsigned long long>(row.size));
+
+      ImGui::TableSetColumnIndex(col++);
+      ImGui::TextColored(kColorMuted, "%u", row.order_count);
 
       if (m_show_greeks) {
         ImGui::TableSetColumnIndex(col++);
-        if (ask_order)
-          ImGui::TextColored(kColorGreeksText, "  %s",
-                             FormatGreeksCompact(ask_order->greeks).c_str());
+        ImGui::TextColored(kColorGreeksText, "%s",
+                           FormatGreeksCompact(row.greeks).c_str());
       }
+    } else {
+      col += m_show_greeks ? 4 : 3;
     }
   }
 

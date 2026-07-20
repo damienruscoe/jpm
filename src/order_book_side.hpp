@@ -28,6 +28,7 @@ public:
       signals.update(LevelQuantityEvent<typename Order::Traits>{
           level->first,                // level price
           level->second.getQuantity(), // New quantity at level
+          level->second.getOrderCount(),
           std::is_same_v<Comparitor, std::greater<Price>> ? side_t::BID
                                                           : side_t::ASK});
 
@@ -43,6 +44,7 @@ public:
     signals.update(LevelQuantityEvent<typename Order::Traits>{
         order.price,                     // level price
         book[order.price].getQuantity(), // New quantity at level
+        book[order.price].getOrderCount(),
         std::is_same_v<Comparitor, std::greater<Price>> ? side_t::BID
                                                         : side_t::ASK});
   }
@@ -54,6 +56,7 @@ public:
       signals.update(LevelQuantityEvent<typename Order::Traits>{
           it->first,                // level price
           it->second.getQuantity(), // New quantity at level
+          it->second.getOrderCount(),
           std::is_same_v<Comparitor, std::greater<Price>> ? side_t::BID
                                                           : side_t::ASK});
       if (cleared)

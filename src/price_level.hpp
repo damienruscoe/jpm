@@ -72,6 +72,7 @@ public:
   }
 
   Quantity getQuantity() const { return total_quantity; }
+  uint32_t getOrderCount() const { return orders.size(); }
 
 private:
   OrderList orders;

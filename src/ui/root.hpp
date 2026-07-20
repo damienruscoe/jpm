@@ -17,6 +17,8 @@ struct Root {
 
 private:
   void MainLoop();
+  static void MainLoopTrampoline(void *arg);
+
   void process_update_queue();
 
   GLFWwindow *window;

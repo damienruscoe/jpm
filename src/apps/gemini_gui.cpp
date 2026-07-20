@@ -124,6 +124,11 @@ template <typename Strategy> struct UIControllerBase {
 
   UIControllerBase() { workload.reserve(1024); }
 
+  void push(const Event &event) {
+    bool added = m_ui_queue.enqueue(event);
+    assert(added);
+  }
+
   void process_update_queue(ui::OrderBookSnapshot &snapshot) {
     Event event;
     while (workload.size() < 1024 && m_ui_queue.try_dequeue(event))
@@ -139,68 +144,30 @@ private:
   std::vector<Event> workload;
 };
 
-// using UIController = UIControllerBase<FullySequential>;
-// using UIController = UIControllerBase<SideSequential>;
-using UIController = UIControllerBase<MergeEvents>;
+using Traits = OrderBookTraits<FixedSizeOrderID, FixedPoint<4>, FixedPoint<4>>;
+using Traits2 = OrderBookTraitsL2<Traits>::Traits;
+
+// using Strategy = FullySequential;
+// using Strategy = SideSequential;
+using Strategy = MergeEvents;
+
+using UIController = UIControllerBase<Strategy>;
 UIController ui_controller;
 
 template <typename Traits> struct EventHandler2 {
   void update(const TradeEvent<Traits> &event) { (void)event; }
   void update(const OrderMatchedEvent<Traits> &event) { (void)event; }
   void update(const LevelQuantityEvent<Traits> &event) {
-    bool added = ui_controller.m_ui_queue.enqueue(event);
-    (void)added;
-    assert(added);
+    ui_controller.push(event);
   }
 };
 
-using SignalAgregator =
-    signals::StaticComposite<Traits,
-                             EventHandler2<OrderBookTraitsL2<Traits>::Traits>>;
-
-using Book = OrderBookL2Adapter<Traits, SignalAgregator>;
+using Book = OrderBookL2Adapter<Traits, EventHandler2<Traits2>>;
 
 struct Message {
   side_t side;
   FixedPoint<4> quantity;
   FixedPoint<4> price;
-};
-
-struct Venue {
-  using symbol_t = std::string;
-  typedef websocketpp::config::asio_client::message_type::ptr message_ptr;
-
-  static void
-  process_websocket_message(const auto &on_parsed,
-                            [[maybe_unused]] websocketpp::connection_hdl hdl,
-                            message_ptr msg) {
-    const auto json = nlohmann::json::parse(msg->get_payload());
-
-#ifdef VALIDATE_GEMINI
-    if (!verify_sequence_number(json))
-      return false;
-#endif // VALIDATE_GEMINI
-
-    // uint64_t ts_ms = json.contains("timestampms") ?
-    // json["timestampms"].get<uint64_t>() : 0;
-
-    Message parsed_msg;
-    for (const auto &event : json["events"]) {
-      if (event["type"] == "change") {
-        std::cout << event["side"].get<std::string>() << std::endl;
-
-        parsed_msg.price =
-            *FixedPoint<4>::Parse(event["price"].get<std::string>());
-        parsed_msg.quantity =
-            *FixedPoint<4>::Parse(event["remaining"].get<std::string>());
-        parsed_msg.side = event["side"].get<std::string>()[0] == 'b'
-                              ? side_t::BID
-                              : side_t::ASK;
-
-        on_parsed(parsed_msg);
-      }
-    }
-  }
 };
 
 #include <boost/asio/ssl.hpp>
@@ -223,11 +190,106 @@ context_ptr on_tls_init(websocketpp::connection_hdl hdl) {
   return ctx;
 }
 
-int main(int argc, char *argv[]) {
-  (void)argc;
-  (void)argv;
+struct Gemini {
+  using symbol_t = std::string;
+  using File = std::pair<symbol_t, std::string>;
+  using message_ptr = websocketpp::config::asio_client::message_type::ptr;
+  using client = websocketpp::client<websocketpp::config::asio_tls_client>;
 
-  Book book;
+  static std::optional<File> open(const std::string &market_str) {
+    const std::string uri = "wss://api.gemini.com/v1/marketdata/" + market_str;
+    return {std::make_pair(market_str, uri)};
+  }
+
+  static symbol_t symbol(const auto msg) {
+    const auto &[file, parsed_message] = msg;
+    const auto &[market_str, uri] = file;
+    return uri;
+  }
+
+  static void
+  process_websocket_message(const auto &on_parsed, const auto &file,
+                            [[maybe_unused]] websocketpp::connection_hdl hdl,
+                            message_ptr msg) {
+    const auto json = nlohmann::json::parse(msg->get_payload());
+
+#ifdef VALIDATE_GEMINI
+    if (!verify_sequence_number(json))
+      return false;
+#endif // VALIDATE_GEMINI
+
+    // uint64_t ts_ms = json.contains("timestampms") ?
+    // json["timestampms"].get<uint64_t>() : 0;
+
+    Message parsed_msg;
+    for (const auto &event : json["events"]) {
+      if (event["type"] == "change") {
+        // std::cout << event["side"].get<std::string>() << std::endl;
+
+        parsed_msg.price =
+            *FixedPoint<4>::Parse(event["price"].get<std::string>());
+        parsed_msg.quantity =
+            *FixedPoint<4>::Parse(event["remaining"].get<std::string>());
+        parsed_msg.side = event["side"].get<std::string>()[0] == 'b'
+                              ? side_t::BID
+                              : side_t::ASK;
+
+        auto message = std::make_pair(file, parsed_msg);
+        on_parsed(message);
+      }
+    }
+  }
+
+  static void process_file(auto &file, const auto &on_parsed) {
+    const auto &[market_str, uri] = *file;
+
+    Gemini::client c;
+    try {
+      c.set_access_channels(websocketpp::log::alevel::all);
+      c.clear_access_channels(websocketpp::log::alevel::frame_payload);
+      c.set_tls_init_handler(websocketpp::lib::bind(
+          &on_tls_init, websocketpp::lib::placeholders::_1));
+      c.init_asio();
+
+      // Register our message handler
+      c.set_message_handler([&](auto &&...args) {
+        return Gemini::process_websocket_message(
+            on_parsed, *file, std::forward<decltype(args)>(args)...);
+      });
+
+      websocketpp::lib::error_code ec;
+      Gemini::client::connection_ptr con = c.get_connection(uri, ec);
+      if (ec) {
+        std::cerr << "could not create connection because: " << ec.message()
+                  << std::endl;
+        return;
+      }
+
+      c.connect(con);
+      c.run();
+    } catch (websocketpp::exception const &e) {
+      std::cerr << e.what() << std::endl;
+    }
+  }
+
+  static void update_book(auto &book, auto &msg) {
+    const auto &[file, parsed_message] = msg;
+
+    bool success = book.setPriceLevel(parsed_message.side, parsed_message.price,
+                                      parsed_message.quantity);
+    (void)success;
+
+#define DEBUG 1
+#ifdef DEBUG
+    if (book.getBestBid() && book.getBestAsk() &&
+        book.getBestBid()->price > book.getBestAsk()->price)
+      std::cout << ERROR << "Crossed order book" << std::endl;
+#endif
+  }
+};
+
+int main(int argc, char *argv[]) {
+  std::string filename = argc > 1 ? argv[1] : "BTCUSD";
 
   auto ui_thread = std::jthread([&]() {
     ui::Root root;
@@ -237,64 +299,23 @@ int main(int argc, char *argv[]) {
     root.run();
   });
 
-  const auto on_parsed = [&](const auto &msg) {
-    bool success = book.setPriceLevel(msg.side, msg.price, msg.quantity);
-    (void)success;
+  auto file = Gemini::open(filename);
+  if (!file) {
+    std::cerr << "Failed to open or map file: " << filename << nl;
+    return 1;
+  }
 
-#define DEBUG 1
-#ifdef DEBUG
-    if (book.getBestBid() && book.getBestAsk() &&
-        book.getBestBid()->price > book.getBestAsk()->price)
-      std::cout << ERROR << "Crossed order book" << std::endl;
-#endif
+  std::unordered_map<Gemini::symbol_t, Book> ticker_books;
+  Gemini::process_file(file, [&](const auto &msg) {
+    auto [it, added] = ticker_books.try_emplace(Gemini::symbol(msg));
+    auto &book = it->second;
+
+    Gemini::update_book(book, msg);
 
     // render_horizontal_orderbook(book);
     // render_vertical_orderbook(book);
     // top_of_book.render();
-  };
-
-  typedef websocketpp::client<websocketpp::config::asio_tls_client> client;
-  // Create a client endpoint
-  client c;
-  const std::string market_str = "btcusd";
-  const std::string uri = "wss://api.gemini.com/v1/marketdata/" + market_str;
-
-  try {
-    // Set logging to be pretty verbose (everything except message payloads)
-    c.set_access_channels(websocketpp::log::alevel::all);
-    c.clear_access_channels(websocketpp::log::alevel::frame_payload);
-    c.set_tls_init_handler(websocketpp::lib::bind(
-        &on_tls_init, websocketpp::lib::placeholders::_1));
-
-    // Initialize ASIO
-    c.init_asio();
-
-    // Register our message handler
-    auto message_handler = [&](auto &&...args) {
-      return Venue::process_websocket_message(
-          on_parsed, std::forward<decltype(args)>(args)...);
-    };
-    c.set_message_handler(std::move(message_handler));
-
-    websocketpp::lib::error_code ec;
-    client::connection_ptr con = c.get_connection(uri, ec);
-    if (ec) {
-      std::cout << "could not create connection because: " << ec.message()
-                << std::endl;
-      return 0;
-    }
-
-    // Note that connect here only requests a connection. No network messages
-    // are exchanged until the event loop starts running in the next line.
-    c.connect(con);
-
-    // Start the ASIO io_service run loop
-    // this will cause a single connection to be made to the server. c.run()
-    // will exit when this connection is closed.
-    c.run();
-  } catch (websocketpp::exception const &e) {
-    std::cout << e.what() << std::endl;
-  }
+  });
 
   return 0;
 }
