@@ -1,6 +1,0 @@
-/home/runner/work/jpm/jpm/build/CMakeFiles/core.dir
-/home/runner/work/jpm/jpm/build/CMakeFiles/imgui_lib.dir
-/home/runner/work/jpm/jpm/build/CMakeFiles/implot_lib.dir
-/home/runner/work/jpm/jpm/build/CMakeFiles/fake_dashboard.dir
-/home/runner/work/jpm/jpm/build/CMakeFiles/edit_cache.dir
-/home/runner/work/jpm/jpm/build/CMakeFiles/rebuild_cache.dir
