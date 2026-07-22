@@ -1,0 +1,2 @@
+/home/runner/work/_temp/00d52bc0-e92e-4ede-bac7-65b333826a49/emsdk-main/upstream/emscripten/emar qc libcore.a CMakeFiles/core.dir/src/mmfile.cpp.o CMakeFiles/core.dir/src/str_utils.cpp.o
+/home/runner/work/_temp/00d52bc0-e92e-4ede-bac7-65b333826a49/emsdk-main/upstream/emscripten/emranlib libcore.a
