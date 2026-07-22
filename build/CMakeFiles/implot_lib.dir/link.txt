@@ -1,0 +1,2 @@
+/home/runner/work/_temp/cce5ecef-77f0-40fb-b2d1-24e8563d4d31/emsdk-main/upstream/emscripten/emar qc libimplot_lib.a "CMakeFiles/implot_lib.dir/_deps/implot-src/implot.cpp.o" "CMakeFiles/implot_lib.dir/_deps/implot-src/implot_items.cpp.o" "CMakeFiles/implot_lib.dir/_deps/implot-src/implot_demo.cpp.o"
+/home/runner/work/_temp/cce5ecef-77f0-40fb-b2d1-24e8563d4d31/emsdk-main/upstream/emscripten/emranlib libimplot_lib.a

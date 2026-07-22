@@ -1,0 +1,98 @@
+[
+{
+  "directory": "/home/runner/work/jpm/jpm/build",
+  "command": "/home/runner/work/_temp/cce5ecef-77f0-40fb-b2d1-24e8563d4d31/emsdk-main/upstream/emscripten/em++  -I/home/runner/work/jpm/jpm/src -I/home/runner/work/jpm/jpm/src/core -isystem /home/runner/work/jpm/jpm/deps/cnl/include -O3 -DNDEBUG -std=gnu++20 -Wno-error=pedantic -Wno-error=deprecated-literal-operator -O3 -fsanitize=address,undefined -o CMakeFiles/core.dir/src/mmfile.cpp.o -c /home/runner/work/jpm/jpm/src/mmfile.cpp",
+  "file": "/home/runner/work/jpm/jpm/src/mmfile.cpp",
+  "output": "CMakeFiles/core.dir/src/mmfile.cpp.o"
+},
+{
+  "directory": "/home/runner/work/jpm/jpm/build",
+  "command": "/home/runner/work/_temp/cce5ecef-77f0-40fb-b2d1-24e8563d4d31/emsdk-main/upstream/emscripten/em++  -I/home/runner/work/jpm/jpm/src -I/home/runner/work/jpm/jpm/src/core -isystem /home/runner/work/jpm/jpm/deps/cnl/include -O3 -DNDEBUG -std=gnu++20 -Wno-error=pedantic -Wno-error=deprecated-literal-operator -O3 -fsanitize=address,undefined -o CMakeFiles/core.dir/src/str_utils.cpp.o -c /home/runner/work/jpm/jpm/src/str_utils.cpp",
+  "file": "/home/runner/work/jpm/jpm/src/str_utils.cpp",
+  "output": "CMakeFiles/core.dir/src/str_utils.cpp.o"
+},
+{
+  "directory": "/home/runner/work/jpm/jpm/build",
+  "command": "/home/runner/work/_temp/cce5ecef-77f0-40fb-b2d1-24e8563d4d31/emsdk-main/upstream/emscripten/em++  -I/home/runner/work/jpm/jpm/build/_deps/imgui-src -I/home/runner/work/jpm/jpm/build/_deps/imgui-src/backends -O3 -DNDEBUG -std=gnu++20 -o CMakeFiles/imgui_lib.dir/_deps/imgui-src/imgui.cpp.o -c /home/runner/work/jpm/jpm/build/_deps/imgui-src/imgui.cpp",
+  "file": "/home/runner/work/jpm/jpm/build/_deps/imgui-src/imgui.cpp",
+  "output": "CMakeFiles/imgui_lib.dir/_deps/imgui-src/imgui.cpp.o"
+},
+{
+  "directory": "/home/runner/work/jpm/jpm/build",
+  "command": "/home/runner/work/_temp/cce5ecef-77f0-40fb-b2d1-24e8563d4d31/emsdk-main/upstream/emscripten/em++  -I/home/runner/work/jpm/jpm/build/_deps/imgui-src -I/home/runner/work/jpm/jpm/build/_deps/imgui-src/backends -O3 -DNDEBUG -std=gnu++20 -o CMakeFiles/imgui_lib.dir/_deps/imgui-src/imgui_draw.cpp.o -c /home/runner/work/jpm/jpm/build/_deps/imgui-src/imgui_draw.cpp",
+  "file": "/home/runner/work/jpm/jpm/build/_deps/imgui-src/imgui_draw.cpp",
+  "output": "CMakeFiles/imgui_lib.dir/_deps/imgui-src/imgui_draw.cpp.o"
+},
+{
+  "directory": "/home/runner/work/jpm/jpm/build",
+  "command": "/home/runner/work/_temp/cce5ecef-77f0-40fb-b2d1-24e8563d4d31/emsdk-main/upstream/emscripten/em++  -I/home/runner/work/jpm/jpm/build/_deps/imgui-src -I/home/runner/work/jpm/jpm/build/_deps/imgui-src/backends -O3 -DNDEBUG -std=gnu++20 -o CMakeFiles/imgui_lib.dir/_deps/imgui-src/imgui_tables.cpp.o -c /home/runner/work/jpm/jpm/build/_deps/imgui-src/imgui_tables.cpp",
+  "file": "/home/runner/work/jpm/jpm/build/_deps/imgui-src/imgui_tables.cpp",
+  "output": "CMakeFiles/imgui_lib.dir/_deps/imgui-src/imgui_tables.cpp.o"
+},
+{
+  "directory": "/home/runner/work/jpm/jpm/build",
+  "command": "/home/runner/work/_temp/cce5ecef-77f0-40fb-b2d1-24e8563d4d31/emsdk-main/upstream/emscripten/em++  -I/home/runner/work/jpm/jpm/build/_deps/imgui-src -I/home/runner/work/jpm/jpm/build/_deps/imgui-src/backends -O3 -DNDEBUG -std=gnu++20 -o CMakeFiles/imgui_lib.dir/_deps/imgui-src/imgui_widgets.cpp.o -c /home/runner/work/jpm/jpm/build/_deps/imgui-src/imgui_widgets.cpp",
+  "file": "/home/runner/work/jpm/jpm/build/_deps/imgui-src/imgui_widgets.cpp",
+  "output": "CMakeFiles/imgui_lib.dir/_deps/imgui-src/imgui_widgets.cpp.o"
+},
+{
+  "directory": "/home/runner/work/jpm/jpm/build",
+  "command": "/home/runner/work/_temp/cce5ecef-77f0-40fb-b2d1-24e8563d4d31/emsdk-main/upstream/emscripten/em++  -I/home/runner/work/jpm/jpm/build/_deps/imgui-src -I/home/runner/work/jpm/jpm/build/_deps/imgui-src/backends -O3 -DNDEBUG -std=gnu++20 -o CMakeFiles/imgui_lib.dir/_deps/imgui-src/imgui_demo.cpp.o -c /home/runner/work/jpm/jpm/build/_deps/imgui-src/imgui_demo.cpp",
+  "file": "/home/runner/work/jpm/jpm/build/_deps/imgui-src/imgui_demo.cpp",
+  "output": "CMakeFiles/imgui_lib.dir/_deps/imgui-src/imgui_demo.cpp.o"
+},
+{
+  "directory": "/home/runner/work/jpm/jpm/build",
+  "command": "/home/runner/work/_temp/cce5ecef-77f0-40fb-b2d1-24e8563d4d31/emsdk-main/upstream/emscripten/em++  -I/home/runner/work/jpm/jpm/build/_deps/imgui-src -I/home/runner/work/jpm/jpm/build/_deps/imgui-src/backends -O3 -DNDEBUG -std=gnu++20 -o CMakeFiles/imgui_lib.dir/_deps/imgui-src/backends/imgui_impl_glfw.cpp.o -c /home/runner/work/jpm/jpm/build/_deps/imgui-src/backends/imgui_impl_glfw.cpp",
+  "file": "/home/runner/work/jpm/jpm/build/_deps/imgui-src/backends/imgui_impl_glfw.cpp",
+  "output": "CMakeFiles/imgui_lib.dir/_deps/imgui-src/backends/imgui_impl_glfw.cpp.o"
+},
+{
+  "directory": "/home/runner/work/jpm/jpm/build",
+  "command": "/home/runner/work/_temp/cce5ecef-77f0-40fb-b2d1-24e8563d4d31/emsdk-main/upstream/emscripten/em++  -I/home/runner/work/jpm/jpm/build/_deps/imgui-src -I/home/runner/work/jpm/jpm/build/_deps/imgui-src/backends -O3 -DNDEBUG -std=gnu++20 -o CMakeFiles/imgui_lib.dir/_deps/imgui-src/backends/imgui_impl_opengl3.cpp.o -c /home/runner/work/jpm/jpm/build/_deps/imgui-src/backends/imgui_impl_opengl3.cpp",
+  "file": "/home/runner/work/jpm/jpm/build/_deps/imgui-src/backends/imgui_impl_opengl3.cpp",
+  "output": "CMakeFiles/imgui_lib.dir/_deps/imgui-src/backends/imgui_impl_opengl3.cpp.o"
+},
+{
+  "directory": "/home/runner/work/jpm/jpm/build",
+  "command": "/home/runner/work/_temp/cce5ecef-77f0-40fb-b2d1-24e8563d4d31/emsdk-main/upstream/emscripten/em++  -I/home/runner/work/jpm/jpm/build/_deps/implot-src -I/home/runner/work/jpm/jpm/build/_deps/imgui-src -I/home/runner/work/jpm/jpm/build/_deps/imgui-src/backends -O3 -DNDEBUG -std=gnu++20 -o CMakeFiles/implot_lib.dir/_deps/implot-src/implot.cpp.o -c /home/runner/work/jpm/jpm/build/_deps/implot-src/implot.cpp",
+  "file": "/home/runner/work/jpm/jpm/build/_deps/implot-src/implot.cpp",
+  "output": "CMakeFiles/implot_lib.dir/_deps/implot-src/implot.cpp.o"
+},
+{
+  "directory": "/home/runner/work/jpm/jpm/build",
+  "command": "/home/runner/work/_temp/cce5ecef-77f0-40fb-b2d1-24e8563d4d31/emsdk-main/upstream/emscripten/em++  -I/home/runner/work/jpm/jpm/build/_deps/implot-src -I/home/runner/work/jpm/jpm/build/_deps/imgui-src -I/home/runner/work/jpm/jpm/build/_deps/imgui-src/backends -O3 -DNDEBUG -std=gnu++20 -o CMakeFiles/implot_lib.dir/_deps/implot-src/implot_items.cpp.o -c /home/runner/work/jpm/jpm/build/_deps/implot-src/implot_items.cpp",
+  "file": "/home/runner/work/jpm/jpm/build/_deps/implot-src/implot_items.cpp",
+  "output": "CMakeFiles/implot_lib.dir/_deps/implot-src/implot_items.cpp.o"
+},
+{
+  "directory": "/home/runner/work/jpm/jpm/build",
+  "command": "/home/runner/work/_temp/cce5ecef-77f0-40fb-b2d1-24e8563d4d31/emsdk-main/upstream/emscripten/em++  -I/home/runner/work/jpm/jpm/build/_deps/implot-src -I/home/runner/work/jpm/jpm/build/_deps/imgui-src -I/home/runner/work/jpm/jpm/build/_deps/imgui-src/backends -O3 -DNDEBUG -std=gnu++20 -o CMakeFiles/implot_lib.dir/_deps/implot-src/implot_demo.cpp.o -c /home/runner/work/jpm/jpm/build/_deps/implot-src/implot_demo.cpp",
+  "file": "/home/runner/work/jpm/jpm/build/_deps/implot-src/implot_demo.cpp",
+  "output": "CMakeFiles/implot_lib.dir/_deps/implot-src/implot_demo.cpp.o"
+},
+{
+  "directory": "/home/runner/work/jpm/jpm/build",
+  "command": "/home/runner/work/_temp/cce5ecef-77f0-40fb-b2d1-24e8563d4d31/emsdk-main/upstream/emscripten/em++  -I/home/runner/work/jpm/jpm/src -I/home/runner/work/jpm/jpm/src/core -I/home/runner/work/jpm/jpm/build/_deps/implot-src -I/home/runner/work/jpm/jpm/build/_deps/imgui-src -I/home/runner/work/jpm/jpm/build/_deps/imgui-src/backends -isystem /home/runner/work/jpm/jpm/build/_deps/boost_headers-src -isystem /home/runner/work/jpm/jpm/deps/cnl/include -O3 -DNDEBUG -std=gnu++20 -Wno-error=pedantic -Wno-error=deprecated-literal-operator -O3 -fsanitize=address,undefined -o CMakeFiles/fake_dashboard.dir/src/apps/sample_dashboard.cpp.o -c /home/runner/work/jpm/jpm/src/apps/sample_dashboard.cpp",
+  "file": "/home/runner/work/jpm/jpm/src/apps/sample_dashboard.cpp",
+  "output": "CMakeFiles/fake_dashboard.dir/src/apps/sample_dashboard.cpp.o"
+},
+{
+  "directory": "/home/runner/work/jpm/jpm/build",
+  "command": "/home/runner/work/_temp/cce5ecef-77f0-40fb-b2d1-24e8563d4d31/emsdk-main/upstream/emscripten/em++  -I/home/runner/work/jpm/jpm/src -I/home/runner/work/jpm/jpm/src/core -I/home/runner/work/jpm/jpm/build/_deps/implot-src -I/home/runner/work/jpm/jpm/build/_deps/imgui-src -I/home/runner/work/jpm/jpm/build/_deps/imgui-src/backends -isystem /home/runner/work/jpm/jpm/build/_deps/boost_headers-src -isystem /home/runner/work/jpm/jpm/deps/cnl/include -O3 -DNDEBUG -std=gnu++20 -Wno-error=pedantic -Wno-error=deprecated-literal-operator -O3 -fsanitize=address,undefined -o CMakeFiles/fake_dashboard.dir/src/ui/dashboard.cpp.o -c /home/runner/work/jpm/jpm/src/ui/dashboard.cpp",
+  "file": "/home/runner/work/jpm/jpm/src/ui/dashboard.cpp",
+  "output": "CMakeFiles/fake_dashboard.dir/src/ui/dashboard.cpp.o"
+},
+{
+  "directory": "/home/runner/work/jpm/jpm/build",
+  "command": "/home/runner/work/_temp/cce5ecef-77f0-40fb-b2d1-24e8563d4d31/emsdk-main/upstream/emscripten/em++  -I/home/runner/work/jpm/jpm/src -I/home/runner/work/jpm/jpm/src/core -I/home/runner/work/jpm/jpm/build/_deps/implot-src -I/home/runner/work/jpm/jpm/build/_deps/imgui-src -I/home/runner/work/jpm/jpm/build/_deps/imgui-src/backends -isystem /home/runner/work/jpm/jpm/build/_deps/boost_headers-src -isystem /home/runner/work/jpm/jpm/deps/cnl/include -O3 -DNDEBUG -std=gnu++20 -Wno-error=pedantic -Wno-error=deprecated-literal-operator -O3 -fsanitize=address,undefined -o CMakeFiles/fake_dashboard.dir/src/ui/root.cpp.o -c /home/runner/work/jpm/jpm/src/ui/root.cpp",
+  "file": "/home/runner/work/jpm/jpm/src/ui/root.cpp",
+  "output": "CMakeFiles/fake_dashboard.dir/src/ui/root.cpp.o"
+},
+{
+  "directory": "/home/runner/work/jpm/jpm/build",
+  "command": "/home/runner/work/_temp/cce5ecef-77f0-40fb-b2d1-24e8563d4d31/emsdk-main/upstream/emscripten/em++  -I/home/runner/work/jpm/jpm/src -I/home/runner/work/jpm/jpm/src/core -I/home/runner/work/jpm/jpm/build/_deps/implot-src -I/home/runner/work/jpm/jpm/build/_deps/imgui-src -I/home/runner/work/jpm/jpm/build/_deps/imgui-src/backends -isystem /home/runner/work/jpm/jpm/build/_deps/boost_headers-src -isystem /home/runner/work/jpm/jpm/deps/cnl/include -O3 -DNDEBUG -std=gnu++20 -Wno-error=pedantic -Wno-error=deprecated-literal-operator -O3 -fsanitize=address,undefined -o CMakeFiles/fake_dashboard.dir/src/ui/ui.cpp.o -c /home/runner/work/jpm/jpm/src/ui/ui.cpp",
+  "file": "/home/runner/work/jpm/jpm/src/ui/ui.cpp",
+  "output": "CMakeFiles/fake_dashboard.dir/src/ui/ui.cpp.o"
+}
+]
