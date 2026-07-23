@@ -1,1 +1,86 @@
-<!doctypehtml><html lang=en><head><meta charset=utf-8><meta content="width=device-width,initial-scale=1"name=viewport><title>WASM Application</title><style>body,html{margin:0;padding:0;width:100%;height:100%;background-color:#020617;overflow:hidden}#canvas{width:100vw;height:100vh;display:block}</style><script>var element=document.getElementById("output");element&&(element.value="");var Module={print:function(){var e=document.getElementById("output");return function(t){arguments.length>1&&(t=Array.prototype.slice.call(arguments).join(" ")),e&&(e.value+=t+"\n",e.scrollTop=e.scrollHeight),console.log(t)}}(),printErr:function(e){var t=document.getElementById("output");arguments.length>1&&(e=Array.prototype.slice.call(arguments).join(" ")),t&&(t.value+="[ERROR] "+e+"\n",t.scrollTop=t.scrollHeight),console.error(e)}}</script><script>!function(){var o=document.getElementById("output"),l=console.log,n=console.error;console.log=function(...n){l.apply(console,n),o&&(o.value+=n.join(" ")+"\n",o.scrollTop=o.scrollHeight)},console.error=function(...l){n.apply(console,l),o&&(o.value+="[JS ERROR] "+l.join(" ")+"\n",o.scrollTop=o.scrollHeight)}}()</script></head><body><canvas height=480 id=canvas oncontextmenu=event.preventDefault() width=640></canvas><script>var Module={canvas:document.getElementById("canvas"),devicePixelRatio:1}</script><script async src=fake_dashboard.js></script></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WASM Application</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #020617;
+      overflow: hidden;
+    }
+    #canvas {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+    }
+  </style>
+  <script type="text/javascript">
+    var element = document.getElementById('output');
+    if (element) element.value = ''; // Clear initial text
+  
+    var Module = {
+      print: (function() {
+        var element = document.getElementById('output');
+        return function(text) {
+          if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+          if (element) {
+            element.value += text + "\n";
+            element.scrollTop = element.scrollHeight; // Auto-scroll to bottom
+          }
+          console.log(text); // Optionally keep in console as well
+        };
+      })(),
+      printErr: function(text) {
+        var element = document.getElementById('output');
+        if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+        if (element) {
+          element.value += "[ERROR] " + text + "\n";
+          element.scrollTop = element.scrollHeight;
+        }
+        console.error(text);
+      }
+    };
+  </script>
+  <script type="text/javascript">
+    (function() {
+      var output = document.getElementById('output');
+      var oldLog = console.log;
+      var oldErr = console.error;
+  
+      console.log = function(...args) {
+        oldLog.apply(console, args);
+        if (output) {
+          output.value += args.join(' ') + '\n';
+          output.scrollTop = output.scrollHeight;
+        }
+      };
+  
+      console.error = function(...args) {
+        oldErr.apply(console, args);
+        if (output) {
+          output.value += '[JS ERROR] ' + args.join(' ') + '\n';
+          output.scrollTop = output.scrollHeight;
+        }
+      };
+    })();
+  </script>
+</head>
+<body>
+  <canvas id="canvas" width="640" height="480" oncontextmenu="event.preventDefault()"></canvas>
+  
+  <script>
+    var Module = {
+      canvas: (function() {
+        return document.getElementById('canvas');
+      })(),
+      devicePixelRatio: 1
+    };
+  </script>
+  <script async type="text/javascript" src="fake_dashboard.js"></script>
+</body>
+</html>
