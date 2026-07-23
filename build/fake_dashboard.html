@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WASM Application</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #020617;
+      overflow: hidden;
+    }
+    #canvas {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+    }
+  </style>
+	<!--
+  <script type="text/javascript">
+    var element = document.getElementById('output');
+    if (element) element.value = ''; // Clear initial text
+  
+    var Module = {
+      print: (function() {
+        var element = document.getElementById('output');
+        return function(text) {
+          if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+          if (element) {
+            element.value += text + "\n";
+            element.scrollTop = element.scrollHeight; // Auto-scroll to bottom
+          }
+          console.log(text); // Optionally keep in console as well
+        };
+      })(),
+      printErr: function(text) {
+        var element = document.getElementById('output');
+        if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+        if (element) {
+          element.value += "[ERROR] " + text + "\n";
+          element.scrollTop = element.scrollHeight;
+        }
+        console.error(text);
+      }
+    };
+  </script>
+  <script type="text/javascript">
+    (function() {
+      var output = document.getElementById('output');
+      var oldLog = console.log;
+      var oldErr = console.error;
+  
+      console.log = function(...args) {
+        oldLog.apply(console, args);
+        if (output) {
+          output.value += args.join(' ') + '\n';
+          output.scrollTop = output.scrollHeight;
+        }
+      };
+  
+      console.error = function(...args) {
+        oldErr.apply(console, args);
+        if (output) {
+          output.value += '[JS ERROR] ' + args.join(' ') + '\n';
+          output.scrollTop = output.scrollHeight;
+        }
+      };
+    })();
+  </script>
+	-->
+</head>
+<body>
+	<!--
+  <canvas id="canvas" width="640" height="480" oncontextmenu="event.preventDefault()"></canvas>
+	-->
+	<canvas id="canvas" width="1280" height="720" style="width: 100vw; height: 100vh; display: block;"></canvas>
+  
+	<!--
+  <script>
+    var Module = {
+      canvas: (function() {
+        return document.getElementById('canvas');
+      })(),
+      devicePixelRatio: 1
+    };
+  </script>
+	-->
+	<script>
+		/*
+		var canvas = document.getElementById('canvas');
+		var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+		if (gl) {
+			console.log("DOM WebGL Success! Renderer:", gl.getParameter(gl.RENDERER));
+		} else {
+			console.error("DOM WebGL Failed!");
+		}
+		*/
+
+    var canvasEl = document.getElementById('canvas');
+
+		var Module = typeof Module !== 'undefined' ? Module : {};
+		Module.canvas = canvasEl;
+
+		Module.preRun = Module.preRun || [];
+		Module.preRun.push(function() {
+			console.log("[JS PRE-RUN] Started");
+			if (typeof Browser !== 'undefined' && Browser.createContext) {
+				var origCreateContext = Browser.createContext;
+				Browser.createContext = function(canvas, useWebGL, setInModule, webGLContextAttributes) {
+					webGLContextAttributes = webGLContextAttributes || {};
+					webGLContextAttributes.majorVersion = 1; // Explicitly override line 6607
+					return origCreateContext(canvas, useWebGL, setInModule, webGLContextAttributes);
+				};
+				console.log("[JS PRE-RUN] Patched Browser.createContext to enforce WebGL 1");
+			}
+			console.log("[JS PRE-RUN] Finished");
+		});
+
+    // Intercept Emscripten's webgl2 context request and downgrade it to webgl/experimental-webgl
+    var originalGetContext = canvasEl.getContext.bind(canvasEl);
+    canvasEl.getContext = function(type, attributes) {
+			console.log("[HOOK] GLFW requested context type:", type);
+			console.log("[HOOK] Attributes passed by GLFW:", JSON.stringify(attributes));
+
+			var targetType = (type === 'webgl2') ? 'webgl' : type;
+
+			var forcedAttributes = attributes || {};
+			forcedAttributes.majorVersion = 1;
+			forcedAttributes.minorVersion = 0;
+			forcedAttributes.alpha = false;        // Mali-450 often fails with alpha: true
+			forcedAttributes.stencil = false;      // Disable stencil unless ImGui explicitly requires it
+			forcedAttributes.depth = true;
+			forcedAttributes.antialias = false;
+			forcedAttributes.powerPreference = "low-power";
+			forcedAttributes.failIfMajorPerformanceCaveat = false; //
+
+			console.log("[HOOK] Forced attributes being passed to originalGetContext:", JSON.stringify(forcedAttributes));
+			var ctx = originalGetContext(targetType, forcedAttributes);
+
+			if (ctx) {
+				console.log("[HOOK] SUCCESS: Context acquired for type:", targetType);
+			} else {
+				console.error("[HOOK] FAILED: getContext returned null for type:", targetType);
+
+				// Fallback probe: try fetching basic experimental-webgl
+				var fallbackCtx = originalGetContext('experimental-webgl');
+				console.log("[HOOK] Fallback 'experimental-webgl' result:", fallbackCtx ? "SUCCESS" : "FAILED");
+			}
+
+      return ctx;
+    };
+
+    var Module = {
+      canvas: canvasEl,
+      devicePixelRatio: 1
+    };
+  </script>
+	<script>
+		/*
+		var canvasElement = document.getElementById('canvas');
+
+		console.log("== ATTRIBUTE MATRIX TEST ==");
+
+		const testAttrs = [
+			{ name: "Default (no attrs)", attrs: undefined },
+			{ name: "Emscripten Attrs", attrs: {"antialias":false,"alpha":false,"majorVersion":1,"depth":true,"stencil":false,"minorVersion":0,"powerPreference":"low-power","failIfMajorPerformanceCaveat":false} },
+			{ name: "No Depth", attrs: {"antialias":false,"alpha":false,"depth":false,"stencil":false} },
+			{ name: "No PowerPref", attrs: {"antialias":false,"alpha":false,"depth":true,"stencil":false} }
+		];
+
+		testAttrs.forEach(test => {
+			try {
+				// Re-create a temporary hidden canvas for testing context creation cleanly
+				var testCanvas = document.createElement('canvasXXX');
+				var gl = testCanvas.getContext('webgl', test.attrs) || testCanvas.getContext('experimental-webgl', test.attrs);
+				console.log(`[ATTR TEST] ${test.name}:`, gl ? "SUCCESS" : "FAILED (returned null)");
+			} catch(e) {
+				console.log(`[ATTR TEST] ${test.name}: EXCEPTION ->`, e);
+			}
+		});
+		*/
+	</script>
+	<script>
+		// Hide WebGL2 from Emscripten's runtime detection feature check
+		delete window.WebGL2RenderingContext;
+
+		var Module = {
+			canvas: document.getElementById('canvas')
+		};
+	</script>
+  <script async type="text/javascript" src="fake_dashboard.js"></script>
+</body>
+</html>
