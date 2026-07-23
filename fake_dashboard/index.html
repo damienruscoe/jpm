@@ -19,6 +19,7 @@
       display: block;
     }
   </style>
+	<!--
   <script type="text/javascript">
     var element = document.getElementById('output');
     if (element) element.value = ''; // Clear initial text
@@ -69,10 +70,15 @@
       };
     })();
   </script>
+	-->
 </head>
 <body>
+	<!--
   <canvas id="canvas" width="640" height="480" oncontextmenu="event.preventDefault()"></canvas>
+	-->
+	<canvas id="canvas" width="1280" height="720" style="width: 100vw; height: 100vh; display: block;"></canvas>
   
+	<!--
   <script>
     var Module = {
       canvas: (function() {
@@ -81,6 +87,110 @@
       devicePixelRatio: 1
     };
   </script>
+	-->
+	<script>
+		/*
+		var canvas = document.getElementById('canvas');
+		var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+		if (gl) {
+			console.log("DOM WebGL Success! Renderer:", gl.getParameter(gl.RENDERER));
+		} else {
+			console.error("DOM WebGL Failed!");
+		}
+		*/
+
+    var canvasEl = document.getElementById('canvas');
+
+		var Module = typeof Module !== 'undefined' ? Module : {};
+		Module.canvas = canvasEl;
+
+		Module.preRun = Module.preRun || [];
+		Module.preRun.push(function() {
+			console.log("[JS PRE-RUN] Started");
+			if (typeof Browser !== 'undefined' && Browser.createContext) {
+				var origCreateContext = Browser.createContext;
+				Browser.createContext = function(canvas, useWebGL, setInModule, webGLContextAttributes) {
+					webGLContextAttributes = webGLContextAttributes || {};
+					webGLContextAttributes.majorVersion = 1; // Explicitly override line 6607
+					return origCreateContext(canvas, useWebGL, setInModule, webGLContextAttributes);
+				};
+				console.log("[JS PRE-RUN] Patched Browser.createContext to enforce WebGL 1");
+			}
+			console.log("[JS PRE-RUN] Finished");
+		});
+
+    // Intercept Emscripten's webgl2 context request and downgrade it to webgl/experimental-webgl
+    var originalGetContext = canvasEl.getContext.bind(canvasEl);
+    canvasEl.getContext = function(type, attributes) {
+			console.log("[HOOK] GLFW requested context type:", type);
+			console.log("[HOOK] Attributes passed by GLFW:", JSON.stringify(attributes));
+
+			var targetType = (type === 'webgl2') ? 'webgl' : type;
+
+			var forcedAttributes = attributes || {};
+			forcedAttributes.majorVersion = 1;
+			forcedAttributes.minorVersion = 0;
+			forcedAttributes.alpha = false;        // Mali-450 often fails with alpha: true
+			forcedAttributes.stencil = false;      // Disable stencil unless ImGui explicitly requires it
+			forcedAttributes.depth = true;
+			forcedAttributes.antialias = false;
+			forcedAttributes.powerPreference = "low-power";
+			forcedAttributes.failIfMajorPerformanceCaveat = false; //
+
+			console.log("[HOOK] Forced attributes being passed to originalGetContext:", JSON.stringify(forcedAttributes));
+			var ctx = originalGetContext(targetType, forcedAttributes);
+
+			if (ctx) {
+				console.log("[HOOK] SUCCESS: Context acquired for type:", targetType);
+			} else {
+				console.error("[HOOK] FAILED: getContext returned null for type:", targetType);
+
+				// Fallback probe: try fetching basic experimental-webgl
+				var fallbackCtx = originalGetContext('experimental-webgl');
+				console.log("[HOOK] Fallback 'experimental-webgl' result:", fallbackCtx ? "SUCCESS" : "FAILED");
+			}
+
+      return ctx;
+    };
+
+    var Module = {
+      canvas: canvasEl,
+      devicePixelRatio: 1
+    };
+  </script>
+	<script>
+		/*
+		var canvasElement = document.getElementById('canvas');
+
+		console.log("== ATTRIBUTE MATRIX TEST ==");
+
+		const testAttrs = [
+			{ name: "Default (no attrs)", attrs: undefined },
+			{ name: "Emscripten Attrs", attrs: {"antialias":false,"alpha":false,"majorVersion":1,"depth":true,"stencil":false,"minorVersion":0,"powerPreference":"low-power","failIfMajorPerformanceCaveat":false} },
+			{ name: "No Depth", attrs: {"antialias":false,"alpha":false,"depth":false,"stencil":false} },
+			{ name: "No PowerPref", attrs: {"antialias":false,"alpha":false,"depth":true,"stencil":false} }
+		];
+
+		testAttrs.forEach(test => {
+			try {
+				// Re-create a temporary hidden canvas for testing context creation cleanly
+				var testCanvas = document.createElement('canvasXXX');
+				var gl = testCanvas.getContext('webgl', test.attrs) || testCanvas.getContext('experimental-webgl', test.attrs);
+				console.log(`[ATTR TEST] ${test.name}:`, gl ? "SUCCESS" : "FAILED (returned null)");
+			} catch(e) {
+				console.log(`[ATTR TEST] ${test.name}: EXCEPTION ->`, e);
+			}
+		});
+		*/
+	</script>
+	<script>
+		// Hide WebGL2 from Emscripten's runtime detection feature check
+		delete window.WebGL2RenderingContext;
+
+		var Module = {
+			canvas: document.getElementById('canvas')
+		};
+	</script>
   <script async type="text/javascript" src="fake_dashboard.js"></script>
 </body>
 </html>

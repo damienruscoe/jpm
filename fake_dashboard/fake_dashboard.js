@@ -415,6 +415,44 @@ function unexportedRuntimeSymbol(sym) {
   }
 }
 
+var MAX_UINT8 = (2 ** 8) - 1;
+
+var MAX_UINT16 = (2 ** 16) - 1;
+
+var MAX_UINT32 = (2 ** 32) - 1;
+
+var MAX_UINT53 = (2 ** 53) - 1;
+
+var MAX_UINT64 = (2 ** 64) - 1;
+
+var MIN_INT8 = -(2 ** (8 - 1));
+
+var MIN_INT16 = -(2 ** (16 - 1));
+
+var MIN_INT32 = -(2 ** (32 - 1));
+
+var MIN_INT53 = -(2 ** (53 - 1));
+
+var MIN_INT64 = -(2 ** (64 - 1));
+
+function checkInt(value, bits, min, max) {
+  assert(Number.isInteger(Number(value)), `attempt to write non-integer (${value}) into integer heap`);
+  assert(value <= max, `value (${value}) too large to write as ${bits}-bit value`);
+  assert(value >= min, `value (${value}) too small to write as ${bits}-bit value`);
+}
+
+var checkInt1 = value => checkInt(value, 1, 1);
+
+var checkInt8 = value => checkInt(value, 8, MIN_INT8, MAX_UINT8);
+
+var checkInt16 = value => checkInt(value, 16, MIN_INT16, MAX_UINT16);
+
+var checkInt32 = value => checkInt(value, 32, MIN_INT32, MAX_UINT32);
+
+var checkInt53 = value => checkInt(value, 53, MIN_INT53, MAX_UINT53);
+
+var checkInt64 = value => checkInt(value, 64, MIN_INT64, MAX_UINT64);
+
 var printObjectList = [];
 
 function prettyPrint(arg) {
@@ -461,7 +499,9 @@ function writeStackCookie() {
   // We write cookies to the final two words in the stack and detect if they are
   // ever overwritten.
   HEAPU32[_asan_js_check_index(HEAPU32, ((max) >> 2), ___asan_storeN)] = stackCookie1;
+  checkInt32(stackCookie1);
   HEAPU32[_asan_js_check_index(HEAPU32, (((max) + (4)) >> 2), ___asan_storeN)] = stackCookie2;
+  checkInt32(stackCookie2);
 }
 
 function u32ToHexString(num) {
@@ -545,6 +585,7 @@ function initRuntime() {
   dbg("initRuntime");
   assert(!runtimeInitialized);
   runtimeInitialized = true;
+  setStackLimits();
   checkStackCookie();
   // Begin ATINITS hooks
   if (!Module["noFSInit"] && !FS.initialized) FS.init();
@@ -840,6 +881,13 @@ function ptrToString(ptr) {
   return "0x" + ptr.toString(16).padStart(8, "0");
 }
 
+var setStackLimits = () => {
+  var stackLow = _emscripten_stack_get_base();
+  var stackHigh = _emscripten_stack_get_end();
+  dbg(`setStackLimits: ${ptrToString(stackLow)}, ${ptrToString(stackHigh)}`);
+  ___set_stack_limits(stackLow, stackHigh);
+};
+
 /**
    * @param {number} ptr
    * @param {number} value
@@ -849,22 +897,27 @@ function ptrToString(ptr) {
   switch (type) {
    case "i1":
     HEAP8[_asan_js_check_index(HEAP8, ptr, ___asan_storeN)] = value;
+    checkInt8(value);
     break;
 
    case "i8":
     HEAP8[_asan_js_check_index(HEAP8, ptr, ___asan_storeN)] = value;
+    checkInt8(value);
     break;
 
    case "i16":
     HEAP16[_asan_js_check_index(HEAP16, ((ptr) >> 1), ___asan_storeN)] = value;
+    checkInt16(value);
     break;
 
    case "i32":
     HEAP32[_asan_js_check_index(HEAP32, ((ptr) >> 2), ___asan_storeN)] = value;
+    checkInt32(value);
     break;
 
    case "i64":
     HEAP64[_asan_js_check_index(HEAP64, ((ptr) >> 3), ___asan_storeN)] = BigInt(value);
+    checkInt64(value);
     break;
 
    case "float":
@@ -1021,6 +1074,7 @@ class ExceptionInfo {
   set_caught(caught) {
     caught = caught ? 1 : 0;
     HEAP8[_asan_js_check_index(HEAP8, (this.ptr) + (12), ___asan_storeN)] = caught;
+    checkInt8(caught);
   }
   get_caught() {
     return HEAP8[_asan_js_check_index(HEAP8, (this.ptr) + (12), ___asan_loadN)] != 0;
@@ -1028,6 +1082,7 @@ class ExceptionInfo {
   set_rethrown(rethrown) {
     rethrown = rethrown ? 1 : 0;
     HEAP8[_asan_js_check_index(HEAP8, (this.ptr) + (13), ___asan_storeN)] = rethrown;
+    checkInt8(rethrown);
   }
   get_rethrown() {
     return HEAP8[_asan_js_check_index(HEAP8, (this.ptr) + (13), ___asan_loadN)] != 0;
@@ -1121,6 +1176,12 @@ var ___cxa_throw = (ptr, type, destructor) => {
   exceptionLast = new CppException(ptr);
   uncaughtExceptionCount++;
   throw exceptionLast;
+};
+
+var ___handle_stack_overflow = requested => {
+  var base = _emscripten_stack_get_base();
+  var end = _emscripten_stack_get_end();
+  abort(`stack overflow (Attempt to set SP to ${ptrToString(requested)}` + `, with stack limits [${ptrToString(end)} - ${ptrToString(base)}` + "]). If you require more stack space build with -sSTACK_SIZE=<bytes>");
 };
 
 var ___resumeException = ptr => {
@@ -3829,38 +3890,64 @@ var SYSCALLS = {
   },
   writeStat(buf, stat) {
     HEAPU32[_asan_js_check_index(HEAPU32, ((buf) >> 2), ___asan_storeN)] = stat.dev;
+    checkInt32(stat.dev);
     HEAPU32[_asan_js_check_index(HEAPU32, (((buf) + (4)) >> 2), ___asan_storeN)] = stat.mode;
+    checkInt32(stat.mode);
     HEAPU32[_asan_js_check_index(HEAPU32, (((buf) + (8)) >> 2), ___asan_storeN)] = stat.nlink;
+    checkInt32(stat.nlink);
     HEAPU32[_asan_js_check_index(HEAPU32, (((buf) + (12)) >> 2), ___asan_storeN)] = stat.uid;
+    checkInt32(stat.uid);
     HEAPU32[_asan_js_check_index(HEAPU32, (((buf) + (16)) >> 2), ___asan_storeN)] = stat.gid;
+    checkInt32(stat.gid);
     HEAPU32[_asan_js_check_index(HEAPU32, (((buf) + (20)) >> 2), ___asan_storeN)] = stat.rdev;
+    checkInt32(stat.rdev);
     HEAP64[_asan_js_check_index(HEAP64, (((buf) + (24)) >> 3), ___asan_storeN)] = BigInt(stat.size);
+    checkInt64(stat.size);
     HEAP32[_asan_js_check_index(HEAP32, (((buf) + (32)) >> 2), ___asan_storeN)] = 4096;
+    checkInt32(4096);
     HEAP32[_asan_js_check_index(HEAP32, (((buf) + (36)) >> 2), ___asan_storeN)] = stat.blocks;
+    checkInt32(stat.blocks);
     var atime = stat.atime.getTime();
     var mtime = stat.mtime.getTime();
     var ctime = stat.ctime.getTime();
     HEAP64[_asan_js_check_index(HEAP64, (((buf) + (40)) >> 3), ___asan_storeN)] = BigInt(Math.floor(atime / 1e3));
+    checkInt64(Math.floor(atime / 1e3));
     HEAPU32[_asan_js_check_index(HEAPU32, (((buf) + (48)) >> 2), ___asan_storeN)] = (atime % 1e3) * 1e3 * 1e3;
+    checkInt32((atime % 1e3) * 1e3 * 1e3);
     HEAP64[_asan_js_check_index(HEAP64, (((buf) + (56)) >> 3), ___asan_storeN)] = BigInt(Math.floor(mtime / 1e3));
+    checkInt64(Math.floor(mtime / 1e3));
     HEAPU32[_asan_js_check_index(HEAPU32, (((buf) + (64)) >> 2), ___asan_storeN)] = (mtime % 1e3) * 1e3 * 1e3;
+    checkInt32((mtime % 1e3) * 1e3 * 1e3);
     HEAP64[_asan_js_check_index(HEAP64, (((buf) + (72)) >> 3), ___asan_storeN)] = BigInt(Math.floor(ctime / 1e3));
+    checkInt64(Math.floor(ctime / 1e3));
     HEAPU32[_asan_js_check_index(HEAPU32, (((buf) + (80)) >> 2), ___asan_storeN)] = (ctime % 1e3) * 1e3 * 1e3;
+    checkInt32((ctime % 1e3) * 1e3 * 1e3);
     HEAP64[_asan_js_check_index(HEAP64, (((buf) + (88)) >> 3), ___asan_storeN)] = BigInt(stat.ino);
+    checkInt64(stat.ino);
     return 0;
   },
   writeStatFs(buf, stats) {
     HEAPU32[_asan_js_check_index(HEAPU32, (((buf) + (4)) >> 2), ___asan_storeN)] = stats.bsize;
+    checkInt32(stats.bsize);
     HEAPU32[_asan_js_check_index(HEAPU32, (((buf) + (60)) >> 2), ___asan_storeN)] = stats.bsize;
+    checkInt32(stats.bsize);
     HEAP64[_asan_js_check_index(HEAP64, (((buf) + (8)) >> 3), ___asan_storeN)] = BigInt(stats.blocks);
+    checkInt64(stats.blocks);
     HEAP64[_asan_js_check_index(HEAP64, (((buf) + (16)) >> 3), ___asan_storeN)] = BigInt(stats.bfree);
+    checkInt64(stats.bfree);
     HEAP64[_asan_js_check_index(HEAP64, (((buf) + (24)) >> 3), ___asan_storeN)] = BigInt(stats.bavail);
+    checkInt64(stats.bavail);
     HEAP64[_asan_js_check_index(HEAP64, (((buf) + (32)) >> 3), ___asan_storeN)] = BigInt(stats.files);
+    checkInt64(stats.files);
     HEAP64[_asan_js_check_index(HEAP64, (((buf) + (40)) >> 3), ___asan_storeN)] = BigInt(stats.ffree);
+    checkInt64(stats.ffree);
     HEAPU32[_asan_js_check_index(HEAPU32, (((buf) + (48)) >> 2), ___asan_storeN)] = stats.fsid;
+    checkInt32(stats.fsid);
     HEAPU32[_asan_js_check_index(HEAPU32, (((buf) + (64)) >> 2), ___asan_storeN)] = stats.flags;
+    checkInt32(stats.flags);
     // ST_NOSUID
     HEAPU32[_asan_js_check_index(HEAPU32, (((buf) + (56)) >> 2), ___asan_storeN)] = stats.namelen;
+    checkInt32(stats.namelen);
   },
   doMsync(addr, stream, len, flags, offset) {
     if (!FS.isFile(stream.node.mode)) {
@@ -3945,6 +4032,7 @@ function ___syscall_fcntl64(fd, cmd, varargs) {
         var offset = 0;
         // We're always unlocked.
         HEAP16[_asan_js_check_index(HEAP16, (((arg) + (offset)) >> 1), ___asan_storeN)] = 2;
+        checkInt16(2);
         return 0;
       }
 
@@ -3990,11 +4078,16 @@ function ___syscall_ioctl(fd, op, varargs) {
           var termios = stream.tty.ops.ioctl_tcgets(stream);
           var argp = syscallGetVarargP();
           HEAP32[_asan_js_check_index(HEAP32, ((argp) >> 2), ___asan_storeN)] = termios.c_iflag || 0;
+          checkInt32(termios.c_iflag || 0);
           HEAP32[_asan_js_check_index(HEAP32, (((argp) + (4)) >> 2), ___asan_storeN)] = termios.c_oflag || 0;
+          checkInt32(termios.c_oflag || 0);
           HEAP32[_asan_js_check_index(HEAP32, (((argp) + (8)) >> 2), ___asan_storeN)] = termios.c_cflag || 0;
+          checkInt32(termios.c_cflag || 0);
           HEAP32[_asan_js_check_index(HEAP32, (((argp) + (12)) >> 2), ___asan_storeN)] = termios.c_lflag || 0;
+          checkInt32(termios.c_lflag || 0);
           for (var i = 0; i < 32; i++) {
             HEAP8[_asan_js_check_index(HEAP8, (argp + i) + (17), ___asan_storeN)] = termios.c_cc[i] || 0;
+            checkInt8(termios.c_cc[i] || 0);
           }
           return 0;
         }
@@ -4040,6 +4133,7 @@ function ___syscall_ioctl(fd, op, varargs) {
         if (!stream.tty) return -59;
         var argp = syscallGetVarargP();
         HEAP32[_asan_js_check_index(HEAP32, ((argp) >> 2), ___asan_storeN)] = 0;
+        checkInt32(0);
         return 0;
       }
 
@@ -4065,7 +4159,9 @@ function ___syscall_ioctl(fd, op, varargs) {
           var winsize = stream.tty.ops.ioctl_tiocgwinsz(stream.tty);
           var argp = syscallGetVarargP();
           HEAP16[_asan_js_check_index(HEAP16, ((argp) >> 1), ___asan_storeN)] = winsize[0];
+          checkInt16(winsize[0]);
           HEAP16[_asan_js_check_index(HEAP16, (((argp) + (2)) >> 1), ___asan_storeN)] = winsize[1];
+          checkInt16(winsize[1]);
         }
         return 0;
       }
@@ -4202,6 +4298,7 @@ function __mmap_js(len, prot, flags, fd, offset, allocated, addr) {
     var res = FS.mmap(stream, len, offset, prot, flags);
     var ptr = res.ptr;
     HEAP32[_asan_js_check_index(HEAP32, ((allocated) >> 2), ___asan_storeN)] = res.allocated;
+    checkInt32(res.allocated);
     HEAPU32[_asan_js_check_index(HEAPU32, ((addr) >> 2), ___asan_storeN)] = ptr;
     return 0;
   } catch (e) {
@@ -4248,8 +4345,46 @@ function _clock_time_get(clk_id, ignored_precision, ptime) {
   // "now" is in ms, and wasi times are in ns.
   var nsec = Math.round(now * 1e3 * 1e3);
   HEAP64[_asan_js_check_index(HEAP64, ((ptime) >> 3), ___asan_storeN)] = BigInt(nsec);
+  checkInt64(nsec);
   return 0;
 }
+
+var readEmAsmArgsArray = [];
+
+var readEmAsmArgs = (sigPtr, buf) => {
+  // Nobody should have mutated _readEmAsmArgsArray underneath us to be something else than an array.
+  assert(Array.isArray(readEmAsmArgsArray));
+  // The input buffer is allocated on the stack, so it must be stack-aligned.
+  assert(buf % 16 == 0);
+  readEmAsmArgsArray.length = 0;
+  var ch;
+  // Most arguments are i32s, so shift the buffer pointer so it is a plain
+  // index into HEAP32.
+  while (ch = HEAPU8[_asan_js_check_index(HEAPU8, sigPtr++, ___asan_loadN)]) {
+    var chr = String.fromCharCode(ch);
+    var validChars = [ "d", "f", "i", "p" ];
+    // In WASM_BIGINT mode we support passing i64 values as bigint.
+    validChars.push("j");
+    assert(validChars.includes(chr), `Invalid character ${ch}("${chr}") in readEmAsmArgs! Use only [${validChars}], and do not specify "v" for void return argument.`);
+    // Floats are always passed as doubles, so all types except for 'i'
+    // are 8 bytes and require alignment.
+    var wide = (ch != 105);
+    wide &= (ch != 112);
+    buf += wide && (buf % 8) ? 4 : 0;
+    readEmAsmArgsArray.push(// Special case for pointers under wasm64 or CAN_ADDRESS_2GB mode.
+    ch == 112 ? HEAPU32[_asan_js_check_index(HEAPU32, ((buf) >> 2), ___asan_loadN)] : ch == 106 ? HEAP64[_asan_js_check_index(HEAP64, ((buf) >> 3), ___asan_loadN)] : ch == 105 ? HEAP32[_asan_js_check_index(HEAP32, ((buf) >> 2), ___asan_loadN)] : HEAPF64[_asan_js_check_index(HEAPF64, ((buf) >> 3), ___asan_loadN)]);
+    buf += wide ? 8 : 4;
+  }
+  return readEmAsmArgsArray;
+};
+
+var runEmAsmFunction = (code, sigPtr, argbuf) => {
+  var args = readEmAsmArgs(sigPtr, argbuf);
+  assert(ASM_CONSTS.hasOwnProperty(code), `No EM_ASM constant found at address ${code}.  The loaded WebAssembly file is likely out of sync with the generated JavaScript.`);
+  return ASM_CONSTS[code](...args);
+};
+
+var _emscripten_asm_const_int = (code, sigPtr, argbuf) => runEmAsmFunction(code, sigPtr, argbuf);
 
 var _emscripten_err = str => err(UTF8ToString(str));
 
@@ -4440,7 +4575,10 @@ var _emscripten_resize_heap = requestedSize => {
     // but limit overreserving (default to capping at +96MB overgrowth at most)
     overGrownHeapSize = Math.min(overGrownHeapSize, requestedSize + 100663296);
     var newSize = Math.min(maxHeapSize, alignMemory(Math.max(requestedSize, overGrownHeapSize), 65536));
+    var t0 = _emscripten_get_now();
     var replacement = growMemory(newSize);
+    var t1 = _emscripten_get_now();
+    dbg(`Heap resize call from ${oldSize} to ${newSize} took ${(t1 - t0)} msecs. Success: ${!!replacement}`);
     if (replacement) {
       return true;
     }
@@ -4958,6 +5096,7 @@ var registerWheelEventCallback = (target, userData, useCapture, callbackfunc, ev
     HEAPF64[_asan_js_check_index(HEAPF64, (((wheelEvent) + (72)) >> 3), ___asan_storeN)] = e["deltaY"];
     HEAPF64[_asan_js_check_index(HEAPF64, (((wheelEvent) + (80)) >> 3), ___asan_storeN)] = e["deltaZ"];
     HEAP32[_asan_js_check_index(HEAP32, (((wheelEvent) + (88)) >> 2), ___asan_storeN)] = e["deltaMode"];
+    checkInt32(e["deltaMode"]);
     if (getWasmTableEntry(callbackfunc)(eventTypeId, wheelEvent, userData)) e.preventDefault();
   };
   var eventHandler = {
@@ -5138,6 +5277,7 @@ var GL = {
         GL.recordError(1282);
       }
       HEAP32[_asan_js_check_index(HEAP32, (((buffers) + (i * 4)) >> 2), ___asan_storeN)] = id;
+      checkInt32(id);
     }
   },
   MAX_TEMP_BUFFER_SIZE: 2097152,
@@ -5511,11 +5651,13 @@ var _environ_get = (__environ, environ_buf) => {
 var _environ_sizes_get = (penviron_count, penviron_buf_size) => {
   var strings = getEnvStrings();
   HEAPU32[_asan_js_check_index(HEAPU32, ((penviron_count) >> 2), ___asan_storeN)] = strings.length;
+  checkInt32(strings.length);
   var bufSize = 0;
   for (var string of strings) {
     bufSize += lengthBytesUTF8(string) + 1;
   }
   HEAPU32[_asan_js_check_index(HEAPU32, ((penviron_buf_size) >> 2), ___asan_storeN)] = bufSize;
+  checkInt32(bufSize);
   return 0;
 };
 
@@ -5563,6 +5705,7 @@ function _fd_read(fd, iov, iovcnt, pnum) {
     var stream = SYSCALLS.getStreamFromFD(fd);
     var num = doReadv(stream, iov, iovcnt);
     HEAPU32[_asan_js_check_index(HEAPU32, ((pnum) >> 2), ___asan_storeN)] = num;
+    checkInt32(num);
     return 0;
   } catch (e) {
     if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
@@ -5577,6 +5720,7 @@ function _fd_seek(fd, offset, whence, newOffset) {
     var stream = SYSCALLS.getStreamFromFD(fd);
     FS.llseek(stream, offset, whence);
     HEAP64[_asan_js_check_index(HEAP64, ((newOffset) >> 3), ___asan_storeN)] = BigInt(stream.position);
+    checkInt64(stream.position);
     if (stream.getdents && offset === 0 && whence === 0) stream.getdents = null;
     // reset readdir state
     return 0;
@@ -5615,6 +5759,7 @@ function _fd_write(fd, iov, iovcnt, pnum) {
     var stream = SYSCALLS.getStreamFromFD(fd);
     var num = doWritev(stream, iov, iovcnt);
     HEAPU32[_asan_js_check_index(HEAPU32, ((pnum) >> 2), ___asan_storeN)] = num;
+    checkInt32(num);
     return 0;
   } catch (e) {
     if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
@@ -5944,8 +6089,10 @@ var readI53FromU64 = ptr => HEAPU32[_asan_js_check_index(HEAPU32, ((ptr) >> 2), 
 
 var writeI53ToI64 = (ptr, num) => {
   HEAPU32[_asan_js_check_index(HEAPU32, ((ptr) >> 2), ___asan_storeN)] = num;
+  checkInt32(num);
   var lower = HEAPU32[_asan_js_check_index(HEAPU32, ((ptr) >> 2), ___asan_loadN)];
   HEAPU32[_asan_js_check_index(HEAPU32, (((ptr) + (4)) >> 2), ___asan_storeN)] = (num - lower) / 4294967296;
+  checkInt32((num - lower) / 4294967296);
   var deserialized = (num >= 0) ? readI53FromU64(ptr) : readI53FromI64(ptr);
   var offset = ((ptr) >> 2);
   if (deserialized != num) warnOnce(`writeI53ToI64() out of range: serialized JS Number ${num} to Wasm heap as bytes lo=${ptrToString(HEAPU32[_asan_js_check_index(HEAPU32, offset, ___asan_loadN)])}, hi=${ptrToString(HEAPU32[_asan_js_check_index(HEAPU32, offset + 1, ___asan_loadN)])}, which deserializes back to ${deserialized} instead!`);
@@ -6101,6 +6248,7 @@ var emscriptenWebGLGet = (name_, p, type) => {
           switch (type) {
            case 0:
             HEAP32[_asan_js_check_index(HEAP32, (((p) + (i * 4)) >> 2), ___asan_storeN)] = result[i];
+            checkInt32(result[i]);
             break;
 
            case 2:
@@ -6109,6 +6257,7 @@ var emscriptenWebGLGet = (name_, p, type) => {
 
            case 4:
             HEAP8[_asan_js_check_index(HEAP8, (p) + (i), ___asan_storeN)] = result[i] ? 1 : 0;
+            checkInt8(result[i] ? 1 : 0);
             break;
           }
         }
@@ -6139,6 +6288,7 @@ var emscriptenWebGLGet = (name_, p, type) => {
 
    case 0:
     HEAP32[_asan_js_check_index(HEAP32, ((p) >> 2), ___asan_storeN)] = ret;
+    checkInt32(ret);
     break;
 
    case 2:
@@ -6147,6 +6297,7 @@ var emscriptenWebGLGet = (name_, p, type) => {
 
    case 4:
     HEAP8[_asan_js_check_index(HEAP8, p, ___asan_storeN)] = ret ? 1 : 0;
+    checkInt8(ret ? 1 : 0);
     break;
   }
 };
@@ -6160,6 +6311,7 @@ var _emscripten_glGetProgramInfoLog = (program, maxLength, length, infoLog) => {
   if (log === null) log = "(unknown error)";
   var numBytesWrittenExclNull = (maxLength > 0 && infoLog) ? stringToUTF8(log, infoLog, maxLength) : 0;
   if (length) HEAP32[_asan_js_check_index(HEAP32, ((length) >> 2), ___asan_storeN)] = numBytesWrittenExclNull;
+  checkInt32(numBytesWrittenExclNull);
 };
 
 var _glGetProgramInfoLog = _emscripten_glGetProgramInfoLog;
@@ -6182,6 +6334,7 @@ var _emscripten_glGetProgramiv = (program, pname, p) => {
     var log = GLctx.getProgramInfoLog(program);
     if (log === null) log = "(unknown error)";
     HEAP32[_asan_js_check_index(HEAP32, ((p) >> 2), ___asan_storeN)] = log.length + 1;
+    checkInt32(log.length + 1);
   } else if (pname == 35719) {
     if (!program.maxUniformLength) {
       var numActiveUniforms = GLctx.getProgramParameter(program, 35718);
@@ -6190,6 +6343,7 @@ var _emscripten_glGetProgramiv = (program, pname, p) => {
       }
     }
     HEAP32[_asan_js_check_index(HEAP32, ((p) >> 2), ___asan_storeN)] = program.maxUniformLength;
+    checkInt32(program.maxUniformLength);
   } else if (pname == 35722) {
     if (!program.maxAttributeLength) {
       var numActiveAttributes = GLctx.getProgramParameter(program, 35721);
@@ -6198,6 +6352,7 @@ var _emscripten_glGetProgramiv = (program, pname, p) => {
       }
     }
     HEAP32[_asan_js_check_index(HEAP32, ((p) >> 2), ___asan_storeN)] = program.maxAttributeLength;
+    checkInt32(program.maxAttributeLength);
   } else if (pname == 35381) {
     if (!program.maxUniformBlockNameLength) {
       var numActiveUniformBlocks = GLctx.getProgramParameter(program, 35382);
@@ -6206,8 +6361,10 @@ var _emscripten_glGetProgramiv = (program, pname, p) => {
       }
     }
     HEAP32[_asan_js_check_index(HEAP32, ((p) >> 2), ___asan_storeN)] = program.maxUniformBlockNameLength;
+    checkInt32(program.maxUniformBlockNameLength);
   } else {
     HEAP32[_asan_js_check_index(HEAP32, ((p) >> 2), ___asan_storeN)] = GLctx.getProgramParameter(program, pname);
+    checkInt32(GLctx.getProgramParameter(program, pname));
   }
 };
 
@@ -6218,6 +6375,7 @@ var _emscripten_glGetShaderInfoLog = (shader, maxLength, length, infoLog) => {
   if (log === null) log = "(unknown error)";
   var numBytesWrittenExclNull = (maxLength > 0 && infoLog) ? stringToUTF8(log, infoLog, maxLength) : 0;
   if (length) HEAP32[_asan_js_check_index(HEAP32, ((length) >> 2), ___asan_storeN)] = numBytesWrittenExclNull;
+  checkInt32(numBytesWrittenExclNull);
 };
 
 var _glGetShaderInfoLog = _emscripten_glGetShaderInfoLog;
@@ -6240,6 +6398,7 @@ var _emscripten_glGetShaderiv = (shader, pname, p) => {
     // looking at log.length.)
     var logLength = log ? log.length + 1 : 0;
     HEAP32[_asan_js_check_index(HEAP32, ((p) >> 2), ___asan_storeN)] = logLength;
+    checkInt32(logLength);
   } else if (pname == 35720) {
     // GL_SHADER_SOURCE_LENGTH
     var source = GLctx.getShaderSource(GL.shaders[shader]);
@@ -6247,8 +6406,10 @@ var _emscripten_glGetShaderiv = (shader, pname, p) => {
     // values that we report a 0 length for.
     var sourceLength = source ? source.length + 1 : 0;
     HEAP32[_asan_js_check_index(HEAP32, ((p) >> 2), ___asan_storeN)] = sourceLength;
+    checkInt32(sourceLength);
   } else {
     HEAP32[_asan_js_check_index(HEAP32, ((p) >> 2), ___asan_storeN)] = GLctx.getShaderParameter(GL.shaders[shader], pname);
+    checkInt32(GLctx.getShaderParameter(GL.shaders[shader], pname));
   }
 };
 
@@ -6956,6 +7117,7 @@ var Browser = {
       flags = flags | 8388608;
       // set SDL_FULLSCREEN flag
       HEAP32[_asan_js_check_index(HEAP32, ((SDL.screen) >> 2), ___asan_storeN)] = flags;
+      checkInt32(flags);
     }
     Browser.updateCanvasDimensions(Browser.getCanvas());
     Browser.updateResizeListeners();
@@ -6967,6 +7129,7 @@ var Browser = {
       flags = flags & ~8388608;
       // clear SDL_FULLSCREEN flag
       HEAP32[_asan_js_check_index(HEAP32, ((SDL.screen) >> 2), ___asan_storeN)] = flags;
+      checkInt32(flags);
     }
     Browser.updateCanvasDimensions(Browser.getCanvas());
     Browser.updateResizeListeners();
@@ -7900,6 +8063,7 @@ var GLFW = {
           var data = GLFW.joys[joy];
           for (var i = 0; i < gamepad.buttons.length; ++i) {
             HEAP8[_asan_js_check_index(HEAP8, data.buttons + i, ___asan_storeN)] = gamepad.buttons[i].pressed;
+            checkInt8(gamepad.buttons[i].pressed);
           }
           for (var i = 0; i < gamepad.axes.length; ++i) {
             HEAPF32[_asan_js_check_index(HEAPF32, ((data.axes + i * 4) >> 2), ___asan_storeN)] = gamepad.axes[i];
@@ -8192,7 +8356,9 @@ var GLFW = {
   },
   getMousePos: (winid, x, y) => {
     HEAP32[_asan_js_check_index(HEAP32, ((x) >> 2), ___asan_storeN)] = Browser.mouseX;
+    checkInt32(Browser.mouseX);
     HEAP32[_asan_js_check_index(HEAP32, ((y) >> 2), ___asan_storeN)] = Browser.mouseY;
+    checkInt32(Browser.mouseY);
   },
   setCursorPos: (winid, x, y) => {},
   getWindowPos: (winid, x, y) => {
@@ -8205,9 +8371,11 @@ var GLFW = {
     }
     if (x) {
       HEAP32[_asan_js_check_index(HEAP32, ((x) >> 2), ___asan_storeN)] = wx;
+      checkInt32(wx);
     }
     if (y) {
       HEAP32[_asan_js_check_index(HEAP32, ((y) >> 2), ___asan_storeN)] = wy;
+      checkInt32(wy);
     }
   },
   setWindowPos: (winid, x, y) => {
@@ -8226,9 +8394,11 @@ var GLFW = {
     }
     if (width) {
       HEAP32[_asan_js_check_index(HEAP32, ((width) >> 2), ___asan_storeN)] = ww;
+      checkInt32(ww);
     }
     if (height) {
       HEAP32[_asan_js_check_index(HEAP32, ((height) >> 2), ___asan_storeN)] = wh;
+      checkInt32(wh);
     }
   },
   setWindowSize: (winid, width, height) => {
@@ -8524,9 +8694,11 @@ var _glfwGetFramebufferSize = (winid, width, height) => {
   }
   if (width) {
     HEAP32[_asan_js_check_index(HEAP32, ((width) >> 2), ___asan_storeN)] = ww;
+    checkInt32(ww);
   }
   if (height) {
     HEAP32[_asan_js_check_index(HEAP32, ((height) >> 2), ___asan_storeN)] = wh;
+    checkInt32(wh);
   }
 };
 
@@ -8552,9 +8724,11 @@ var _glfwGetJoystickAxes = (joy, count) => {
   var state = GLFW.joys[joy];
   if (!state || !state.axes) {
     HEAP32[_asan_js_check_index(HEAP32, ((count) >> 2), ___asan_storeN)] = 0;
+    checkInt32(0);
     return;
   }
   HEAP32[_asan_js_check_index(HEAP32, ((count) >> 2), ___asan_storeN)] = state.axesCount;
+  checkInt32(state.axesCount);
   return state.axes;
 };
 
@@ -8563,9 +8737,11 @@ var _glfwGetJoystickButtons = (joy, count) => {
   var state = GLFW.joys[joy];
   if (!state || !state.buttons) {
     HEAP32[_asan_js_check_index(HEAP32, ((count) >> 2), ___asan_storeN)] = 0;
+    checkInt32(0);
     return;
   }
   HEAP32[_asan_js_check_index(HEAP32, ((count) >> 2), ___asan_storeN)] = state.buttonsCount;
+  checkInt32(state.buttonsCount);
   return state.buttons;
 };
 
@@ -8712,6 +8888,8 @@ var _glfwWindowHint = (target, hint) => {
   GLFW.hints[target] = hint;
 };
 
+var _glfwWindowHintString = (hint, value) => {};
+
 FS.createPreloadedFile = FS_createPreloadedFile;
 
 FS.preloadFile = FS_preloadFile;
@@ -8778,11 +8956,11 @@ for (/**@suppress{duplicate}*/ var i = 0; i <= 288; ++i) {
 }
 
 // Begin runtime exports
-var missingLibrarySymbols = [ "writeI53ToI64Clamped", "writeI53ToI64Signaling", "writeI53ToU64Clamped", "writeI53ToU64Signaling", "convertI32PairToI53", "convertI32PairToI53Checked", "convertU32PairToI53", "getTempRet0", "createNamedFunction", "withStackSave", "inetPton4", "inetNtop4", "inetPton6", "inetNtop6", "readSockaddr", "writeSockaddr", "readEmAsmArgs", "autoResumeAudioContext", "getDynCaller", "dynCall", "asmjsMangle", "HandleAllocator", "addOnInit", "addOnPostCtor", "addOnPreMain", "STACK_SIZE", "STACK_ALIGN", "POINTER_SIZE", "ASSERTIONS", "ccall", "cwrap", "convertJsFunctionToWasm", "getEmptyTableSlot", "updateTableMap", "getFunctionAddress", "addFunction", "removeFunction", "intArrayToString", "AsciiToString", "stringToAscii", "UTF16ToString", "stringToUTF16", "lengthBytesUTF16", "UTF32ToString", "stringToUTF32", "lengthBytesUTF32", "stringToUTF8OnStack", "writeArrayToMemory", "registerKeyEventCallback", "registerMouseEventCallback", "registerUiEventCallback", "registerFocusEventCallback", "fillDeviceOrientationEventData", "registerDeviceOrientationEventCallback", "fillDeviceMotionEventData", "registerDeviceMotionEventCallback", "screenOrientation", "fillOrientationChangeEventData", "registerOrientationChangeEventCallback", "fillFullscreenChangeEventData", "registerFullscreenChangeEventCallback", "callCanvasResizedCallback", "JSEvents_requestFullscreen", "JSEvents_resizeCanvasForFullscreen", "registerRestoreOldStyle", "hideEverythingExceptGivenElement", "restoreHiddenElements", "setLetterbox", "currentFullscreenStrategy", "softFullscreenResizeWebGLRenderTarget", "doRequestFullscreen", "fillPointerlockChangeEventData", "registerPointerlockChangeEventCallback", "registerPointerlockErrorEventCallback", "requestPointerLock", "fillVisibilityChangeEventData", "registerVisibilityChangeEventCallback", "registerTouchEventCallback", "fillGamepadEventData", "registerGamepadEventCallback", "registerBeforeUnloadEventCallback", "fillBatteryEventData", "registerBatteryEventCallback", "setCanvasElementSize", "getCanvasElementSize", "getCallstack", "wasiRightsToMuslOFlags", "wasiOFlagsToMuslOFlags", "setImmediateWrapped", "safeRequestAnimationFrame", "clearImmediateWrapped", "registerPostMainLoop", "getPromise", "makePromise", "addPromise", "idsToPromises", "makePromiseCallback", "incrementUncaughtExceptionCount", "decrementUncaughtExceptionCount", "Browser_asyncPrepareDataCounter", "isLeapYear", "ydayFromDate", "arraySum", "addDays", "getSocketFromFD", "getSocketAddress", "FS_mkdirTree", "_setNetworkCallback", "emscriptenWebGLGetUniform", "emscriptenWebGLGetVertexAttrib", "__glGetActiveAttribOrUniform", "emscriptenWebGLGetBufferBinding", "emscriptenWebGLValidateMapBufferTarget", "writeGLArray", "registerWebGlEventCallback", "runAndAbortIfError", "emscriptenWebGLGetIndexed", "ALLOC_NORMAL", "ALLOC_STACK", "allocate", "writeStringToMemory", "writeAsciiToMemory", "allocateUTF8", "allocateUTF8OnStack", "demangle", "stackTrace", "getNativeTypeSize" ];
+var missingLibrarySymbols = [ "writeI53ToI64Clamped", "writeI53ToI64Signaling", "writeI53ToU64Clamped", "writeI53ToU64Signaling", "convertI32PairToI53", "convertI32PairToI53Checked", "convertU32PairToI53", "getTempRet0", "createNamedFunction", "withStackSave", "inetPton4", "inetNtop4", "inetPton6", "inetNtop6", "readSockaddr", "writeSockaddr", "runMainThreadEmAsm", "autoResumeAudioContext", "getDynCaller", "dynCall", "asmjsMangle", "HandleAllocator", "addOnInit", "addOnPostCtor", "addOnPreMain", "STACK_SIZE", "STACK_ALIGN", "POINTER_SIZE", "ASSERTIONS", "ccall", "cwrap", "convertJsFunctionToWasm", "getEmptyTableSlot", "updateTableMap", "getFunctionAddress", "addFunction", "removeFunction", "intArrayToString", "AsciiToString", "stringToAscii", "UTF16ToString", "stringToUTF16", "lengthBytesUTF16", "UTF32ToString", "stringToUTF32", "lengthBytesUTF32", "stringToUTF8OnStack", "writeArrayToMemory", "registerKeyEventCallback", "registerMouseEventCallback", "registerUiEventCallback", "registerFocusEventCallback", "fillDeviceOrientationEventData", "registerDeviceOrientationEventCallback", "fillDeviceMotionEventData", "registerDeviceMotionEventCallback", "screenOrientation", "fillOrientationChangeEventData", "registerOrientationChangeEventCallback", "fillFullscreenChangeEventData", "registerFullscreenChangeEventCallback", "callCanvasResizedCallback", "JSEvents_requestFullscreen", "JSEvents_resizeCanvasForFullscreen", "registerRestoreOldStyle", "hideEverythingExceptGivenElement", "restoreHiddenElements", "setLetterbox", "currentFullscreenStrategy", "softFullscreenResizeWebGLRenderTarget", "doRequestFullscreen", "fillPointerlockChangeEventData", "registerPointerlockChangeEventCallback", "registerPointerlockErrorEventCallback", "requestPointerLock", "fillVisibilityChangeEventData", "registerVisibilityChangeEventCallback", "registerTouchEventCallback", "fillGamepadEventData", "registerGamepadEventCallback", "registerBeforeUnloadEventCallback", "fillBatteryEventData", "registerBatteryEventCallback", "setCanvasElementSize", "getCanvasElementSize", "getCallstack", "wasiRightsToMuslOFlags", "wasiOFlagsToMuslOFlags", "setImmediateWrapped", "safeRequestAnimationFrame", "clearImmediateWrapped", "registerPostMainLoop", "getPromise", "makePromise", "addPromise", "idsToPromises", "makePromiseCallback", "incrementUncaughtExceptionCount", "decrementUncaughtExceptionCount", "Browser_asyncPrepareDataCounter", "isLeapYear", "ydayFromDate", "arraySum", "addDays", "getSocketFromFD", "getSocketAddress", "FS_mkdirTree", "_setNetworkCallback", "emscriptenWebGLGetUniform", "emscriptenWebGLGetVertexAttrib", "__glGetActiveAttribOrUniform", "emscriptenWebGLGetBufferBinding", "emscriptenWebGLValidateMapBufferTarget", "writeGLArray", "registerWebGlEventCallback", "runAndAbortIfError", "emscriptenWebGLGetIndexed", "ALLOC_NORMAL", "ALLOC_STACK", "allocate", "writeStringToMemory", "writeAsciiToMemory", "allocateUTF8", "allocateUTF8OnStack", "demangle", "stackTrace", "getNativeTypeSize" ];
 
 missingLibrarySymbols.forEach(missingLibrarySymbol);
 
-var unexportedSymbols = [ "run", "out", "err", "callMain", "abort", "wasmExports", "writeStackCookie", "checkStackCookie", "prettyPrint", "writeI53ToI64", "readI53FromI64", "readI53FromU64", "INT53_MAX", "INT53_MIN", "bigintToI53Checked", "HEAP8", "HEAPU8", "HEAP16", "HEAPU16", "HEAP32", "HEAPU32", "HEAPF32", "HEAPF64", "HEAP64", "HEAPU64", "stackSave", "stackRestore", "stackAlloc", "setTempRet0", "ptrToString", "zeroMemory", "exitJS", "getHeapMax", "growMemory", "ENV", "ERRNO_CODES", "strError", "DNS", "Protocols", "Sockets", "timers", "warnOnce", "noLeakCheck", "readEmAsmArgsArray", "jstoi_q", "getExecutableName", "handleException", "keepRuntimeAlive", "runtimeKeepalivePush", "runtimeKeepalivePop", "callUserCallback", "maybeExit", "asyncLoad", "alignMemory", "mmapAlloc", "wasmTable", "wasmMemory", "getUniqueRunDependency", "noExitRuntime", "addRunDependency", "removeRunDependency", "addOnPreRun", "addOnExit", "addOnPostRun", "freeTableIndexes", "functionsInTableMap", "setValue", "getValue", "PATH", "PATH_FS", "UTF8Decoder", "UTF8ArrayToString", "UTF8ToString", "stringToUTF8Array", "stringToUTF8", "lengthBytesUTF8", "intArrayFromString", "UTF16Decoder", "stringToNewUTF8", "JSEvents", "specialHTMLTargets", "maybeCStringToJsString", "findEventTarget", "findCanvasEventTarget", "getBoundingClientRect", "fillMouseEventData", "registerWheelEventCallback", "restoreOldWindowedStyle", "jsStackTrace", "UNWIND_CACHE", "convertPCtoSourceLocation", "ExitStatus", "getEnvStrings", "checkWasiClock", "doReadv", "doWritev", "initRandomFill", "randomFill", "safeSetTimeout", "emSetImmediate", "emClearImmediate_deps", "emClearImmediate", "registerPreMainLoop", "promiseMap", "uncaughtExceptionCount", "exceptionLast", "exceptionCaught", "ExceptionInfo", "findMatchingCatch", "getExceptionMessageCommon", "incrementExceptionRefcount", "decrementExceptionRefcount", "getExceptionMessage", "Browser", "requestFullscreen", "requestFullScreen", "setCanvasSize", "getUserMedia", "createContext", "getPreloadedImageData__data", "wget", "MONTH_DAYS_REGULAR", "MONTH_DAYS_LEAP", "MONTH_DAYS_REGULAR_CUMULATIVE", "MONTH_DAYS_LEAP_CUMULATIVE", "SYSCALLS", "preloadPlugins", "FS_createPreloadedFile", "FS_preloadFile", "FS_modeStringToFlags", "FS_getMode", "FS_fileDataToTypedArray", "FS_stdin_getChar_buffer", "FS_stdin_getChar", "FS_unlink", "FS_createPath", "FS_createDevice", "FS_readFile", "FS", "FS_root", "FS_mounts", "FS_devices", "FS_streams", "FS_nextInode", "FS_nameTable", "FS_currentPath", "FS_initialized", "FS_ignorePermissions", "FS_filesystems", "FS_syncFSRequests", "FS_lookupPath", "FS_getPath", "FS_hashName", "FS_hashAddNode", "FS_hashRemoveNode", "FS_lookupNode", "FS_createNode", "FS_destroyNode", "FS_isRoot", "FS_isMountpoint", "FS_isFile", "FS_isDir", "FS_isLink", "FS_isChrdev", "FS_isBlkdev", "FS_isFIFO", "FS_isSocket", "FS_flagsToPermissionString", "FS_nodePermissions", "FS_mayLookup", "FS_mayCreate", "FS_mayDelete", "FS_mayOpen", "FS_checkOpExists", "FS_nextfd", "FS_getStreamChecked", "FS_getStream", "FS_createStream", "FS_closeStream", "FS_dupStream", "FS_doSetAttr", "FS_chrdev_stream_ops", "FS_major", "FS_minor", "FS_makedev", "FS_registerDevice", "FS_getDevice", "FS_getMounts", "FS_syncfs", "FS_mount", "FS_unmount", "FS_lookup", "FS_mknod", "FS_statfs", "FS_statfsStream", "FS_statfsNode", "FS_create", "FS_mkdir", "FS_mkdev", "FS_symlink", "FS_link", "FS_rename", "FS_rmdir", "FS_readdir", "FS_readlink", "FS_stat", "FS_fstat", "FS_lstat", "FS_doChmod", "FS_chmod", "FS_lchmod", "FS_fchmod", "FS_doChown", "FS_chown", "FS_lchown", "FS_fchown", "FS_doTruncate", "FS_truncate", "FS_ftruncate", "FS_utime", "FS_open", "FS_close", "FS_isClosed", "FS_llseek", "FS_read", "FS_write", "FS_mmap", "FS_msync", "FS_ioctl", "FS_writeFile", "FS_cwd", "FS_chdir", "FS_createDefaultDirectories", "FS_createDefaultDevices", "FS_createSpecialDirectories", "FS_createStandardStreams", "FS_staticInit", "FS_init", "FS_quit", "FS_findObject", "FS_analyzePath", "FS_createFile", "FS_createDataFile", "FS_forceLoadFile", "FS_createLazyFile", "MEMFS", "TTY", "PIPEFS", "SOCKFS", "tempFixedLengthArray", "miniTempWebGLFloatBuffers", "miniTempWebGLIntBuffers", "heapObjectForWebGLType", "toTypedArrayIndex", "webgl_enable_ANGLE_instanced_arrays", "webgl_enable_OES_vertex_array_object", "webgl_enable_WEBGL_draw_buffers", "webgl_enable_WEBGL_multi_draw", "webgl_enable_EXT_polygon_offset_clamp", "webgl_enable_EXT_clip_control", "webgl_enable_WEBGL_polygon_mode", "GL", "emscriptenWebGLGet", "computeUnpackAlignedImageSize", "colorChannelsInGlTextureFormat", "emscriptenWebGLGetTexPixelData", "webglGetProgramUniformLocation", "webglGetUniformLocation", "webglPrepareUniformLocationsBeforeFirstUse", "webglGetLeftBracePos", "AL", "GLUT", "EGL", "GLEW", "IDBStore", "SDL", "SDL_gfx", "GLFW_Window", "GLFW", "webgl_enable_WEBGL_draw_instanced_base_vertex_base_instance", "webgl_enable_WEBGL_multi_draw_instanced_base_vertex_base_instance", "print", "printErr", "jstoi_s" ];
+var unexportedSymbols = [ "run", "out", "err", "callMain", "abort", "wasmExports", "writeStackCookie", "checkStackCookie", "prettyPrint", "writeI53ToI64", "readI53FromI64", "readI53FromU64", "INT53_MAX", "INT53_MIN", "bigintToI53Checked", "HEAP8", "HEAPU8", "HEAP16", "HEAPU16", "HEAP32", "HEAPU32", "HEAPF32", "HEAPF64", "HEAP64", "HEAPU64", "stackSave", "stackRestore", "stackAlloc", "setTempRet0", "ptrToString", "zeroMemory", "exitJS", "getHeapMax", "growMemory", "ENV", "setStackLimits", "ERRNO_CODES", "strError", "DNS", "Protocols", "Sockets", "timers", "warnOnce", "noLeakCheck", "readEmAsmArgsArray", "readEmAsmArgs", "runEmAsmFunction", "jstoi_q", "getExecutableName", "handleException", "keepRuntimeAlive", "runtimeKeepalivePush", "runtimeKeepalivePop", "callUserCallback", "maybeExit", "asyncLoad", "alignMemory", "mmapAlloc", "wasmTable", "wasmMemory", "getUniqueRunDependency", "noExitRuntime", "addRunDependency", "removeRunDependency", "addOnPreRun", "addOnExit", "addOnPostRun", "freeTableIndexes", "functionsInTableMap", "setValue", "getValue", "PATH", "PATH_FS", "UTF8Decoder", "UTF8ArrayToString", "UTF8ToString", "stringToUTF8Array", "stringToUTF8", "lengthBytesUTF8", "intArrayFromString", "UTF16Decoder", "stringToNewUTF8", "JSEvents", "specialHTMLTargets", "maybeCStringToJsString", "findEventTarget", "findCanvasEventTarget", "getBoundingClientRect", "fillMouseEventData", "registerWheelEventCallback", "restoreOldWindowedStyle", "jsStackTrace", "UNWIND_CACHE", "convertPCtoSourceLocation", "ExitStatus", "getEnvStrings", "checkWasiClock", "doReadv", "doWritev", "initRandomFill", "randomFill", "safeSetTimeout", "emSetImmediate", "emClearImmediate_deps", "emClearImmediate", "registerPreMainLoop", "promiseMap", "uncaughtExceptionCount", "exceptionLast", "exceptionCaught", "ExceptionInfo", "findMatchingCatch", "getExceptionMessageCommon", "incrementExceptionRefcount", "decrementExceptionRefcount", "getExceptionMessage", "Browser", "requestFullscreen", "requestFullScreen", "setCanvasSize", "getUserMedia", "createContext", "getPreloadedImageData__data", "wget", "MONTH_DAYS_REGULAR", "MONTH_DAYS_LEAP", "MONTH_DAYS_REGULAR_CUMULATIVE", "MONTH_DAYS_LEAP_CUMULATIVE", "SYSCALLS", "preloadPlugins", "FS_createPreloadedFile", "FS_preloadFile", "FS_modeStringToFlags", "FS_getMode", "FS_fileDataToTypedArray", "FS_stdin_getChar_buffer", "FS_stdin_getChar", "FS_unlink", "FS_createPath", "FS_createDevice", "FS_readFile", "FS", "FS_root", "FS_mounts", "FS_devices", "FS_streams", "FS_nextInode", "FS_nameTable", "FS_currentPath", "FS_initialized", "FS_ignorePermissions", "FS_filesystems", "FS_syncFSRequests", "FS_lookupPath", "FS_getPath", "FS_hashName", "FS_hashAddNode", "FS_hashRemoveNode", "FS_lookupNode", "FS_createNode", "FS_destroyNode", "FS_isRoot", "FS_isMountpoint", "FS_isFile", "FS_isDir", "FS_isLink", "FS_isChrdev", "FS_isBlkdev", "FS_isFIFO", "FS_isSocket", "FS_flagsToPermissionString", "FS_nodePermissions", "FS_mayLookup", "FS_mayCreate", "FS_mayDelete", "FS_mayOpen", "FS_checkOpExists", "FS_nextfd", "FS_getStreamChecked", "FS_getStream", "FS_createStream", "FS_closeStream", "FS_dupStream", "FS_doSetAttr", "FS_chrdev_stream_ops", "FS_major", "FS_minor", "FS_makedev", "FS_registerDevice", "FS_getDevice", "FS_getMounts", "FS_syncfs", "FS_mount", "FS_unmount", "FS_lookup", "FS_mknod", "FS_statfs", "FS_statfsStream", "FS_statfsNode", "FS_create", "FS_mkdir", "FS_mkdev", "FS_symlink", "FS_link", "FS_rename", "FS_rmdir", "FS_readdir", "FS_readlink", "FS_stat", "FS_fstat", "FS_lstat", "FS_doChmod", "FS_chmod", "FS_lchmod", "FS_fchmod", "FS_doChown", "FS_chown", "FS_lchown", "FS_fchown", "FS_doTruncate", "FS_truncate", "FS_ftruncate", "FS_utime", "FS_open", "FS_close", "FS_isClosed", "FS_llseek", "FS_read", "FS_write", "FS_mmap", "FS_msync", "FS_ioctl", "FS_writeFile", "FS_cwd", "FS_chdir", "FS_createDefaultDirectories", "FS_createDefaultDevices", "FS_createSpecialDirectories", "FS_createStandardStreams", "FS_staticInit", "FS_init", "FS_quit", "FS_findObject", "FS_analyzePath", "FS_createFile", "FS_createDataFile", "FS_forceLoadFile", "FS_createLazyFile", "MEMFS", "TTY", "PIPEFS", "SOCKFS", "tempFixedLengthArray", "miniTempWebGLFloatBuffers", "miniTempWebGLIntBuffers", "heapObjectForWebGLType", "toTypedArrayIndex", "webgl_enable_ANGLE_instanced_arrays", "webgl_enable_OES_vertex_array_object", "webgl_enable_WEBGL_draw_buffers", "webgl_enable_WEBGL_multi_draw", "webgl_enable_EXT_polygon_offset_clamp", "webgl_enable_EXT_clip_control", "webgl_enable_WEBGL_polygon_mode", "GL", "emscriptenWebGLGet", "computeUnpackAlignedImageSize", "colorChannelsInGlTextureFormat", "emscriptenWebGLGetTexPixelData", "webglGetProgramUniformLocation", "webglGetUniformLocation", "webglPrepareUniformLocationsBeforeFirstUse", "webglGetLeftBracePos", "AL", "GLUT", "EGL", "GLEW", "IDBStore", "SDL", "SDL_gfx", "GLFW_Window", "GLFW", "webgl_enable_WEBGL_draw_instanced_base_vertex_base_instance", "webgl_enable_WEBGL_multi_draw_instanced_base_vertex_base_instance", "print", "printErr", "jstoi_s" ];
 
 unexportedSymbols.forEach(unexportedRuntimeSymbol);
 
@@ -8819,6 +8997,255 @@ function checkIncomingModuleAPI() {
   ignoredModuleProp("wasmMemory");
   ignoredModuleProp("wasmBinary");
 }
+
+var ASM_CONSTS = {
+  306932512: $0 => {
+    console.log("[C++ LOG] " + UTF8ToString($0));
+  },
+  306932562: () => {},
+  306932563: () => {},
+  306932564: () => {},
+  306932565: () => {},
+  306932566: () => {},
+  306932567: () => {},
+  306932568: () => {},
+  306932569: () => {},
+  306932570: () => {},
+  306932571: () => {},
+  306932572: () => {},
+  306932573: () => {},
+  306932574: () => {},
+  306932575: () => {},
+  306932576: () => {},
+  306932577: () => {},
+  306932578: () => {},
+  306932579: () => {},
+  306932580: () => {},
+  306932581: () => {},
+  306932582: () => {},
+  306932583: () => {},
+  306932584: () => {},
+  306932585: () => {},
+  306932586: () => {},
+  306932587: () => {},
+  306932588: () => {},
+  306932589: () => {},
+  306932590: () => {},
+  306932591: () => {},
+  306932592: () => {},
+  306932593: () => {},
+  306932594: () => {},
+  306932595: () => {},
+  306932596: () => {},
+  306932597: () => {},
+  306932598: () => {},
+  306932599: () => {},
+  306932600: () => {},
+  306932601: () => {},
+  306932602: () => {},
+  306932603: () => {},
+  306932604: () => {},
+  306932605: () => {},
+  306932606: () => {},
+  306932607: () => {},
+  306932608: $0 => {
+    console.error("[C++ ERR] " + UTF8ToString($0));
+  },
+  306932660: () => {},
+  306932661: () => {},
+  306932662: () => {},
+  306932663: () => {},
+  306932664: () => {},
+  306932665: () => {},
+  306932666: () => {},
+  306932667: () => {},
+  306932668: () => {},
+  306932669: () => {},
+  306932670: () => {},
+  306932671: () => {},
+  306932672: () => {},
+  306932673: () => {},
+  306932674: () => {},
+  306932675: () => {},
+  306932676: () => {},
+  306932677: () => {},
+  306932678: () => {},
+  306932679: () => {},
+  306932680: () => {},
+  306932681: () => {},
+  306932682: () => {},
+  306932683: () => {},
+  306932684: () => {},
+  306932685: () => {},
+  306932686: () => {},
+  306932687: () => {},
+  306932688: () => {},
+  306932689: () => {},
+  306932690: () => {},
+  306932691: () => {},
+  306932692: () => {},
+  306932693: () => {},
+  306932694: () => {},
+  306932695: () => {},
+  306932696: () => {},
+  306932697: () => {},
+  306932698: () => {},
+  306932699: () => {},
+  306932700: () => {},
+  306932701: () => {},
+  306932702: () => {},
+  306932703: () => {},
+  306932704: ($0, $1) => {
+    console.error("[GLFW ERROR " + $0 + "] " + UTF8ToString($1));
+  },
+  306932770: () => {},
+  306932771: () => {},
+  306932772: () => {},
+  306932773: () => {},
+  306932774: () => {},
+  306932775: () => {},
+  306932776: () => {},
+  306932777: () => {},
+  306932778: () => {},
+  306932779: () => {},
+  306932780: () => {},
+  306932781: () => {},
+  306932782: () => {},
+  306932783: () => {},
+  306932784: () => {},
+  306932785: () => {},
+  306932786: () => {},
+  306932787: () => {},
+  306932788: () => {},
+  306932789: () => {},
+  306932790: () => {},
+  306932791: () => {},
+  306932792: () => {},
+  306932793: () => {},
+  306932794: () => {},
+  306932795: () => {},
+  306932796: () => {},
+  306932797: () => {},
+  306932798: () => {},
+  306932799: () => {},
+  306932800: () => {},
+  306932801: () => {},
+  306932802: () => {},
+  306932803: () => {},
+  306932804: () => {},
+  306932805: () => {},
+  306932806: () => {},
+  306932807: () => {},
+  306932808: () => {},
+  306932809: () => {},
+  306932810: () => {},
+  306932811: () => {},
+  306932812: () => {},
+  306932813: () => {},
+  306932814: () => {},
+  306932815: () => {},
+  306932816: () => {},
+  306932817: () => {},
+  306932818: () => {},
+  306932819: () => {},
+  306932820: () => {},
+  306932821: () => {},
+  306932822: () => {},
+  306932823: () => {},
+  306932824: () => {},
+  306932825: () => {},
+  306932826: () => {},
+  306932827: () => {},
+  306932828: () => {},
+  306932829: () => {},
+  306932830: () => {},
+  306932831: () => {},
+  306932832: () => {
+    console.log("== CANVAS DIAGNOSTIC PRE-FLIGHT ==");
+    console.log("typeof Module:", typeof Module);
+    console.log("Module.canvas:", Module ? Module.canvas : "no Module");
+    console.log("document.getElementById('canvas'):", document.getElementById("canvas"));
+    console.log("Module.canvas instanceof HTMLCanvasElement:", Module && Module.canvas instanceof HTMLCanvasElement);
+  },
+  306933202: () => {},
+  306933203: () => {},
+  306933204: () => {},
+  306933205: () => {},
+  306933206: () => {},
+  306933207: () => {},
+  306933208: () => {},
+  306933209: () => {},
+  306933210: () => {},
+  306933211: () => {},
+  306933212: () => {},
+  306933213: () => {},
+  306933214: () => {},
+  306933215: () => {},
+  306933216: () => {},
+  306933217: () => {},
+  306933218: () => {},
+  306933219: () => {},
+  306933220: () => {},
+  306933221: () => {},
+  306933222: () => {},
+  306933223: () => {},
+  306933224: () => {},
+  306933225: () => {},
+  306933226: () => {},
+  306933227: () => {},
+  306933228: () => {},
+  306933229: () => {},
+  306933230: () => {},
+  306933231: () => {},
+  306933232: () => {},
+  306933233: () => {},
+  306933234: () => {},
+  306933235: () => {},
+  306933236: () => {},
+  306933237: () => {},
+  306933238: () => {},
+  306933239: () => {},
+  306933240: () => {},
+  306933241: () => {},
+  306933242: () => {},
+  306933243: () => {},
+  306933244: () => {},
+  306933245: () => {},
+  306933246: () => {},
+  306933247: () => {},
+  306933248: () => {},
+  306933249: () => {},
+  306933250: () => {},
+  306933251: () => {},
+  306933252: () => {},
+  306933253: () => {},
+  306933254: () => {},
+  306933255: () => {},
+  306933256: () => {},
+  306933257: () => {},
+  306933258: () => {},
+  306933259: () => {},
+  306933260: () => {},
+  306933261: () => {},
+  306933262: () => {},
+  306933263: () => {},
+  306933264: () => {},
+  306933265: () => {},
+  306933266: () => {},
+  306933267: () => {},
+  306933268: () => {},
+  306933269: () => {},
+  306933270: () => {},
+  306933271: () => {},
+  306933272: () => {},
+  306933273: () => {},
+  306933274: () => {},
+  306933275: () => {},
+  306933276: () => {},
+  306933277: () => {},
+  306933278: () => {},
+  306933279: () => {}
+};
 
 function ImGui_ImplGlfw_EmscriptenOpenURL(url) {
   url = url ? UTF8ToString(url) : null;
@@ -8880,6 +9307,8 @@ var ___lsan_disable = makeInvalidEarlyAccess("___lsan_disable");
 
 var ___lsan_enable = makeInvalidEarlyAccess("___lsan_enable");
 
+var ___set_stack_limits = Module["___set_stack_limits"] = makeInvalidEarlyAccess("___set_stack_limits");
+
 var memory = makeInvalidEarlyAccess("memory");
 
 var __indirect_function_table = makeInvalidEarlyAccess("__indirect_function_table");
@@ -8916,6 +9345,7 @@ function assignWasmExports(wasmExports) {
   assert(typeof wasmExports["__asan_storeN"] != "undefined", "missing Wasm export: __asan_storeN");
   assert(typeof wasmExports["__lsan_disable"] != "undefined", "missing Wasm export: __lsan_disable");
   assert(typeof wasmExports["__lsan_enable"] != "undefined", "missing Wasm export: __lsan_enable");
+  assert(typeof wasmExports["__set_stack_limits"] != "undefined", "missing Wasm export: __set_stack_limits");
   assert(typeof wasmExports["memory"] != "undefined", "missing Wasm export: memory");
   assert(typeof wasmExports["__indirect_function_table"] != "undefined", "missing Wasm export: __indirect_function_table");
   _main = Module["_main"] = createExportWrapper("main", wasmExports["main"], 2);
@@ -8945,6 +9375,7 @@ function assignWasmExports(wasmExports) {
   ___asan_storeN = wasmExports["__asan_storeN"];
   ___lsan_disable = wasmExports["__lsan_disable"];
   ___lsan_enable = wasmExports["__lsan_enable"];
+  ___set_stack_limits = Module["___set_stack_limits"] = createExportWrapper("__set_stack_limits", wasmExports["__set_stack_limits"], 2);
   memory = wasmMemory = wasmExports["memory"];
   __indirect_function_table = wasmTable = wasmExports["__indirect_function_table"];
 }
@@ -8956,6 +9387,7 @@ var wasmImports = {
   /** @export */ __cxa_find_matching_catch_2: ___cxa_find_matching_catch_2,
   /** @export */ __cxa_find_matching_catch_3: ___cxa_find_matching_catch_3,
   /** @export */ __cxa_throw: ___cxa_throw,
+  /** @export */ __handle_stack_overflow: ___handle_stack_overflow,
   /** @export */ __resumeException: ___resumeException,
   /** @export */ __syscall_dup: ___syscall_dup,
   /** @export */ __syscall_fcntl64: ___syscall_fcntl64,
@@ -8973,6 +9405,7 @@ var wasmImports = {
   /** @export */ _mmap_js: __mmap_js,
   /** @export */ _munmap_js: __munmap_js,
   /** @export */ clock_time_get: _clock_time_get,
+  /** @export */ emscripten_asm_const_int: _emscripten_asm_const_int,
   /** @export */ emscripten_err: _emscripten_err,
   /** @export */ emscripten_get_heap_max: _emscripten_get_heap_max,
   /** @export */ emscripten_get_now: _emscripten_get_now,
@@ -9075,6 +9508,7 @@ var wasmImports = {
   /** @export */ glfwSwapInterval: _glfwSwapInterval,
   /** @export */ glfwTerminate: _glfwTerminate,
   /** @export */ glfwWindowHint: _glfwWindowHint,
+  /** @export */ glfwWindowHintString: _glfwWindowHintString,
   /** @export */ invoke_ii,
   /** @export */ invoke_iii,
   /** @export */ invoke_v,
