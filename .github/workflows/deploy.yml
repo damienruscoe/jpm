@@ -2,7 +2,7 @@ name: Build and Deploy WASM
 
 on:
   push:
-    branches: [ wasm_build ]
+    branches: [ master ]
       
 permissions:
   contents: write
