@@ -19,7 +19,7 @@ const char *glsl_version = "#version 130";
 #include <iostream>
 #endif
 
-namespace log {
+namespace logging {
 
 void debug(const char *msg) {
 #ifdef __EMSCRIPTEN__
@@ -37,27 +37,28 @@ void error(const char *msg) {
 #endif
 }
 
-} // namespace log
+} // namespace logging
 
 namespace ui {
 
 void glfw_error_callback(int error_code, const char *description) {
-  log::error(description);
+  (void)error_code;
+  logging::error(description);
 }
 
 Root::Root() {
-  log::debug("Entering Root::Root() constructor...");
+  logging::debug("Entering Root::Root() constructor...");
 
   glfwSetErrorCallback(glfw_error_callback);
-  log::debug("GLFW error callback registered.");
+  logging::debug("GLFW error callback registered.");
 
-  log::debug("Calling glfwInit()...");
+  logging::debug("Calling glfwInit()...");
   if (!glfwInit()) {
-    log::error("glfwInit() RETURNED FALSE!");
+    logging::error("glfwInit() RETURNED FALSE!");
     throw std::runtime_error("Failed to init glfw");
   }
 
-  log::debug("glfwInit() succeeded.");
+  logging::debug("glfwInit() succeeded.");
 
   glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -72,12 +73,12 @@ Root::Root() {
     glfwWindowHint(GLFW_ALPHA_BITS, 0);   // Force 24-bit RGB (no alpha buffer)
     glfwWindowHint(GLFW_STENCIL_BITS, 0); // Disable stencil if unused
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_ANY_PROFILE);
-    log::debug("Attempting glfwCreateWindow(1280, 720)...");
+    logging::debug("Attempting glfwCreateWindow(1280, 720)...");
     window = glfwCreateWindow(1280, 720, "Dashboard", NULL, NULL);
   }
 
   if (!window) {
-    log::error("glfwCreateWindow returned NULL!");
+    logging::error("glfwCreateWindow returned NULL!");
     throw std::runtime_error("Failed to init GUI window");
   }
 
@@ -107,7 +108,7 @@ emscripten_webgl_make_context_current(ctx);
   ImGui_ImplGlfw_InitForOpenGL(window, true);
   ImGui_ImplOpenGL3_Init(glsl_version);
 
-  ui = std::make_unique<UIController>();
+  ui = std::make_unique<TickerNotebook>();
 }
 
 Root::~Root() {
@@ -121,8 +122,9 @@ Root::~Root() {
 
 void Root::run() {
 #ifdef __EMSCRIPTEN__
+  // emscripten_set_main_loop_timing(EM_TIMING_SETTIMEOUT, -100000);
   emscripten_set_main_loop_arg(MainLoopTrampoline, this, 0, 1);
-  glfwSwapInterval(1);
+  // glfwSwapInterval(10);
 #else
   glfwSwapInterval(1);
   while (!glfwWindowShouldClose(window))

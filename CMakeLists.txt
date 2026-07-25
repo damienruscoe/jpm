@@ -5,6 +5,13 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+add_compile_options(-pthread)
+add_link_options(-pthread)
+
+include_directories(
+    ${CMAKE_SOURCE_DIR}/src/
+)
+
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
@@ -74,14 +81,28 @@ target_include_directories(core SYSTEM PUBLIC
 target_link_libraries(core PUBLIC project_warnings project_sanitizers)
 
 
+
 include(FetchContent)
-FetchContent_Declare(
-  boost_headers
+FetchContent_Declare(boost_headers
   URL https://github.com/emscripten-ports/boost/releases/download/boost-1.83.0/boost-headers-1.83.0.zip
   URL_HASH SHA512=82e3a64e55caac0254f9e6b179437ad9421943b8f73957285978dad16c24dcae6372c464909fdc085b9790662b6a3af5163140b1e456705e80fda51c5fe3c243
+  SOURCE_DIR "${CMAKE_BINARY_DIR}/_deps/boost"
 )
 FetchContent_MakeAvailable(boost_headers)
 
+include(FetchContent)
+FetchContent_Declare(json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG        v3.12.0
+)
+FetchContent_MakeAvailable(json)
+
+include(FetchContent)
+FetchContent_Declare(readerwriterqueue
+	GIT_REPOSITORY https://github.com/cameron314/readerwriterqueue.git
+	GIT_TAG v1.0.7
+)
+FetchContent_MakeAvailable(readerwriterqueue)
 
 
 if (WASM)
@@ -95,7 +116,7 @@ if (WASM)
         -sMAX_WEBGL_VERSION=2
         -sUSE_WEBGL2=1
         -sOFFSCREENCANVAS_SUPPORT=0
-        -sALLOW_MEMORY_GROWTH=1
+        -sPTHREAD_POOL_SIZE=4
         $<$<CONFIG:Debug>:-sGL_DEBUG=1>
         $<$<CONFIG:Debug>:-sASSERTIONS>
         $<$<CONFIG:Debug>:-fexceptions>
@@ -103,22 +124,48 @@ if (WASM)
     )
 endif()
 
-if (NOT WASM)
+
+
+if (WASM)
+    file(GLOB PLATFORM_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/platform/wasm/*.cpp")
+
+    add_library(platform STATIC ${PLATFORM_SRCS})
+else()
+    file(GLOB PLATFORM_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/platform/linux/*.cpp")
+
+    add_library(platform STATIC ${PLATFORM_SRCS})
+    target_include_directories(platform PUBLIC
+        ${CMAKE_SOURCE_DIR}/../queueco/deps/websocketpp
+    )
+    target_link_libraries(platform PRIVATE
+        OpenSSL::SSL
+        OpenSSL::Crypto
+    )
+endif()
+
+
+
+if (WASM)
+    add_library(parsers STATIC 
+        ${CMAKE_SOURCE_DIR}/src/parser/csv.cpp
+    )
+else()
     find_package(databento REQUIRED)
     find_package(OpenSSL REQUIRED)
-    find_package(nlohmann_json REQUIRED)
-
 
     file(GLOB PARSER_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/parser/*.cpp")
     add_library(parsers STATIC ${PARSER_SRCS})
-    target_include_directories(parsers PUBLIC
-        ${CMAKE_SOURCE_DIR}/src
-    )
-    target_include_directories(parsers SYSTEM PUBLIC
-        ${CMAKE_SOURCE_DIR}/deps/cnl/include
-    )
-    target_link_libraries(parsers PUBLIC project_warnings project_sanitizers)
 endif()
+
+
+
+target_include_directories(parsers PUBLIC
+		${CMAKE_SOURCE_DIR}/src
+)
+target_include_directories(parsers SYSTEM PUBLIC
+		${CMAKE_SOURCE_DIR}/deps/cnl/include
+)
+target_link_libraries(parsers PUBLIC project_warnings project_sanitizers)
 
 
 if (NOT WASM)
@@ -129,13 +176,13 @@ if (NOT WASM)
         databento::databento
     )
 
-
     add_executable(gemini src/apps/gemini.cpp)
     target_include_directories(gemini PUBLIC
         ../queueco/deps/websocketpp
     )
     target_link_libraries(gemini PRIVATE
         core
+        platform 
         OpenSSL::SSL
         OpenSSL::Crypto
         nlohmann_json::nlohmann_json
@@ -143,11 +190,6 @@ if (NOT WASM)
 endif()
 
 
-# ---------------------------------------------------------------------------
-# matching_engine_tests
-# find_package first (system/vendored gtest); FetchContent fallback so a
-# machine without libgtest-dev installed still builds.
-# ---------------------------------------------------------------------------
 if (NOT WASM)
 
     find_package(GTest QUIET)
@@ -174,14 +216,8 @@ if (NOT WASM)
 
 endif()
 
-# ---------------------------------------------------------------------------
-# bloomberg — optional, off by default (-DBUILD_GUI=ON to enable).
-# ImGui and ImPlot ship without a top-level CMakeLists, so — same as the
-# old Makefile did by hand — we compile their sources directly into a
-# library target ourselves. GLFW *does* ship a full CMake project, so
-# FetchContent gives us a ready-made `glfw` target for free, which is
-# what removes the old hardcoded chronovis build-tree paths and -lglfw.
-# ---------------------------------------------------------------------------
+
+
 if(BUILD_GUI)
     if(WASM)
         include(FetchContent)
@@ -211,8 +247,6 @@ if(BUILD_GUI)
         FetchContent_Declare(imgui  GIT_REPOSITORY https://github.com/ocornut/imgui.git  GIT_TAG v1.91.5)
         FetchContent_Declare(implot GIT_REPOSITORY https://github.com/epezent/implot.git GIT_TAG v0.16)
         FetchContent_MakeAvailable(imgui implot)
-            FetchContent_Declare(readerwriterqueue GIT_REPOSITORY https://github.com/cameron314/readerwriterqueue.git GIT_TAG v1.0.7)
-            FetchContent_MakeAvailable(readerwriterqueue)
 
         # GLFW: prefer whatever's already on the machine (a CMake config
         # package, or failing that pkg-config) before building it from
@@ -278,14 +312,21 @@ if(BUILD_GUI)
 
     file(GLOB UI_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/ui/*.cpp")
 
-
-    add_executable(fake_dashboard src/apps/sample_dashboard.cpp ${UI_SRCS})
+    add_executable(fake_dashboard src/apps/sample_dashboard.cpp ${PLATFORM_SRCS} ${UI_SRCS})
     target_include_directories(fake_dashboard SYSTEM PRIVATE ${boost_headers_SOURCE_DIR})
     target_link_libraries(fake_dashboard PRIVATE
         core
+        platform 
         implot_lib
+        pthread
     )
-    #target_link_options(fake_dashboard PRIVATE "-s TEXTDECODER=0")
+    if (WASM)
+      target_link_options(fake_dashboard PRIVATE
+          -pthread
+          -lwebsocket.js
+          -sPTHREAD_POOL_SIZE=4
+      )
+    endif()
 
 
     if (NOT WASM)
@@ -299,18 +340,23 @@ if(BUILD_GUI)
         )
 
 
-        add_executable(gemini_dashboard src/apps/gemini_gui.cpp ${UI_SRCS})
-        target_include_directories(gemini_dashboard PUBLIC
-            ../queueco/deps/websocketpp
-        )
-        target_link_libraries(gemini_dashboard PRIVATE
-            core
-            parsers
-            implot_lib
-            OpenSSL::SSL
-            OpenSSL::Crypto
-            nlohmann_json::nlohmann_json
-            readerwriterqueue
-        )
     endif()
+
+    add_executable(gemini_dashboard src/apps/gemini_gui.cpp ${UI_SRCS})
+    target_include_directories(gemini_dashboard SYSTEM PRIVATE ${boost_headers_SOURCE_DIR}/..)
+    target_link_libraries(gemini_dashboard PRIVATE
+        core
+        parsers
+        platform
+        implot_lib
+        nlohmann_json::nlohmann_json
+        readerwriterqueue
+    )
+    if (WASM)
+			target_link_options(gemini_dashboard PRIVATE
+					-pthread
+					-lwebsocket.js
+					-sPTHREAD_POOL_SIZE=4
+			)
+		endif()
 endif()

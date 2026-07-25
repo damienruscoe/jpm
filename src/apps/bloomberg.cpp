@@ -17,19 +17,20 @@ using FileSource = DatabentoFile;
 
 using Traits =
     OrderBookTraits<FileSource::order_id_t, FileSource::Price, uint32_t>;
+using Event = LevelQuantityEvent<Traits>;
 
-// using Strategy = ui::FullySequential;
-// using Strategy = ui::SideSequential;
-using Strategy = ui::MergeEvents;
+// using Strategy = ui::FullySequential<ui::DefaultLevelUpdate>;
+// using Strategy = ui::SideSequential<ui::DefaultLevelUpdate>;
+using Strategy = ui::MergeEvents<ui::DefaultLevelUpdate>;
 
-using UIController = ui::UIControllerBase<LevelQuantityEvent<Traits>, Strategy>;
-UIController ui_controller;
+using MessageQueue = ui::MessageQueue<Event, Strategy>;
+MessageQueue msg_queue;
 
 template <typename Traits> struct EventHandler {
   void update(const TradeEvent<Traits> &event) { (void)event; }
   void update(const OrderMatchedEvent<Traits> &event) { (void)event; }
   void update(const LevelQuantityEvent<Traits> &event) {
-    ui_controller.push(event);
+    msg_queue.push(event);
     std::this_thread::sleep_for(10ms);
   }
 };
@@ -48,7 +49,7 @@ int main(int argc, char *argv[]) {
   auto ui_thread = std::jthread([&]() {
     ui::Root root;
     auto callback =
-        std::bind_front(&UIController::process_update_queue, &ui_controller);
+        std::bind_front(&MessageQueue::process_update_queue, &msg_queue);
     root.update_queue = callback;
     root.run();
   });

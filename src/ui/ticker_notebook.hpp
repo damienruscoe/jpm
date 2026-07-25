@@ -5,9 +5,9 @@
 
 namespace ui {
 
-class UIController {
+class TickerNotebook {
 public:
-  UIController();
+  TickerNotebook();
   void Render(ui::OrderBookSnapshot &m_snapshot);
 
 private:

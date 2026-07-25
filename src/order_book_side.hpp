@@ -25,12 +25,7 @@ public:
       const bool cleared = level->second.matchAgainst(
           qty, std::forward<OrderCallback>(on_filled));
 
-      signals.update(LevelQuantityEvent<typename Order::Traits>{
-          level->first,                // level price
-          level->second.getQuantity(), // New quantity at level
-          level->second.getOrderCount(),
-          std::is_same_v<Comparitor, std::greater<Price>> ? side_t::BID
-                                                          : side_t::ASK});
+      signals.update(make_level_quanity_event(level));
 
       level = cleared ? book.erase(level) : std::next(level);
     }
@@ -39,28 +34,20 @@ public:
   }
 
   void insertOrder(Order &order, auto &signals) {
-    book[order.price].addOrder(order);
+    const auto [level, inserted] = book.try_emplace(order.price);
+    level->second.addOrder(order);
 
-    signals.update(LevelQuantityEvent<typename Order::Traits>{
-        order.price,                     // level price
-        book[order.price].getQuantity(), // New quantity at level
-        book[order.price].getOrderCount(),
-        std::is_same_v<Comparitor, std::greater<Price>> ? side_t::BID
-                                                        : side_t::ASK});
+    signals.update(make_level_quanity_event(level));
   }
 
   void removeOrder(Order &order, auto &signals) {
-    if (const auto it = book.find(order.price); it != book.end()) {
-      const bool cleared = it->second.removeOrder(order);
+    if (const auto level = book.find(order.price); level != book.end()) {
+      const bool cleared = level->second.removeOrder(order);
 
-      signals.update(LevelQuantityEvent<typename Order::Traits>{
-          it->first,                // level price
-          it->second.getQuantity(), // New quantity at level
-          it->second.getOrderCount(),
-          std::is_same_v<Comparitor, std::greater<Price>> ? side_t::BID
-                                                          : side_t::ASK});
+      signals.update(make_level_quanity_event(level));
+
       if (cleared)
-        book.erase(it);
+        book.erase(level);
     }
   }
 
@@ -89,5 +76,15 @@ public:
 
 private:
   using Book = std::pmr::map<Price, PriceLevel<Order>, Comparitor>;
+
+  LevelQuantityEvent<typename Order::Traits>
+  make_level_quanity_event(Book::iterator level) {
+    return LevelQuantityEvent<typename Order::Traits>{
+        level->first, level->second.getQuantity(),
+        level->second.getOrderCount(),
+        std::is_same_v<Comparitor, std::greater<Price>> ? side_t::BID
+                                                        : side_t::ASK};
+  }
+
   Book book;
 };

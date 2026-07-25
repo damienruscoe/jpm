@@ -67,6 +67,11 @@ public:
   [[nodiscard]] bool replaceOrder(OrderID &&order_id, const Price &price,
                                   const Quantity &qty);
 
+  bool isCrossedOrderBook() const {
+    return (getBestBid() && getBestAsk() &&
+            getBestBid()->price > getBestAsk()->price);
+  }
+
   std::optional<L2PriceLevel> getBestAsk() const {
     return asks.template getBest<L2PriceLevel>();
   }

@@ -1,4 +1,4 @@
-#include "ui/ui.hpp"
+#include "ui/ticker_notebook.hpp"
 #include "ui/dashboard.hpp"
 #include "ui/dashboard_types.hpp"
 
@@ -28,9 +28,9 @@ void PopTheme() {
 
 namespace ui {
 
-UIController::UIController() {}
+TickerNotebook::TickerNotebook() {}
 
-void UIController::Render(ui::OrderBookSnapshot &snapshot) {
+void TickerNotebook::Render(ui::OrderBookSnapshot &snapshot) {
   ImGui::StyleColorsDark();
 
   ImVec2 viewportSize = ImGui::GetIO().DisplaySize;

@@ -3,14 +3,13 @@
 #include "str_utils.hpp"
 #include <charconv>
 #include <cmath>
+#include <cstdint>
 #include <iomanip>
 #include <iostream>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string_view>
-
-#include <cnl/scaled_integer.h>
 
 namespace {
 
@@ -21,8 +20,6 @@ static inline std::optional<BaseType> parse_float(std::string_view str);
 
 template <int DecimalPlaces, typename BaseTypeT = int64_t> class FixedPoint {
 private:
-  using cnl_fp = cnl::scaled_integer<BaseTypeT, cnl::power<-DecimalPlaces, 10>>;
-
   static constexpr int64_t Scale = []() {
     int64_t val = 1;
     for (int i = 0; i < DecimalPlaces; ++i)
@@ -35,9 +32,7 @@ public:
   static constexpr int decimals = DecimalPlaces;
 
   FixedPoint() : m_value(0) {}
-  /*explicit*/ FixedPoint(BaseType raw)
-      : m_value(cnl::from_rep<cnl_fp, BaseType>{}(
-            raw * std::pow(10, DecimalPlaces))) {}
+  /*explicit*/ FixedPoint(BaseType raw) : m_value(raw * Scale) {}
 
   friend std::ostream &operator<<(std::ostream &os, const FixedPoint &fp) {
     std::stringstream ss;
@@ -124,13 +119,11 @@ public:
   friend std::hash<FixedPoint<DecimalPlaces, BaseTypeT>>;
 
 private:
-  FixedPoint(cnl_fp val) : m_value(val) {}
-  FixedPoint(BaseType raw, bool)
-      : m_value(cnl::from_rep<cnl_fp, BaseType>{}(raw)) {}
+  FixedPoint(BaseType raw, bool) : m_value(raw) {}
 
-  BaseType get_raw_value() const { return cnl::to_rep<cnl_fp>{}(m_value); }
+  BaseType get_raw_value() const { return m_value; }
 
-  cnl_fp m_value;
+  BaseTypeT m_value;
 };
 
 namespace std {

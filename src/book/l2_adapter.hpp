@@ -40,6 +40,8 @@ public:
     return false;
   }
 
+  bool isCrossedOrderBook() const { return m_book.isCrossedOrderBook(); }
+
   std::optional<L2PriceLevel> getBestAsk() const { return m_book.getBestAsk(); }
 
   std::optional<L2PriceLevel> getBestBid() const { return m_book.getBestBid(); }

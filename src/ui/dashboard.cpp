@@ -29,35 +29,48 @@ constexpr ImVec4 kColorGreeksText{0.58f, 0.66f, 0.76f, 1.00f};
 constexpr ImVec4 kColorMuted{0.45f, 0.45f, 0.48f, 1.00f};
 // constexpr ImVec4 kColorOrderId{0.70f, 0.70f, 0.72f, 1.00f};
 
+struct RectPoints {
+  ImVec2 top_left;
+  ImVec2 bottom_right;
+};
+
 // Draws a translucent depth bar filling `fraction` of the current cell,
 // anchored to the given side, then leaves the cursor for text on top.
-void DrawSizeBar(float fraction, ImVec4 color, bool anchor_right) {
+void DrawRect(const RectPoints &rect, float fraction, ImVec4 color,
+              bool anchor_right) {
   ImDrawList *draw_list = ImGui::GetWindowDrawList();
 
+  fraction = std::clamp(fraction, 0.0f, 1.0f);
+  float bar_width = (rect.bottom_right.x - rect.top_left.x) * fraction;
+  ImVec2 bar_min =
+      anchor_right ? ImVec2(rect.bottom_right.x - bar_width, rect.top_left.y)
+                   : rect.top_left;
+  ImVec2 bar_max =
+      anchor_right ? rect.bottom_right
+                   : ImVec2(rect.top_left.x + bar_width, rect.bottom_right.y);
+
+  draw_list->AddRectFilled(bar_min, bar_max,
+                           ImGui::ColorConvertFloat4ToU32(color));
+}
+
+RectPoints GetCurrentTableCellContentRect() {
   const float border_size = 1.f;
+  RectPoints result;
 
   ImVec2 cell_padding = ImGui::GetStyle().CellPadding;
   cell_padding.x -= border_size;
   cell_padding.y -= border_size + 1;
 
-  ImVec2 top_left = ImGui::GetCursorScreenPos();
-  top_left.x -= cell_padding.x;
-  top_left.y -= cell_padding.y;
+  result.top_left = ImGui::GetCursorScreenPos();
+  result.top_left.x -= cell_padding.x;
+  result.top_left.y -= cell_padding.y;
 
-  ImVec2 bottom_right = ImGui::GetCursorScreenPos();
-  bottom_right.x += cell_padding.x + ImGui::GetContentRegionAvail().x;
-  bottom_right.y += cell_padding.y + ImGui::GetTextLineHeightWithSpacing() - 2;
+  result.bottom_right = ImGui::GetCursorScreenPos();
+  result.bottom_right.x += cell_padding.x + ImGui::GetContentRegionAvail().x;
+  result.bottom_right.y +=
+      cell_padding.y + ImGui::GetTextLineHeightWithSpacing() - 2;
 
-  fraction = std::clamp(fraction, 0.0f, 1.0f);
-  float bar_width = (bottom_right.x - top_left.x) * fraction;
-  ImVec2 bar_min =
-      anchor_right ? ImVec2(bottom_right.x - bar_width, top_left.y) : top_left;
-  ImVec2 bar_max = anchor_right
-                       ? bottom_right
-                       : ImVec2(top_left.x + bar_width, bottom_right.y);
-
-  draw_list->AddRectFilled(bar_min, bar_max,
-                           ImGui::ColorConvertFloat4ToU32(color));
+  return result;
 }
 
 void DrawSizeBar(size_t size, size_t max_size, ImVec4 color,
@@ -65,7 +78,9 @@ void DrawSizeBar(size_t size, size_t max_size, ImVec4 color,
   float fraction = max_size > 0
                        ? static_cast<float>(size) / static_cast<float>(max_size)
                        : 0.0f;
-  DrawSizeBar(fraction, color, anchor_right);
+
+  RectPoints rect = GetCurrentTableCellContentRect();
+  DrawRect(rect, fraction, color, anchor_right);
 }
 
 std::string FormatGreeksCompact(const Greeks &greeks) {

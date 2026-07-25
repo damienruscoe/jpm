@@ -34,11 +34,19 @@ jobs:
       - name: Prepare Deployment Directory
         run: |
           mkdir -p dist/fake_dashboard
-          cp pages/index.html dist/index.html
           cp build/fake_dashboard.html dist/fake_dashboard/index.html
           cp build/fake_dashboard.js dist/fake_dashboard/
           cp build/fake_dashboard.wasm dist/fake_dashboard/
-          echo "=== Built files ===" && ls -lah dist/fake_dashboard/
+          cp pages/coi-serviceworker.js dist/fake_dashboard/
+
+          mkdir -p dist/gemini_dashboard
+          cp build/gemini_dashboard.html dist/gemini_dashboard/index.html
+          cp build/gemini_dashboard.js dist/gemini_dashboard/
+          cp build/gemini_dashboard.wasm dist/gemini_dashboard/
+          cp pages/coi-serviceworker.js dist/gemini_dashboard/
+
+          cp pages/index.html dist/
+          cp pages/coi-serviceworker.js dist/
 
       - name: Deploy to gh-pages branch
         run: |
@@ -70,5 +78,3 @@ jobs:
           git add .
           git commit -m "Deploy WASM build from ${{ github.sha }}" || echo "No changes to commit"
           git push -u origin gh-pages
-
-

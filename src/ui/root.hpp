@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ui/ui.hpp"
+#include "ui/ticker_notebook.hpp"
 
 #include "imgui_impl_glfw.h"
 #include <GLFW/glfw3.h>
@@ -22,7 +22,7 @@ private:
   void process_update_queue();
 
   GLFWwindow *window;
-  std::unique_ptr<ui::UIController> ui;
+  std::unique_ptr<ui::TickerNotebook> ui;
   ui::OrderBookSnapshot m_snapshot;
 
 public:

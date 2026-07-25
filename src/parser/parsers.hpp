@@ -1,5 +1,8 @@
 #pragma once
 
+#if __EMSCRIPTEN__
+#else
+
 #include "line_view.hpp"
 #include "mmfile.hpp"
 
@@ -92,3 +95,5 @@ struct DatabentoFile {
     parser::databento::update_order_book(book, &msg);
   }
 };
+
+#endif
