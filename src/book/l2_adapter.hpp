@@ -17,12 +17,10 @@ template <typename Traits_T> struct OrderBookTraitsL2 {
 };
 
 template <typename Traits,
-          typename SignalAggregator =
-              signals::EmptySignals<typename OrderBookTraitsL2<Traits>::Traits>>
+          typename SignalAggregator = signals::EmptySignals<Traits>>
 class OrderBookL2Adapter {
 public:
-  using L2Traits = typename OrderBookTraitsL2<Traits>::Traits;
-  using UnderlyingBook = OrderBook<L2Traits, SignalAggregator>;
+  using UnderlyingBook = OrderBook<Traits, SignalAggregator>;
 
   using StoredOrderID = typename UnderlyingBook::StoredOrderID;
   using Price = typename UnderlyingBook::Price;

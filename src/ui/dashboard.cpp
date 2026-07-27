@@ -258,7 +258,7 @@ void OrderBookPanel::RenderLadder(const OrderBookSnapshot &snapshot) {
 
       ImGui::TableSetColumnIndex(col++);
       DrawSizeBar(row.size, max_size,
-                  row_idx == 0 ? kColorAskBarBest : kColorAskBar, false);
+                  row_idx == 0 ? kColorAskBarBest : kColorAskBar, true);
       ImGui::TextColored(kColorAskText, "%llu",
                          static_cast<unsigned long long>(row.size));
 
